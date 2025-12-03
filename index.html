@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Music Key Guesser</title>
+  <script src="https://unpkg.com/tone@14.8.49/build/Tone.js"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      min-height: 100vh;
+      color: white;
+    }
+    #root { min-height: 100vh; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useCallback } = React;
+
+    const NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    
+    const DIFFICULTIES = {
+      easy: { notes: ['C', 'D', 'E', 'F', 'G', 'A', 'B'], choices: 4, label: 'Easy (Natural Notes)' },
+      medium: { notes: NOTES, choices: 4, label: 'Medium (All Notes)' },
+      hard: { notes: NOTES, choices: 6, label: 'Hard (All Notes, More Choices)' },
+    };
+
+    function App() {
+      const [gameState, setGameState] = useState('start');
+      const [difficulty, setDifficulty] = useState('easy');
+      const [currentNote, setCurrentNote] = useState(null);
+      const [choices, setChoices] = useState([]);
+      const [score, setScore] = useState(0);
+      const [streak, setStreak] = useState(0);
+      const [bestStreak, setBestStreak] = useState(0);
+      const [totalPlayed, setTotalPlayed] = useState(0);
+      const [lastResult, setLastResult] = useState(null);
+      const [isPlaying, setIsPlaying] = useState(false);
+      const [synth, setSynth] = useState(null);
+
+      useEffect(() => {
+        const newSynth = new Tone.Synth({
+          oscillator: { type: 'triangle' },
+          envelope: { attack: 0.02, decay: 0.3, sustain: 0.4, release: 1.5 }
+        }).toDestination();
+        setSynth(newSynth);
+        return () => { newSynth.dispose(); };
+      }, []);
+
+      const generateChoices = useCallback((correctNote, diffSettings) => {
+        const availableNotes = diffSettings.notes.filter(n => n !== correctNote);
+        const shuffled = availableNotes.sort(() => Math.random() - 0.5);
+        const wrongChoices = shuffled.slice(0, diffSettings.choices - 1);
+        return [...wrongChoices, correctNote].sort(() => Math.random() - 0.5);
+      }, []);
+
+      const startNewRound = useCallback(async () => {
+        const diffSettings = DIFFICULTIES[difficulty];
+        const randomNote = diffSettings.notes[Math.floor(Math.random() * diffSettings.notes.length)];
+        const newChoices = generateChoices(randomNote, diffSettings);
+        setCurrentNote(randomNote);
+        setChoices(newChoices);
+        setLastResult(null);
+        setGameState('playing');
+        setTimeout(() => playNote(randomNote), 300);
+      }, [difficulty, generateChoices]);
+
+      const playNote = async (note) => {
+        if (!synth || isPlaying) return;
+        try {
+          await Tone.start();
+          setIsPlaying(true);
+          synth.triggerAttackRelease(`${note}4`, '1n');
+          setTimeout(() => setIsPlaying(false), 1500);
+        } catch (err) {
+          console.error('Audio error:', err);
+          setIsPlaying(false);
+        }
+      };
+
+      const handleGuess = (guess) => {
+        const correct = guess === currentNote;
+        setTotalPlayed(prev => prev + 1);
+        if (correct) {
+          setScore(prev => prev + 1);
+          setStreak(prev => {
+            const newStreak = prev + 1;
+            if (newStreak > bestStreak) setBestStreak(newStreak);
+            return newStreak;
+          });
+          setLastResult({ correct: true, message: 'Correct! 🎉' });
+        } else {
+          setStreak(0);
+          setLastResult({ correct: false, message: `Wrong! It was ${currentNote}` });
+        }
+        setGameState('result');
+      };
+
+      const replayNote = () => { if (currentNote) playNote(currentNote); };
+      const resetGame = () => {
+        setScore(0); setStreak(0); setTotalPlayed(0);
+        setGameState('start'); setLastResult(null);
+      };
+
+      const styles = {
+        container: { minHeight: '100vh', display: 'flex', flexDirection: 'column', padding: '20px', maxWidth: '600px', margin: '0 auto' },
+        header: { textAlign: 'center', marginBottom: '30px' },
+        title: { fontSize: '2rem', fontWeight: '700', marginBottom: '8px', background: 'linear-gradient(135deg, #a855f7, #ec4899)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' },
+        subtitle: { color: '#94a3b8', fontSize: '1rem' },
+        card: { backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: '20px', padding: '30px', backdropFilter: 'blur(10px)', width: '100%' },
+        cardTitle: { fontSize: '1.25rem', fontWeight: '600', marginBottom: '20px', textAlign: 'center' },
+        difficultyOptions: { display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '25px' },
+        difficultyBtn: { padding: '15px 20px', borderRadius: '12px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'transparent', color: 'white', fontSize: '1rem', cursor: 'pointer', transition: 'all 0.2s' },
+        difficultyBtnActive: { borderColor: '#a855f7', backgroundColor: 'rgba(168, 85, 247, 0.2)' },
+        startBtn: { width: '100%', padding: '18px', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg, #a855f7, #ec4899)', color: 'white', fontSize: '1.1rem', fontWeight: '600', cursor: 'pointer' },
+        scoreBoard: { display: 'flex', justifyContent: 'space-around', backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: '15px', padding: '15px' },
+        scoreStat: { display: 'flex', flexDirection: 'column', alignItems: 'center' },
+        scoreLabel: { fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase' },
+        scoreValue: { fontSize: '1.25rem', fontWeight: '700' },
+        playSection: { textAlign: 'center', padding: '20px' },
+        playBtn: { display: 'inline-flex', alignItems: 'center', gap: '10px', padding: '20px 40px', borderRadius: '50px', border: 'none', background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', color: 'white', fontSize: '1.25rem', fontWeight: '600', cursor: 'pointer', boxShadow: '0 10px 40px rgba(139, 92, 246, 0.3)', transition: 'transform 0.2s' },
+        playBtnDisabled: { opacity: 0.7, cursor: 'not-allowed' },
+        playHint: { marginTop: '15px', color: '#94a3b8' },
+        choicesGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' },
+        choiceBtn: { padding: '25px 20px', borderRadius: '15px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'rgba(255, 255, 255, 0.1)', color: 'white', fontSize: '1.5rem', fontWeight: '700', cursor: 'pointer', transition: 'all 0.2s' },
+        choiceBtnCorrect: { borderColor: '#22c55e', backgroundColor: 'rgba(34, 197, 94, 0.3)' },
+        actionButtons: { display: 'flex', gap: '12px', marginTop: 'auto' },
+        nextBtn: { flex: 1, padding: '18px', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg, #22c55e, #16a34a)', color: 'white', fontSize: '1.1rem', fontWeight: '600', cursor: 'pointer' },
+        resetBtn: { flex: 1, padding: '18px', borderRadius: '12px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'transparent', color: 'white', fontSize: '1rem', fontWeight: '500', cursor: 'pointer' },
+        footer: { textAlign: 'center', padding: '20px', color: '#64748b', fontSize: '0.875rem' }
+      };
+
+      return (
+        <div style={styles.container}>
+          <header style={styles.header}>
+            <h1 style={styles.title}>🎵 Music Key Guesser</h1>
+            <p style={styles.subtitle}>Train your ear to recognize musical notes</p>
+          </header>
+
+          {gameState === 'start' && (
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={styles.card}>
+                <h2 style={styles.cardTitle}>Select Difficulty</h2>
+                <div style={styles.difficultyOptions}>
+                  {Object.entries(DIFFICULTIES).map(([key, value]) => (
+                    <button key={key} onClick={() => setDifficulty(key)}
+                      style={{ ...styles.difficultyBtn, ...(difficulty === key ? styles.difficultyBtnActive : {}) }}>
+                      {value.label}
+                    </button>
+                  ))}
+                </div>
+                <button onClick={startNewRound} style={styles.startBtn}>Start Game 🎹</button>
+              </div>
+            </div>
+          )}
+
+          {(gameState === 'playing' || gameState === 'result') && (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div style={styles.scoreBoard}>
+                <div style={styles.scoreStat}><span style={styles.scoreLabel}>Score</span><span style={styles.scoreValue}>{score}/{totalPlayed}</span></div>
+                <div style={styles.scoreStat}><span style={styles.scoreLabel}>Streak</span><span style={styles.scoreValue}>🔥 {streak}</span></div>
+                <div style={styles.scoreStat}><span style={styles.scoreLabel}>Best</span><span style={styles.scoreValue}>⭐ {bestStreak}</span></div>
+              </div>
+
+              <div style={styles.playSection}>
+                <button onClick={replayNote} disabled={isPlaying}
+                  style={{ ...styles.playBtn, ...(isPlaying ? styles.playBtnDisabled : {}) }}>
+                  <span style={{ fontSize: '1.5rem' }}>{isPlaying ? '🔊' : '▶️'}</span>
+                  <span>{isPlaying ? 'Playing...' : 'Play Note'}</span>
+                </button>
+                <p style={styles.playHint}>Listen carefully and guess the note!</p>
+              </div>
+
+              {lastResult && (
+                <div style={{ textAlign: 'center', padding: '15px', borderRadius: '12px', border: '2px solid', fontSize: '1.1rem', fontWeight: '600',
+                  backgroundColor: lastResult.correct ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+                  borderColor: lastResult.correct ? '#22c55e' : '#ef4444' }}>
+                  {lastResult.message}
+                </div>
+              )}
+
+              <div style={styles.choicesGrid}>
+                {choices.map((note) => (
+                  <button key={note} onClick={() => gameState === 'playing' && handleGuess(note)} disabled={gameState === 'result'}
+                    style={{ ...styles.choiceBtn,
+                      ...(gameState === 'result' && note === currentNote ? styles.choiceBtnCorrect : {}),
+                      ...(gameState === 'result' ? { cursor: 'default' } : {}) }}>
+                    {note}
+                  </button>
+                ))}
+              </div>
+
+              <div style={styles.actionButtons}>
+                {gameState === 'result' && (<button onClick={startNewRound} style={styles.nextBtn}>Next Note →</button>)}
+                <button onClick={resetGame} style={styles.resetBtn}>New Game</button>
+              </div>
+            </div>
+          )}
+
+          <footer style={styles.footer}><p>Built with ♪ for music lovers</p></footer>
+        </div>
+      );
+    }
+
+    ReactDOM.render(<App />, document.getElementById('root'));
+  </script>
+</body>
+</html>
