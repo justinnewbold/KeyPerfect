@@ -761,42 +761,64 @@
     const StatsContext = createContext();
 
     function StatsProvider({ children }) {
-      const [stats, setStats] = useLocalStorage('keyperfect_stats_v3', {
-        notes: { gamesPlayed: 0, totalCorrect: 0, totalAnswered: 0, bestStreak: 0, byDifficulty: {} },
-        intervals: { gamesPlayed: 0, totalCorrect: 0, totalAnswered: 0, bestStreak: 0, byDifficulty: {} },
-        chords: { gamesPlayed: 0, totalCorrect: 0, totalAnswered: 0, bestStreak: 0, byDifficulty: {} },
-        scales: { gamesPlayed: 0, totalCorrect: 0, totalAnswered: 0, bestStreak: 0, byDifficulty: {} },
-        progressions: { gamesPlayed: 0, totalCorrect: 0, totalAnswered: 0, bestStreak: 0, byDifficulty: {} },
+      const [stats, setStats] = useLocalStorage('keyperfect_stats_v4', {
+        notes: { gamesPlayed: 0, totalCorrect: 0, totalAnswered: 0, bestStreak: 0, byDifficulty: {}, byItem: {} },
+        intervals: { gamesPlayed: 0, totalCorrect: 0, totalAnswered: 0, bestStreak: 0, byDifficulty: {}, byItem: {} },
+        chords: { gamesPlayed: 0, totalCorrect: 0, totalAnswered: 0, bestStreak: 0, byDifficulty: {}, byItem: {} },
+        scales: { gamesPlayed: 0, totalCorrect: 0, totalAnswered: 0, bestStreak: 0, byDifficulty: {}, byItem: {} },
+        progressions: { gamesPlayed: 0, totalCorrect: 0, totalAnswered: 0, bestStreak: 0, byDifficulty: {}, byItem: {} },
         history: [],
       });
 
-      const recordAnswer = useCallback((mode, difficulty, correct, streak) => {
+      const recordAnswer = useCallback((mode, difficulty, correct, streak, item = null) => {
         setStats(prev => {
-          const modeStats = { ...prev[mode] };
+          const modeStats = { ...prev[mode], byItem: { ...prev[mode].byItem } };
           modeStats.totalAnswered += 1;
           if (correct) modeStats.totalCorrect += 1;
           if (streak > modeStats.bestStreak) modeStats.bestStreak = streak;
           if (!modeStats.byDifficulty[difficulty]) modeStats.byDifficulty[difficulty] = { correct: 0, total: 0 };
           modeStats.byDifficulty[difficulty].total += 1;
           if (correct) modeStats.byDifficulty[difficulty].correct += 1;
-          const newHistory = [...prev.history, { mode, difficulty, correct, timestamp: Date.now() }].slice(-100);
+          // Track by specific item for weakness analysis
+          if (item !== null) {
+            const itemKey = String(item);
+            if (!modeStats.byItem[itemKey]) modeStats.byItem[itemKey] = { correct: 0, total: 0 };
+            modeStats.byItem[itemKey].total += 1;
+            if (correct) modeStats.byItem[itemKey].correct += 1;
+          }
+          const newHistory = [...prev.history, { mode, difficulty, correct, item, timestamp: Date.now() }].slice(-100);
           return { ...prev, [mode]: modeStats, history: newHistory };
         });
       }, [setStats]);
 
+      // Get weakest items for a mode (items with lowest accuracy, min 3 attempts)
+      const getWeaknesses = useCallback((mode, limit = 5) => {
+        const byItem = stats[mode]?.byItem || {};
+        return Object.entries(byItem)
+          .filter(([_, data]) => data.total >= 3)
+          .map(([item, data]) => ({
+            item,
+            correct: data.correct,
+            total: data.total,
+            accuracy: Math.round((data.correct / data.total) * 100)
+          }))
+          .sort((a, b) => a.accuracy - b.accuracy)
+          .slice(0, limit);
+      }, [stats]);
+
       const resetStats = useCallback(() => {
         setStats({
-          notes: { gamesPlayed: 0, totalCorrect: 0, totalAnswered: 0, bestStreak: 0, byDifficulty: {} },
-          intervals: { gamesPlayed: 0, totalCorrect: 0, totalAnswered: 0, bestStreak: 0, byDifficulty: {} },
-          chords: { gamesPlayed: 0, totalCorrect: 0, totalAnswered: 0, bestStreak: 0, byDifficulty: {} },
-          scales: { gamesPlayed: 0, totalCorrect: 0, totalAnswered: 0, bestStreak: 0, byDifficulty: {} },
-          progressions: { gamesPlayed: 0, totalCorrect: 0, totalAnswered: 0, bestStreak: 0, byDifficulty: {} },
+          notes: { gamesPlayed: 0, totalCorrect: 0, totalAnswered: 0, bestStreak: 0, byDifficulty: {}, byItem: {} },
+          intervals: { gamesPlayed: 0, totalCorrect: 0, totalAnswered: 0, bestStreak: 0, byDifficulty: {}, byItem: {} },
+          chords: { gamesPlayed: 0, totalCorrect: 0, totalAnswered: 0, bestStreak: 0, byDifficulty: {}, byItem: {} },
+          scales: { gamesPlayed: 0, totalCorrect: 0, totalAnswered: 0, bestStreak: 0, byDifficulty: {}, byItem: {} },
+          progressions: { gamesPlayed: 0, totalCorrect: 0, totalAnswered: 0, bestStreak: 0, byDifficulty: {}, byItem: {} },
           history: [],
         });
       }, [setStats]);
 
       return (
-        <StatsContext.Provider value={{ stats, recordAnswer, resetStats }}>
+        <StatsContext.Provider value={{ stats, recordAnswer, resetStats, getWeaknesses }}>
           {children}
         </StatsContext.Provider>
       );
@@ -805,13 +827,75 @@
     function useStats() { return useContext(StatsContext); }
 
     // ============================================
+    // SESSION STATS CONTEXT (non-persistent, resets on refresh)
+    // ============================================
+
+    const SessionStatsContext = createContext();
+
+    function SessionStatsProvider({ children }) {
+      const [sessionStats, setSessionStats] = useState({
+        totalAnswered: 0,
+        totalCorrect: 0,
+        currentStreak: 0,
+        bestStreak: 0,
+        startTime: Date.now(),
+        byMode: {},
+      });
+
+      const recordSessionAnswer = useCallback((mode, correct) => {
+        setSessionStats(prev => {
+          const newStreak = correct ? prev.currentStreak + 1 : 0;
+          const newBest = Math.max(prev.bestStreak, newStreak);
+          const modeStats = prev.byMode[mode] || { correct: 0, total: 0 };
+          return {
+            ...prev,
+            totalAnswered: prev.totalAnswered + 1,
+            totalCorrect: prev.totalCorrect + (correct ? 1 : 0),
+            currentStreak: newStreak,
+            bestStreak: newBest,
+            byMode: {
+              ...prev.byMode,
+              [mode]: {
+                correct: modeStats.correct + (correct ? 1 : 0),
+                total: modeStats.total + 1,
+              },
+            },
+          };
+        });
+      }, []);
+
+      const resetSessionStats = useCallback(() => {
+        setSessionStats({
+          totalAnswered: 0,
+          totalCorrect: 0,
+          currentStreak: 0,
+          bestStreak: 0,
+          startTime: Date.now(),
+          byMode: {},
+        });
+      }, []);
+
+      const sessionDuration = useMemo(() => {
+        return Math.floor((Date.now() - sessionStats.startTime) / 1000);
+      }, [sessionStats.startTime]);
+
+      return (
+        <SessionStatsContext.Provider value={{ sessionStats, recordSessionAnswer, resetSessionStats, sessionDuration }}>
+          {children}
+        </SessionStatsContext.Provider>
+      );
+    }
+
+    function useSessionStats() { return useContext(SessionStatsContext); }
+
+    // ============================================
     // SETTINGS CONTEXT
     // ============================================
 
     const SettingsContext = createContext();
 
     function SettingsProvider({ children }) {
-      const [settings, setSettings] = useLocalStorage('keyperfect_settings_v6', {
+      const [settings, setSettings] = useLocalStorage('keyperfect_settings_v7', {
         instrument: 'piano',
         autoPlayOnStart: true,
         showOctaveInChoices: false,
@@ -821,6 +905,7 @@
         timedMode: false,
         timerDuration: 10,
         intervalPlayback: 'melodic', // 'melodic' or 'harmonic'
+        intervalDirection: 'ascending', // 'ascending', 'descending', or 'random'
       });
 
       const updateSettings = useCallback((updates) => {
@@ -1586,6 +1671,7 @@
     function GameComponent({ mode, difficulty, onBack, difficultySettings, buildQuestion, getChoiceLabel, getCorrectAnswer }) {
       const { settings } = useSettings();
       const { recordAnswer } = useStats();
+      const { recordSessionAnswer } = useSessionStats();
       const { addToast } = useToast();
       const { playSound } = useSoundEffects();
       const audio = useAudio(settings.instrument, settings.useMidi, settings.volume);
@@ -1623,6 +1709,42 @@
       }, [diffSettings, settings.autoPlayOnStart, audio, buildQuestion]);
 
       useEffect(() => { if (!audio.isLoading) generateRound(); }, [audio.isLoading]);
+
+      // Keyboard shortcuts for desktop users
+      useEffect(() => {
+        const handleKeyDown = (e) => {
+          // Ignore if typing in an input
+          if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+          // Space or R to replay
+          if ((e.code === 'Space' || e.key === 'r' || e.key === 'R') && currentQuestion?.play) {
+            e.preventDefault();
+            currentQuestion.play();
+            triggerHaptic('light');
+            return;
+          }
+
+          // Number keys 1-9 to select answer (during playing state)
+          if (gameState === 'playing' && choices.length > 0) {
+            const num = parseInt(e.key);
+            if (num >= 1 && num <= choices.length) {
+              e.preventDefault();
+              handleGuess(choices[num - 1]);
+              return;
+            }
+          }
+
+          // Enter or N for next round (during result state)
+          if (gameState === 'result' && (e.key === 'Enter' || e.key === 'n' || e.key === 'N')) {
+            e.preventDefault();
+            generateRound();
+            return;
+          }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+      }, [gameState, choices, currentQuestion, generateRound]);
 
       // Calculate bonus points based on time remaining (timed mode only)
       const calculateBonus = () => {
@@ -1699,7 +1821,8 @@
             newStreak = 0;
             setLastResult({ correct: false, message: `✗ Wrong! It was ${getChoiceLabel(correctAnswer)}`, hint });
           }
-          recordAnswer(mode, difficulty, correct, newStreak);
+          recordAnswer(mode, difficulty, correct, newStreak, correctAnswer);
+          recordSessionAnswer(mode, correct);
         }
         setGameState('result');
       };
@@ -1715,9 +1838,10 @@
         setLastResult({ correct: false, message: `⏱ Time's up! It was ${getChoiceLabel(correctAnswer)}` });
         setTotalPlayed(prev => prev + 1);
         setStreak(0);
-        recordAnswer(mode, difficulty, false, 0);
+        recordAnswer(mode, difficulty, false, 0, correctAnswer);
+        recordSessionAnswer(mode, false);
         setGameState('result');
-      }, [gameState, currentQuestion, getCorrectAnswer, getChoiceLabel, playSound, mode, difficulty, recordAnswer]);
+      }, [gameState, currentQuestion, getCorrectAnswer, getChoiceLabel, playSound, mode, difficulty, recordAnswer, recordSessionAnswer]);
 
       const handleReplay = () => {
         if (currentQuestion?.play) {
@@ -1785,7 +1909,8 @@
               return (
                 <button key={i} onClick={() => handleGuess(choice)} disabled={gameState === 'result'}
                   className={`btn-press ${isCorrect ? 'glow-green' : ''} ${isWrong ? 'glow-red' : ''}`}
-                  style={{ ...styles.choiceBtn, fontSize: '0.9rem', ...(isCorrect ? styles.choiceBtnCorrect : {}), ...(isWrong ? styles.choiceBtnWrong : {}), ...(gameState === 'result' ? { cursor: 'default' } : {}) }}>
+                  style={{ ...styles.choiceBtn, fontSize: '0.9rem', position: 'relative', ...(isCorrect ? styles.choiceBtnCorrect : {}), ...(isWrong ? styles.choiceBtnWrong : {}), ...(gameState === 'result' ? { cursor: 'default' } : {}) }}>
+                  <span style={{ position: 'absolute', top: '4px', left: '8px', fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)', fontWeight: '500' }}>{i + 1}</span>
                   {getChoiceLabel(choice)}
                 </button>
               );
@@ -1796,6 +1921,14 @@
             {gameState === 'result' && <button onClick={generateRound} className="btn-press" style={styles.nextBtn}>Next →</button>}
             <button onClick={onBack} className="btn-press" style={styles.resetBtn}>Exit</button>
           </div>
+
+          {/* Keyboard shortcuts hint for desktop */}
+          <div style={{ textAlign: 'center', marginTop: '8px', fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)' }}>
+            <span style={{ display: 'none' }} className="kbd-hint">
+              [Space/R] Replay · [1-{choices.length}] Answer · [Enter/N] Next
+            </span>
+          </div>
+          <style>{`.kbd-hint { display: none !important; } @media (hover: hover) and (pointer: fine) { .kbd-hint { display: inline !important; } }`}</style>
 
           <FloatingPlayButton onClick={handleReplay} isPlaying={audio.isPlaying} isLoading={audio.isLoading} />
         </div>
@@ -1816,16 +1949,34 @@
         buildQuestion={buildQuestion} getChoiceLabel={c => c} getCorrectAnswer={q => q.note} />;
     }
 
-    // Interval Game with Melodic/Harmonic support
+    // Interval Game with Melodic/Harmonic support and Direction setting
     function IntervalGame({ difficulty, onBack }) {
       const { settings } = useSettings();
       const buildQuestion = (diffSettings, audio) => {
         const interval = diffSettings.intervals[Math.floor(Math.random() * diffSettings.intervals.length)];
         const baseNote = NOTES[Math.floor(Math.random() * NOTES.length)];
         const baseIndex = getNoteIndex(baseNote);
-        const secondIndex = (baseIndex + interval) % 12;
-        const secondOctave = baseIndex + interval >= 12 ? 5 : 4;
-        const notes = [`${baseNote}4`, `${NOTES[secondIndex]}${secondOctave}`];
+
+        // Determine direction based on setting
+        let direction = settings.intervalDirection;
+        if (direction === 'random') {
+          direction = Math.random() < 0.5 ? 'ascending' : 'descending';
+        }
+
+        let notes;
+        if (direction === 'descending') {
+          // Descending: second note is BELOW the first
+          const baseOctave = 5; // Start higher so we have room to go down
+          const secondIndex = ((baseIndex - interval) % 12 + 12) % 12;
+          const secondOctave = baseIndex - interval < 0 ? 4 : 5;
+          notes = [`${baseNote}${baseOctave}`, `${NOTES[secondIndex]}${secondOctave}`];
+        } else {
+          // Ascending: second note is ABOVE the first (default behavior)
+          const secondIndex = (baseIndex + interval) % 12;
+          const secondOctave = baseIndex + interval >= 12 ? 5 : 4;
+          notes = [`${baseNote}4`, `${NOTES[secondIndex]}${secondOctave}`];
+        }
+
         const available = diffSettings.intervals.filter(i => i !== interval);
         const wrong = shuffle(available).slice(0, diffSettings.choices - 1);
         const choices = shuffle([...wrong, interval]);
@@ -1833,7 +1984,7 @@
         const play = settings.intervalPlayback === 'harmonic'
           ? () => audio.playNotes(notes)
           : () => audio.playSequence(notes);
-        return { interval, notes, choices, play };
+        return { interval, notes, choices, play, direction };
       };
       return <GameComponent mode="intervals" difficulty={difficulty} onBack={onBack} difficultySettings={INTERVAL_DIFFICULTIES}
         buildQuestion={buildQuestion} getChoiceLabel={c => INTERVALS[c].name} getCorrectAnswer={q => q.interval} />;
@@ -1983,15 +2134,32 @@
 
     // Stats View
     function StatsView() {
-      const { stats, resetStats } = useStats();
+      const { stats, resetStats, getWeaknesses } = useStats();
+      const { sessionStats, resetSessionStats } = useSessionStats();
       const { addToast } = useToast();
       const [showAchievements, setShowAchievements] = useState(false);
+      const [sessionTime, setSessionTime] = useState(0);
+
+      // Update session time every second
+      useEffect(() => {
+        const interval = setInterval(() => {
+          setSessionTime(Math.floor((Date.now() - sessionStats.startTime) / 1000));
+        }, 1000);
+        return () => clearInterval(interval);
+      }, [sessionStats.startTime]);
+
+      const formatDuration = (seconds) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+      };
 
       const getAccuracy = (correct, total) => total === 0 ? 0 : Math.round((correct / total) * 100);
       const totalAnswered = Object.keys(GAME_MODES).reduce((sum, key) => sum + stats[key].totalAnswered, 0);
       const totalCorrect = Object.keys(GAME_MODES).reduce((sum, key) => sum + stats[key].totalCorrect, 0);
       const overallAccuracy = getAccuracy(totalCorrect, totalAnswered);
       const bestStreak = Math.max(...Object.keys(GAME_MODES).map(key => stats[key].bestStreak));
+      const sessionAccuracy = getAccuracy(sessionStats.totalCorrect, sessionStats.totalAnswered);
 
       // Check unlocked achievements
       const unlockedAchievements = Object.values(ACHIEVEMENTS).filter(a => a.requirement(stats));
@@ -2014,6 +2182,54 @@
         <div style={{ flex: 1 }} className="page-enter">
           <Breadcrumbs items={[{ label: 'Stats' }]} />
 
+          {/* Session Stats Card */}
+          {sessionStats.totalAnswered > 0 && (
+            <div style={{ ...styles.statsCard, marginBottom: '16px', background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(16, 185, 129, 0.1))' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <div style={styles.statsTitle}>Current Session</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>{formatDuration(sessionTime)}</span>
+                  <button onClick={() => { resetSessionStats(); triggerHaptic('light'); addToast('Session reset!', 'info'); }}
+                    style={{ padding: '4px 8px', fontSize: '0.7rem', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.1)', color: '#94a3b8' }}>
+                    Reset
+                  </button>
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', textAlign: 'center' }}>
+                <div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#22c55e' }}>{sessionStats.totalCorrect}/{sessionStats.totalAnswered}</div>
+                  <div style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' }}>Correct</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '700', color: sessionAccuracy >= 80 ? '#22c55e' : sessionAccuracy >= 50 ? '#fbbf24' : '#ef4444' }}>{sessionAccuracy}%</div>
+                  <div style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' }}>Accuracy</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#a855f7' }}>{sessionStats.currentStreak}</div>
+                  <div style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' }}>Streak</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#f97316' }}>{sessionStats.bestStreak}</div>
+                  <div style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' }}>Best</div>
+                </div>
+              </div>
+              {Object.keys(sessionStats.byMode).length > 0 && (
+                <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '8px' }}>By Mode</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    {Object.entries(sessionStats.byMode).map(([mode, modeStats]) => (
+                      <div key={mode} style={{ padding: '4px 10px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', fontSize: '0.75rem' }}>
+                        <span style={{ color: '#94a3b8' }}>{GAME_MODES[mode]?.icon || ''} </span>
+                        <span style={{ color: '#e2e8f0' }}>{modeStats.correct}/{modeStats.total}</span>
+                        <span style={{ color: '#64748b' }}> ({getAccuracy(modeStats.correct, modeStats.total)}%)</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Overall Stats with Progress Rings */}
           <div style={{ ...styles.statsCard, marginBottom: '16px' }}>
             <div style={styles.statsTitle}>📊 Overall Progress</div>
@@ -2035,6 +2251,55 @@
               </div>
             </div>
           </div>
+
+          {/* Weaknesses Section */}
+          {(() => {
+            const getItemName = (mode, item) => {
+              if (mode === 'intervals') return INTERVALS[item]?.name || item;
+              if (mode === 'chords') return CHORD_TYPES[item]?.name || item;
+              if (mode === 'scales') return SCALE_TYPES[item]?.name || item;
+              if (mode === 'progressions') return PROGRESSIONS[item]?.name || item;
+              return item;
+            };
+            const allWeaknesses = Object.keys(GAME_MODES)
+              .flatMap(mode => getWeaknesses(mode, 3).map(w => ({ ...w, mode })))
+              .filter(w => w.accuracy < 70)
+              .sort((a, b) => a.accuracy - b.accuracy)
+              .slice(0, 5);
+            if (allWeaknesses.length === 0) return null;
+            return (
+              <div style={{ ...styles.statsCard, marginBottom: '16px', background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(220, 38, 38, 0.05))' }}>
+                <div style={styles.statsTitle}>Areas to Improve</div>
+                <div style={{ marginTop: '12px' }}>
+                  {allWeaknesses.map((w, i) => (
+                    <div key={`${w.mode}-${w.item}`} style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      padding: '10px 12px', marginBottom: i < allWeaknesses.length - 1 ? '8px' : 0,
+                      background: 'rgba(255,255,255,0.05)', borderRadius: '10px'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ fontSize: '1.1rem' }}>{GAME_MODES[w.mode]?.icon || ''}</span>
+                        <div>
+                          <div style={{ fontWeight: '600', fontSize: '0.9rem' }}>{getItemName(w.mode, w.item)}</div>
+                          <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{w.correct}/{w.total} correct</div>
+                        </div>
+                      </div>
+                      <div style={{
+                        padding: '4px 10px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '600',
+                        background: w.accuracy < 40 ? 'rgba(239, 68, 68, 0.3)' : 'rgba(251, 191, 36, 0.3)',
+                        color: w.accuracy < 40 ? '#fca5a5' : '#fcd34d'
+                      }}>
+                        {w.accuracy}%
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ marginTop: '12px', fontSize: '0.75rem', color: '#64748b', textAlign: 'center' }}>
+                  Based on questions answered 3+ times
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Achievements Section */}
           <div style={styles.statsCard}>
@@ -2191,7 +2456,7 @@
           {/* Interval Settings */}
           <div style={{ ...styles.card, marginTop: '16px' }}>
             <h3 style={styles.cardTitle}>Intervals</h3>
-            <div style={{ ...styles.settingRow, borderBottom: 'none' }}>
+            <div style={styles.settingRow}>
               <div>
                 <span style={styles.settingLabel}>Interval Playback</span>
                 <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>
@@ -2219,6 +2484,44 @@
                 </button>
               </div>
             </div>
+            <div style={{ ...styles.settingRow, borderBottom: 'none' }}>
+              <div>
+                <span style={styles.settingLabel}>Interval Direction</span>
+                <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>
+                  {settings.intervalDirection === 'ascending' ? 'Second note goes up' :
+                   settings.intervalDirection === 'descending' ? 'Second note goes down' : 'Random direction each time'}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                <button onClick={() => { updateSettings({ intervalDirection: 'ascending' }); triggerHaptic('light'); }}
+                  className="btn-press" style={{
+                    padding: '8px 12px', borderRadius: '10px', fontSize: '0.8rem', fontWeight: '600',
+                    border: settings.intervalDirection === 'ascending' ? '2px solid #a855f7' : '2px solid rgba(255,255,255,0.2)',
+                    background: settings.intervalDirection === 'ascending' ? 'rgba(168, 85, 247, 0.3)' : 'rgba(255,255,255,0.05)',
+                    color: 'white'
+                  }}>
+                  Up
+                </button>
+                <button onClick={() => { updateSettings({ intervalDirection: 'descending' }); triggerHaptic('light'); }}
+                  className="btn-press" style={{
+                    padding: '8px 12px', borderRadius: '10px', fontSize: '0.8rem', fontWeight: '600',
+                    border: settings.intervalDirection === 'descending' ? '2px solid #a855f7' : '2px solid rgba(255,255,255,0.2)',
+                    background: settings.intervalDirection === 'descending' ? 'rgba(168, 85, 247, 0.3)' : 'rgba(255,255,255,0.05)',
+                    color: 'white'
+                  }}>
+                  Down
+                </button>
+                <button onClick={() => { updateSettings({ intervalDirection: 'random' }); triggerHaptic('light'); }}
+                  className="btn-press" style={{
+                    padding: '8px 12px', borderRadius: '10px', fontSize: '0.8rem', fontWeight: '600',
+                    border: settings.intervalDirection === 'random' ? '2px solid #a855f7' : '2px solid rgba(255,255,255,0.2)',
+                    background: settings.intervalDirection === 'random' ? 'rgba(168, 85, 247, 0.3)' : 'rgba(255,255,255,0.05)',
+                    color: 'white'
+                  }}>
+                  Random
+                </button>
+              </div>
+            </div>
           </div>
 
           <div style={{ ...styles.card, marginTop: '16px' }}>
@@ -2226,7 +2529,7 @@
             <p style={{ color: '#94a3b8', fontSize: '0.9rem', lineHeight: 1.6 }}>
               KeyPerfect is an ear training app to help musicians recognize notes, intervals, chords, scales, and progressions.
             </p>
-            <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '12px' }}>Version 5.0</p>
+            <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '12px' }}>Version 6.0</p>
           </div>
         </div>
       );
@@ -2627,9 +2930,11 @@
     ReactDOM.render(
       <SettingsProvider>
         <StatsProvider>
-          <ToastProvider>
-            <App />
-          </ToastProvider>
+          <SessionStatsProvider>
+            <ToastProvider>
+              <App />
+            </ToastProvider>
+          </SessionStatsProvider>
         </StatsProvider>
       </SettingsProvider>,
       document.getElementById('root')
