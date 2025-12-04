@@ -138,19 +138,51 @@
     const OCTAVES = [3, 4, 5];
 
     const INTERVALS = {
-      0: { name: 'Unison', short: 'P1' },
-      1: { name: 'Minor 2nd', short: 'm2' },
-      2: { name: 'Major 2nd', short: 'M2' },
-      3: { name: 'Minor 3rd', short: 'm3' },
-      4: { name: 'Major 3rd', short: 'M3' },
-      5: { name: 'Perfect 4th', short: 'P4' },
-      6: { name: 'Tritone', short: 'TT' },
-      7: { name: 'Perfect 5th', short: 'P5' },
-      8: { name: 'Minor 6th', short: 'm6' },
-      9: { name: 'Major 6th', short: 'M6' },
-      10: { name: 'Minor 7th', short: 'm7' },
-      11: { name: 'Major 7th', short: 'M7' },
-      12: { name: 'Octave', short: 'P8' },
+      0: { name: 'Unison', short: 'P1', songs: ['Same note repeated'] },
+      1: { name: 'Minor 2nd', short: 'm2', songs: ['Jaws theme', 'Pink Panther'] },
+      2: { name: 'Major 2nd', short: 'M2', songs: ['Happy Birthday', 'Frère Jacques'] },
+      3: { name: 'Minor 3rd', short: 'm3', songs: ['Greensleeves', 'Hey Jude (verse)'] },
+      4: { name: 'Major 3rd', short: 'M3', songs: ['When the Saints', 'Kumbaya'] },
+      5: { name: 'Perfect 4th', short: 'P4', songs: ['Here Comes the Bride', 'Amazing Grace'] },
+      6: { name: 'Tritone', short: 'TT', songs: ['The Simpsons', 'Maria (West Side Story)'] },
+      7: { name: 'Perfect 5th', short: 'P5', songs: ['Star Wars', 'Twinkle Twinkle'] },
+      8: { name: 'Minor 6th', short: 'm6', songs: ['The Entertainer', 'Love Story theme'] },
+      9: { name: 'Major 6th', short: 'M6', songs: ['NBC chimes', 'My Bonnie'] },
+      10: { name: 'Minor 7th', short: 'm7', songs: ['Star Trek theme', 'Somewhere (West Side)'] },
+      11: { name: 'Major 7th', short: 'M7', songs: ['Take On Me', 'Superman theme'] },
+      12: { name: 'Octave', short: 'P8', songs: ['Somewhere Over the Rainbow', 'Singin\' in the Rain'] },
+    };
+
+    // Achievement Badges
+    const ACHIEVEMENTS = {
+      first_correct: { id: 'first_correct', name: 'First Steps', description: 'Get your first correct answer', icon: '🌟', requirement: (stats) => Object.values(stats).some(s => s.totalCorrect >= 1) },
+      streak_5: { id: 'streak_5', name: 'On Fire', description: 'Get a 5 streak', icon: '🔥', requirement: (stats) => Object.values(stats).some(s => s.bestStreak >= 5) },
+      streak_10: { id: 'streak_10', name: 'Unstoppable', description: 'Get a 10 streak', icon: '💫', requirement: (stats) => Object.values(stats).some(s => s.bestStreak >= 10) },
+      streak_25: { id: 'streak_25', name: 'Legendary', description: 'Get a 25 streak', icon: '👑', requirement: (stats) => Object.values(stats).some(s => s.bestStreak >= 25) },
+      correct_50: { id: 'correct_50', name: 'Getting Started', description: 'Answer 50 questions correctly', icon: '📚', requirement: (stats) => Object.values(stats).reduce((sum, s) => sum + (s.totalCorrect || 0), 0) >= 50 },
+      correct_100: { id: 'correct_100', name: 'Dedicated', description: 'Answer 100 questions correctly', icon: '🎯', requirement: (stats) => Object.values(stats).reduce((sum, s) => sum + (s.totalCorrect || 0), 0) >= 100 },
+      correct_500: { id: 'correct_500', name: 'Expert', description: 'Answer 500 questions correctly', icon: '🏆', requirement: (stats) => Object.values(stats).reduce((sum, s) => sum + (s.totalCorrect || 0), 0) >= 500 },
+      all_modes: { id: 'all_modes', name: 'Well Rounded', description: 'Play all 5 game modes', icon: '🎭', requirement: (stats) => Object.keys(GAME_MODES).every(mode => stats[mode]?.totalAnswered > 0) },
+      perfect_10: { id: 'perfect_10', name: 'Perfect Ten', description: 'Get 10 correct in a row in any mode', icon: '💯', requirement: (stats) => Object.values(stats).some(s => s.bestStreak >= 10) },
+      interval_master: { id: 'interval_master', name: 'Interval Master', description: 'Answer 50 interval questions correctly', icon: '↔️', requirement: (stats) => stats.intervals?.totalCorrect >= 50 },
+      chord_master: { id: 'chord_master', name: 'Chord Master', description: 'Answer 50 chord questions correctly', icon: '🎹', requirement: (stats) => stats.chords?.totalCorrect >= 50 },
+      scale_master: { id: 'scale_master', name: 'Scale Master', description: 'Answer 50 scale questions correctly', icon: '🎼', requirement: (stats) => stats.scales?.totalCorrect >= 50 },
+    };
+
+    // Guitar chord fingerings (fret positions: -1 = muted, 0 = open, 1-5 = fret number)
+    const GUITAR_CHORDS = {
+      'C': { name: 'C Major', frets: [-1, 3, 2, 0, 1, 0], fingers: [0, 3, 2, 0, 1, 0] },
+      'D': { name: 'D Major', frets: [-1, -1, 0, 2, 3, 2], fingers: [0, 0, 0, 1, 3, 2] },
+      'E': { name: 'E Major', frets: [0, 2, 2, 1, 0, 0], fingers: [0, 2, 3, 1, 0, 0] },
+      'G': { name: 'G Major', frets: [3, 2, 0, 0, 0, 3], fingers: [2, 1, 0, 0, 0, 3] },
+      'A': { name: 'A Major', frets: [-1, 0, 2, 2, 2, 0], fingers: [0, 0, 1, 2, 3, 0] },
+      'Am': { name: 'A Minor', frets: [-1, 0, 2, 2, 1, 0], fingers: [0, 0, 2, 3, 1, 0] },
+      'Em': { name: 'E Minor', frets: [0, 2, 2, 0, 0, 0], fingers: [0, 2, 3, 0, 0, 0] },
+      'Dm': { name: 'D Minor', frets: [-1, -1, 0, 2, 3, 1], fingers: [0, 0, 0, 2, 3, 1] },
+      'F': { name: 'F Major', frets: [1, 3, 3, 2, 1, 1], fingers: [1, 3, 4, 2, 1, 1], barre: true },
+      'Bm': { name: 'B Minor', frets: [-1, 2, 4, 4, 3, 2], fingers: [0, 1, 3, 4, 2, 1], barre: true },
+      'C7': { name: 'C7', frets: [-1, 3, 2, 3, 1, 0], fingers: [0, 3, 2, 4, 1, 0] },
+      'G7': { name: 'G7', frets: [3, 2, 0, 0, 0, 1], fingers: [3, 2, 0, 0, 0, 1] },
     };
 
     const CHORD_TYPES = {
@@ -383,25 +415,35 @@
       return audioContextRef.current;
     }
 
-    function useAudio(instrument, useMidi = false) {
+    function useAudio(instrument, useMidi = false, volume = 0.7) {
       const [synth, setSynth] = useState(null);
       const [polySynth, setPolySynth] = useState(null);
       const [midiInstrument, setMidiInstrument] = useState(null);
       const [isPlaying, setIsPlaying] = useState(false);
       const [isLoading, setIsLoading] = useState(true);
+      const gainNodeRef = useRef(null);
 
       // Load synth instruments
       useEffect(() => {
         if (useMidi) return;
         setIsLoading(true);
         const config = INSTRUMENTS[instrument]?.config || INSTRUMENTS.piano.config;
-        const newSynth = new Tone.Synth(config).toDestination();
-        const newPolySynth = new Tone.PolySynth(Tone.Synth, config).toDestination();
+        const gainNode = new Tone.Gain(volume).toDestination();
+        gainNodeRef.current = gainNode;
+        const newSynth = new Tone.Synth(config).connect(gainNode);
+        const newPolySynth = new Tone.PolySynth(Tone.Synth, config).connect(gainNode);
         setSynth(newSynth);
         setPolySynth(newPolySynth);
         setTimeout(() => setIsLoading(false), 300);
-        return () => { newSynth.dispose(); newPolySynth.dispose(); };
+        return () => { newSynth.dispose(); newPolySynth.dispose(); gainNode.dispose(); };
       }, [instrument, useMidi]);
+
+      // Update volume
+      useEffect(() => {
+        if (gainNodeRef.current) {
+          gainNodeRef.current.gain.value = volume;
+        }
+      }, [volume]);
 
       // Load MIDI instrument
       useEffect(() => {
@@ -428,7 +470,7 @@
           if (useMidi && midiInstrument) {
             const ac = getAudioContext();
             if (ac.state === 'suspended') await ac.resume();
-            midiInstrument.play(`${note}${octave}`, ac.currentTime, { duration: 1.5 });
+            midiInstrument.play(`${note}${octave}`, ac.currentTime, { duration: 1.5, gain: volume });
           } else if (synth) {
             await Tone.start();
             synth.triggerAttackRelease(`${note}${octave}`, duration);
@@ -444,7 +486,7 @@
           if (useMidi && midiInstrument) {
             const ac = getAudioContext();
             if (ac.state === 'suspended') await ac.resume();
-            notes.forEach(note => midiInstrument.play(note, ac.currentTime, { duration: 1.8 }));
+            notes.forEach(note => midiInstrument.play(note, ac.currentTime, { duration: 1.8, gain: volume }));
           } else if (polySynth) {
             await Tone.start();
             polySynth.triggerAttackRelease(notes, duration);
@@ -461,7 +503,7 @@
             const ac = getAudioContext();
             if (ac.state === 'suspended') await ac.resume();
             const now = ac.currentTime;
-            notes.forEach((note, i) => midiInstrument.play(note, now + i * interval, { duration: 0.4 }));
+            notes.forEach((note, i) => midiInstrument.play(note, now + i * interval, { duration: 0.4, gain: volume }));
           } else if (synth) {
             await Tone.start();
             const now = Tone.now();
@@ -480,7 +522,7 @@
             if (ac.state === 'suspended') await ac.resume();
             const now = ac.currentTime;
             chordNotes.forEach((chord, i) => {
-              chord.forEach(note => midiInstrument.play(note, now + i * interval, { duration: 0.7 }));
+              chord.forEach(note => midiInstrument.play(note, now + i * interval, { duration: 0.7, gain: volume }));
             });
           } else if (polySynth) {
             await Tone.start();
@@ -551,11 +593,13 @@
     const SettingsContext = createContext();
 
     function SettingsProvider({ children }) {
-      const [settings, setSettings] = useLocalStorage('keyperfect_settings_v4', {
+      const [settings, setSettings] = useLocalStorage('keyperfect_settings_v5', {
         instrument: 'piano',
         autoPlayOnStart: true,
         showOctaveInChoices: false,
         useMidi: false,
+        volume: 0.7,
+        practiceMode: false,
       });
 
       const updateSettings = useCallback((updates) => {
@@ -705,6 +749,137 @@
       return <div className="skeleton" style={{ height, ...style }} />;
     }
 
+    // Piano Visualization Component
+    function PianoVisualization({ highlightedNotes = [], startOctave = 3, octaves = 2 }) {
+      const whiteKeys = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+      const blackKeys = { 'C': 'C#', 'D': 'D#', 'F': 'F#', 'G': 'G#', 'A': 'A#' };
+
+      const isHighlighted = (note, octave) => {
+        return highlightedNotes.some(n => n === `${note}${octave}` || n === note);
+      };
+
+      const keyStyle = {
+        white: { width: '28px', height: '100px', backgroundColor: 'white', border: '1px solid #333', borderRadius: '0 0 4px 4px', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: '4px', fontSize: '0.6rem', color: '#333' },
+        whiteHighlight: { backgroundColor: '#a855f7', color: 'white' },
+        black: { width: '20px', height: '60px', backgroundColor: '#1a1a2e', border: '1px solid #000', borderRadius: '0 0 3px 3px', position: 'absolute', zIndex: 1 },
+        blackHighlight: { backgroundColor: '#ec4899' },
+      };
+
+      return (
+        <div style={{ display: 'flex', position: 'relative', justifyContent: 'center', padding: '10px 0', overflowX: 'auto' }}>
+          {Array.from({ length: octaves }, (_, octIdx) => {
+            const octave = startOctave + octIdx;
+            return whiteKeys.map((key, idx) => (
+              <div key={`${key}${octave}`} style={{ position: 'relative' }}>
+                <div style={{ ...keyStyle.white, ...(isHighlighted(key, octave) ? keyStyle.whiteHighlight : {}) }}>
+                  {key}{octave}
+                </div>
+                {blackKeys[key] && (
+                  <div style={{ ...keyStyle.black, ...(isHighlighted(blackKeys[key], octave) ? keyStyle.blackHighlight : {}), left: '18px', top: '10px' }} />
+                )}
+              </div>
+            ));
+          })}
+        </div>
+      );
+    }
+
+    // Guitar Chord Chart Component
+    function GuitarChordChart({ chord, size = 'medium' }) {
+      const chordData = GUITAR_CHORDS[chord];
+      if (!chordData) return null;
+
+      const scale = size === 'small' ? 0.7 : size === 'large' ? 1.3 : 1;
+      const fretWidth = 30 * scale;
+      const fretHeight = 20 * scale;
+      const stringSpacing = 16 * scale;
+      const dotSize = 12 * scale;
+
+      const strings = ['E', 'A', 'D', 'G', 'B', 'e'];
+      const minFret = Math.max(1, Math.min(...chordData.frets.filter(f => f > 0)));
+      const maxFret = Math.max(...chordData.frets);
+      const startFret = maxFret <= 4 ? 1 : minFret;
+      const showFrets = 4;
+
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px' }}>
+          <div style={{ fontWeight: '600', marginBottom: '8px', fontSize: `${14 * scale}px` }}>{chordData.name}</div>
+          <svg width={fretWidth * 6 + 30} height={fretHeight * (showFrets + 1) + 30} style={{ overflow: 'visible' }}>
+            {/* Nut or fret number */}
+            {startFret === 1 ? (
+              <rect x={15} y={20} width={stringSpacing * 5 + 10} height={4} fill="white" />
+            ) : (
+              <text x={5} y={35} fill="white" fontSize={12 * scale}>{startFret}</text>
+            )}
+
+            {/* Frets */}
+            {Array.from({ length: showFrets + 1 }, (_, i) => (
+              <line key={i} x1={15} y1={22 + i * fretHeight} x2={15 + stringSpacing * 5} y2={22 + i * fretHeight} stroke="rgba(255,255,255,0.3)" strokeWidth={1} />
+            ))}
+
+            {/* Strings */}
+            {strings.map((_, i) => (
+              <line key={i} x1={15 + i * stringSpacing} y1={22} x2={15 + i * stringSpacing} y2={22 + showFrets * fretHeight} stroke="rgba(255,255,255,0.5)" strokeWidth={1} />
+            ))}
+
+            {/* Finger positions */}
+            {chordData.frets.map((fret, stringIdx) => {
+              if (fret === -1) {
+                return <text key={stringIdx} x={12 + stringIdx * stringSpacing} y={15} fill="#ef4444" fontSize={12 * scale}>×</text>;
+              }
+              if (fret === 0) {
+                return <circle key={stringIdx} cx={15 + stringIdx * stringSpacing} cy={10} r={dotSize / 3} fill="none" stroke="white" strokeWidth={2} />;
+              }
+              const displayFret = fret - startFret + 1;
+              if (displayFret > 0 && displayFret <= showFrets) {
+                return (
+                  <g key={stringIdx}>
+                    <circle cx={15 + stringIdx * stringSpacing} cy={22 + (displayFret - 0.5) * fretHeight} r={dotSize / 2} fill="#a855f7" />
+                    <text x={15 + stringIdx * stringSpacing} y={22 + (displayFret - 0.5) * fretHeight + 4} fill="white" fontSize={10 * scale} textAnchor="middle">
+                      {chordData.fingers[stringIdx] || ''}
+                    </text>
+                  </g>
+                );
+              }
+              return null;
+            })}
+
+            {/* Barre indicator */}
+            {chordData.barre && (
+              <rect x={12} y={22 + (chordData.frets[0] - startFret + 0.3) * fretHeight} width={stringSpacing * 5 + 6} height={8} rx={4} fill="rgba(168, 85, 247, 0.7)" />
+            )}
+          </svg>
+        </div>
+      );
+    }
+
+    // Volume Slider Component
+    function VolumeSlider({ value, onChange }) {
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
+          <span style={{ fontSize: '1.2rem' }}>🔈</span>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.1"
+            value={value}
+            onChange={(e) => onChange(parseFloat(e.target.value))}
+            style={{
+              flex: 1,
+              height: '6px',
+              borderRadius: '3px',
+              background: `linear-gradient(to right, #a855f7 ${value * 100}%, rgba(255,255,255,0.2) ${value * 100}%)`,
+              appearance: 'none',
+              outline: 'none',
+              cursor: 'pointer',
+            }}
+          />
+          <span style={{ fontSize: '1.2rem' }}>🔊</span>
+        </div>
+      );
+    }
+
     // Bottom Navigation
     function BottomNav({ currentView, setView }) {
       return (
@@ -833,7 +1008,7 @@
       const { recordAnswer } = useStats();
       const { addToast } = useToast();
       const { playSound } = useSoundEffects();
-      const audio = useAudio(settings.instrument, settings.useMidi);
+      const audio = useAudio(settings.instrument, settings.useMidi, settings.volume);
       const diffSettings = difficultySettings[difficulty];
 
       const [gameState, setGameState] = useState('playing');
@@ -865,28 +1040,48 @@
         const correctAnswer = getCorrectAnswer(currentQuestion);
         const correct = guess === correctAnswer;
         setSelectedAnswer(guess);
-        setTotalPlayed(prev => prev + 1);
 
-        let newStreak = streak;
-        if (correct) {
-          playSound('success');
-          triggerHaptic('success');
-          setScore(prev => prev + 1);
-          newStreak = streak + 1;
-          setStreak(newStreak);
-          if (newStreak > bestStreak) setBestStreak(newStreak);
-          setLastResult({ correct: true, message: '✓ Correct!' });
-          if (newStreak === 5) addToast('🔥 5 streak! Keep going!', 'success');
-          if (newStreak === 10) addToast('🔥🔥 10 streak! Amazing!', 'success');
-          if (newStreak === 25) addToast('🔥🔥🔥 25 streak! Legendary!', 'success');
-        } else {
-          playSound('error');
-          triggerHaptic('error');
-          setStreak(0);
-          newStreak = 0;
-          setLastResult({ correct: false, message: `✗ Wrong! It was ${getChoiceLabel(correctAnswer)}` });
+        // Get hint for intervals (song examples)
+        let hint = '';
+        if (mode === 'intervals' && INTERVALS[correctAnswer]?.songs) {
+          hint = `Sounds like: ${INTERVALS[correctAnswer].songs.join(' or ')}`;
         }
-        recordAnswer(mode, difficulty, correct, newStreak);
+
+        if (settings.practiceMode) {
+          // Practice mode - no scoring, just learning
+          if (correct) {
+            playSound('success');
+            triggerHaptic('success');
+            setLastResult({ correct: true, message: '✓ Correct!', hint });
+          } else {
+            playSound('error');
+            triggerHaptic('error');
+            setLastResult({ correct: false, message: `It was ${getChoiceLabel(correctAnswer)}`, hint, showPiano: currentQuestion.notes });
+          }
+        } else {
+          // Normal mode with scoring
+          setTotalPlayed(prev => prev + 1);
+          let newStreak = streak;
+          if (correct) {
+            playSound('success');
+            triggerHaptic('success');
+            setScore(prev => prev + 1);
+            newStreak = streak + 1;
+            setStreak(newStreak);
+            if (newStreak > bestStreak) setBestStreak(newStreak);
+            setLastResult({ correct: true, message: '✓ Correct!', hint });
+            if (newStreak === 5) addToast('🔥 5 streak! Keep going!', 'success');
+            if (newStreak === 10) addToast('🔥🔥 10 streak! Amazing!', 'success');
+            if (newStreak === 25) addToast('🔥🔥🔥 25 streak! Legendary!', 'success');
+          } else {
+            playSound('error');
+            triggerHaptic('error');
+            setStreak(0);
+            newStreak = 0;
+            setLastResult({ correct: false, message: `✗ Wrong! It was ${getChoiceLabel(correctAnswer)}`, hint });
+          }
+          recordAnswer(mode, difficulty, correct, newStreak);
+        }
         setGameState('result');
       };
 
@@ -919,7 +1114,14 @@
 
           {lastResult && (
             <div style={{ ...styles.resultBox, backgroundColor: lastResult.correct ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)', borderColor: lastResult.correct ? '#22c55e' : '#ef4444' }}>
-              {lastResult.message}
+              <div>{lastResult.message}</div>
+              {lastResult.hint && <div style={{ fontSize: '0.85rem', marginTop: '8px', color: '#94a3b8' }}>{lastResult.hint}</div>}
+              {lastResult.showPiano && <PianoVisualization highlightedNotes={lastResult.showPiano} startOctave={3} octaves={2} />}
+            </div>
+          )}
+          {settings.practiceMode && (
+            <div style={{ textAlign: 'center', padding: '8px', backgroundColor: 'rgba(168, 85, 247, 0.2)', borderRadius: '8px', fontSize: '0.85rem', color: '#a855f7' }}>
+              Practice Mode - No scoring
             </div>
           )}
 
@@ -1028,8 +1230,8 @@
     // Learn View with Swipe
     function LearnView() {
       const { settings } = useSettings();
-      const audio = useAudio(settings.instrument, settings.useMidi);
-      const [currentPage, setCurrentPage] = useState('scales');
+      const audio = useAudio(settings.instrument, settings.useMidi, settings.volume);
+      const [currentPage, setCurrentPage] = useState('intervals');
 
       const ScalesPage = () => (
         <div>
@@ -1077,7 +1279,41 @@
         </div>
       );
 
-      const pages = { scales: <ScalesPage />, chords: <ChordsPage />, progressions: <ProgressionsPage /> };
+      const IntervalsPage = () => (
+        <div>
+          <h2 style={{ ...styles.cardTitle, marginBottom: '16px' }}>Intervals</h2>
+          {Object.entries(INTERVALS).map(([key, interval]) => {
+            const baseNote = 'C';
+            const octave = 4;
+            const noteIndex = NOTES.indexOf(baseNote);
+            const secondNote = NOTES[(noteIndex + parseInt(key)) % 12];
+            const secondOctave = octave + Math.floor((noteIndex + parseInt(key)) / 12);
+            const notes = [`${baseNote}${octave}`, `${secondNote}${secondOctave}`];
+            return (
+              <Accordion key={key} title={`${interval.name} (${interval.short})`} onPlay={() => audio.playSequence(notes)} isPlaying={audio.isPlaying}>
+                <div style={styles.refNotes}>{baseNote} → {secondNote}</div>
+                <div style={styles.refDesc}>Sounds like: {interval.songs.join(', ')}</div>
+                <PianoVisualization highlightedNotes={notes} startOctave={4} octaves={1} />
+              </Accordion>
+            );
+          })}
+        </div>
+      );
+
+      const GuitarPage = () => (
+        <div>
+          <h2 style={{ ...styles.cardTitle, marginBottom: '16px' }}>Guitar Chords</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+            {Object.entries(GUITAR_CHORDS).map(([key, chord]) => (
+              <div key={key} style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '8px' }}>
+                <GuitarChordChart chord={key} size="small" />
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+
+      const pages = { intervals: <IntervalsPage />, scales: <ScalesPage />, chords: <ChordsPage />, progressions: <ProgressionsPage />, guitar: <GuitarPage /> };
 
       return (
         <div style={{ flex: 1 }}>
@@ -1092,11 +1328,15 @@
     function StatsView() {
       const { stats, resetStats } = useStats();
       const { addToast } = useToast();
-      const [shareMessage, setShareMessage] = useState('');
+      const [showAchievements, setShowAchievements] = useState(false);
 
       const getAccuracy = (correct, total) => total === 0 ? '0%' : `${Math.round((correct / total) * 100)}%`;
       const totalAnswered = Object.keys(GAME_MODES).reduce((sum, key) => sum + stats[key].totalAnswered, 0);
       const totalCorrect = Object.keys(GAME_MODES).reduce((sum, key) => sum + stats[key].totalCorrect, 0);
+
+      // Check unlocked achievements
+      const unlockedAchievements = Object.values(ACHIEVEMENTS).filter(a => a.requirement(stats));
+      const lockedAchievements = Object.values(ACHIEVEMENTS).filter(a => !a.requirement(stats));
 
       const handleShare = async () => {
         const text = getShareText(stats);
@@ -1114,6 +1354,47 @@
       return (
         <div style={{ flex: 1 }}>
           <Breadcrumbs items={[{ label: 'Stats' }]} />
+
+          {/* Achievements Section */}
+          <div style={styles.statsCard}>
+            <button onClick={() => setShowAchievements(!showAchievements)} className="btn-press"
+              style={{ background: 'none', border: 'none', color: 'white', width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}>
+              <div style={styles.statsTitle}>🏆 Achievements ({unlockedAchievements.length}/{Object.keys(ACHIEVEMENTS).length})</div>
+              <span style={{ transform: showAchievements ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.3s' }}>▼</span>
+            </button>
+            {showAchievements && (
+              <div style={{ marginTop: '12px' }}>
+                {unlockedAchievements.length > 0 && (
+                  <div style={{ marginBottom: '16px' }}>
+                    <div style={{ fontSize: '0.8rem', color: '#22c55e', marginBottom: '8px' }}>Unlocked</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                      {unlockedAchievements.map(a => (
+                        <div key={a.id} style={{ textAlign: 'center', padding: '12px 4px', backgroundColor: 'rgba(34, 197, 94, 0.2)', borderRadius: '12px' }}>
+                          <div style={{ fontSize: '1.5rem' }}>{a.icon}</div>
+                          <div style={{ fontSize: '0.7rem', fontWeight: '600', marginTop: '4px' }}>{a.name}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {lockedAchievements.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '8px' }}>Locked</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                      {lockedAchievements.map(a => (
+                        <div key={a.id} style={{ textAlign: 'center', padding: '12px 4px', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '12px', opacity: 0.5 }}>
+                          <div style={{ fontSize: '1.5rem' }}>🔒</div>
+                          <div style={{ fontSize: '0.7rem', fontWeight: '600', marginTop: '4px' }}>{a.name}</div>
+                          <div style={{ fontSize: '0.6rem', color: '#64748b', marginTop: '2px' }}>{a.description}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           <div style={styles.statsCard}>
             <div style={styles.statsTitle}>Overall Stats</div>
             <div style={styles.statsGrid}>
@@ -1175,8 +1456,19 @@
               <Toggle checked={settings.autoPlayOnStart} onChange={(val) => updateSettings({ autoPlayOnStart: val })} />
             </div>
             <div style={styles.settingRow}>
+              <span style={styles.settingLabel}>Volume</span>
+              <VolumeSlider value={settings.volume} onChange={(val) => updateSettings({ volume: val })} />
+            </div>
+            <div style={styles.settingRow}>
               <span style={styles.settingLabel}>Sound effects</span>
               <Toggle checked={sfxEnabled} onChange={setSfxEnabled} />
+            </div>
+            <div style={styles.settingRow}>
+              <div>
+                <span style={styles.settingLabel}>Practice Mode</span>
+                <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>Learn without scoring pressure</div>
+              </div>
+              <Toggle checked={settings.practiceMode} onChange={(val) => updateSettings({ practiceMode: val })} />
             </div>
             <div style={{ ...styles.settingRow, borderBottom: 'none' }}>
               <span style={styles.settingLabel}>Show octave in choices</span>
@@ -1188,7 +1480,7 @@
             <p style={{ color: '#94a3b8', fontSize: '0.9rem', lineHeight: 1.6 }}>
               KeyPerfect is an ear training app to help musicians recognize notes, intervals, chords, scales, and progressions.
             </p>
-            <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '12px' }}>Version 2.5 (Mobile)</p>
+            <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '12px' }}>Version 3.0 (Mobile)</p>
           </div>
         </div>
       );
