@@ -12,24 +12,56 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    /* Animated gradient background */
     body {
       font-family: 'Inter', sans-serif;
-      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      background: linear-gradient(-45deg, #0f0c29, #302b63, #24243e, #0f0c29);
+      background-size: 400% 400%;
+      animation: gradientShift 15s ease infinite;
       min-height: 100vh;
       color: white;
       overflow-x: hidden;
     }
+    @keyframes gradientShift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
     #root { min-height: 100vh; }
     select option { background: #1a1a2e; color: white; }
 
-    /* Button press animations - mobile-only, no hover states */
+    /* Glassmorphism base */
+    .glass {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Button with ripple effect */
     .btn-press {
-      transition: transform 0.1s ease, box-shadow 0.1s ease, opacity 0.1s ease;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.15s ease;
       -webkit-tap-highlight-color: transparent;
       touch-action: manipulation;
     }
     .btn-press:active {
-      transform: scale(0.96);
+      transform: scale(0.97);
+    }
+    .ripple {
+      position: absolute;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.4);
+      transform: scale(0);
+      animation: rippleEffect 0.6s linear;
+      pointer-events: none;
+    }
+    @keyframes rippleEffect {
+      to { transform: scale(4); opacity: 0; }
     }
 
     /* Prevent text selection on buttons */
@@ -38,29 +70,38 @@
       user-select: none;
     }
 
-    /* Skeleton loading animation */
+    /* Enhanced skeleton loading */
     @keyframes shimmer {
       0% { background-position: -200% 0; }
       100% { background-position: 200% 0; }
     }
     .skeleton {
-      background: linear-gradient(90deg, rgba(255,255,255,0.1) 25%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0.1) 75%);
+      background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.15) 50%, rgba(255,255,255,0.05) 75%);
       background-size: 200% 100%;
       animation: shimmer 1.5s infinite;
-      border-radius: 8px;
+      border-radius: 16px;
     }
 
-    /* Toast animation */
+    /* Toast animations */
     @keyframes slideIn {
-      from { transform: translateX(100%); opacity: 0; }
-      to { transform: translateX(0); opacity: 1; }
+      from { transform: translateY(-100%) scale(0.8); opacity: 0; }
+      to { transform: translateY(0) scale(1); opacity: 1; }
     }
     @keyframes slideOut {
-      from { transform: translateX(0); opacity: 1; }
-      to { transform: translateX(100%); opacity: 0; }
+      from { transform: translateY(0) scale(1); opacity: 1; }
+      to { transform: translateY(-100%) scale(0.8); opacity: 0; }
     }
-    .toast-enter { animation: slideIn 0.3s ease forwards; }
+    .toast-enter { animation: slideIn 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards; }
     .toast-exit { animation: slideOut 0.3s ease forwards; }
+
+    /* Page transitions */
+    @keyframes fadeSlideIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .page-enter {
+      animation: fadeSlideIn 0.4s ease forwards;
+    }
 
     /* Swipe container */
     .swipe-container {
@@ -68,19 +109,124 @@
       touch-action: pan-y;
     }
 
-    /* Floating button pulse animation */
+    /* Floating button pulse */
     @keyframes pulse {
-      0%, 100% { box-shadow: 0 8px 30px rgba(139, 92, 246, 0.5); }
-      50% { box-shadow: 0 8px 40px rgba(139, 92, 246, 0.7); }
+      0%, 100% { box-shadow: 0 8px 30px rgba(139, 92, 246, 0.5), 0 0 0 0 rgba(139, 92, 246, 0.4); }
+      50% { box-shadow: 0 12px 40px rgba(139, 92, 246, 0.7), 0 0 0 10px rgba(139, 92, 246, 0); }
     }
     .floating-btn {
       animation: pulse 2s ease-in-out infinite;
     }
 
+    /* Confetti animation */
+    @keyframes confettiFall {
+      0% { transform: translateY(-100vh) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+    }
+    .confetti {
+      position: fixed;
+      width: 10px;
+      height: 10px;
+      top: -10px;
+      animation: confettiFall 3s linear forwards;
+      z-index: 9999;
+      pointer-events: none;
+    }
+
+    /* Shake animation for wrong answers */
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+      20%, 40%, 60%, 80% { transform: translateX(5px); }
+    }
+    .shake {
+      animation: shake 0.5s ease-in-out;
+    }
+
+    /* Success checkmark animation */
+    @keyframes successPop {
+      0% { transform: scale(0) rotate(-45deg); opacity: 0; }
+      50% { transform: scale(1.2) rotate(-45deg); }
+      100% { transform: scale(1) rotate(-45deg); opacity: 1; }
+    }
+    .success-check {
+      animation: successPop 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+    }
+
+    /* Fire/streak animation */
+    @keyframes fireGlow {
+      0%, 100% { filter: drop-shadow(0 0 5px #ff6b35) drop-shadow(0 0 10px #ff6b35); transform: scale(1); }
+      50% { filter: drop-shadow(0 0 15px #ff6b35) drop-shadow(0 0 25px #ff6b35); transform: scale(1.1); }
+    }
+    .fire-glow {
+      animation: fireGlow 0.5s ease-in-out infinite;
+    }
+
+    /* Number count up */
+    @keyframes countPop {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.3); }
+      100% { transform: scale(1); }
+    }
+    .count-pop {
+      animation: countPop 0.3s ease;
+    }
+
+    /* Progress ring animation */
+    @keyframes progressFill {
+      from { stroke-dashoffset: 283; }
+    }
+    .progress-ring-circle {
+      transition: stroke-dashoffset 0.5s ease;
+      transform: rotate(-90deg);
+      transform-origin: 50% 50%;
+    }
+
     /* Accordion animation */
     .accordion-content {
       overflow: hidden;
-      transition: max-height 0.3s ease, opacity 0.3s ease;
+      transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+    }
+
+    /* Achievement unlock animation */
+    @keyframes achievementUnlock {
+      0% { transform: scale(0) rotate(-180deg); opacity: 0; }
+      50% { transform: scale(1.2) rotate(10deg); }
+      70% { transform: scale(0.9) rotate(-5deg); }
+      100% { transform: scale(1) rotate(0deg); opacity: 1; }
+    }
+    .achievement-unlock {
+      animation: achievementUnlock 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+    }
+
+    /* Badge shine effect */
+    @keyframes badgeShine {
+      0% { background-position: -200% center; }
+      100% { background-position: 200% center; }
+    }
+    .badge-shine {
+      background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%);
+      background-size: 200% 100%;
+      animation: badgeShine 2s ease-in-out infinite;
+    }
+
+    /* Waveform animation */
+    @keyframes waveform {
+      0%, 100% { height: 20%; }
+      50% { height: 100%; }
+    }
+    .waveform-bar {
+      animation: waveform 0.5s ease-in-out infinite;
+    }
+
+    /* Nav pill indicator */
+    .nav-pill {
+      position: absolute;
+      bottom: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #a855f7, #ec4899);
+      border-radius: 3px 3px 0 0;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     /* Bottom nav safe area */
@@ -96,7 +242,8 @@
     }
     .bottom-nav button {
       flex: 1;
-      min-height: 56px;
+      min-height: 60px;
+      transition: all 0.3s ease;
     }
 
     /* Mobile touch improvements */
@@ -105,7 +252,23 @@
     }
 
     input, select, button {
-      font-size: 16px; /* Prevents iOS zoom on focus */
+      font-size: 16px;
+    }
+
+    /* Range slider styling */
+    input[type="range"] {
+      -webkit-appearance: none;
+      height: 6px;
+      border-radius: 3px;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #a855f7, #ec4899);
+      cursor: pointer;
+      box-shadow: 0 2px 10px rgba(168, 85, 247, 0.5);
     }
 
     /* Smooth scrolling */
@@ -114,13 +277,33 @@
       -webkit-overflow-scrolling: touch;
     }
 
-    /* Hide scrollbars on mobile but allow scrolling */
-    ::-webkit-scrollbar {
-      display: none;
-    }
+    /* Hide scrollbars on mobile */
+    ::-webkit-scrollbar { display: none; }
     body {
       -ms-overflow-style: none;
       scrollbar-width: none;
+    }
+
+    /* Glow effects */
+    .glow-purple { box-shadow: 0 0 20px rgba(168, 85, 247, 0.5); }
+    .glow-green { box-shadow: 0 0 20px rgba(34, 197, 94, 0.5); }
+    .glow-red { box-shadow: 0 0 20px rgba(239, 68, 68, 0.5); }
+
+    /* Gradient text */
+    .gradient-text {
+      background: linear-gradient(135deg, #a855f7 0%, #ec4899 50%, #f97316 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* Card hover lift */
+    .card-lift {
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    .card-lift:active {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
     }
   </style>
 </head>
@@ -673,71 +856,102 @@
     // ============================================
 
     const styles = {
-      container: { minHeight: '100vh', display: 'flex', flexDirection: 'column', padding: '16px', paddingBottom: '100px', maxWidth: '100%', margin: '0 auto', width: '100%' },
-      header: { textAlign: 'center', marginBottom: '12px' },
-      title: { fontSize: '1.5rem', fontWeight: '700', marginBottom: '2px', background: 'linear-gradient(135deg, #a855f7, #ec4899)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', cursor: 'pointer' },
-      subtitle: { color: '#94a3b8', fontSize: '0.8rem' },
-      breadcrumbs: { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', fontSize: '0.85rem', color: '#94a3b8' },
-      breadcrumbLink: { color: '#a855f7', cursor: 'pointer', background: 'none', border: 'none', fontSize: '0.85rem', padding: 0 },
+      // Layout
+      container: { minHeight: '100vh', display: 'flex', flexDirection: 'column', padding: '20px', paddingBottom: '110px', maxWidth: '100%', margin: '0 auto', width: '100%' },
+      header: { textAlign: 'center', marginBottom: '20px', paddingTop: '10px' },
+      title: { fontSize: '2rem', fontWeight: '700', marginBottom: '4px', background: 'linear-gradient(135deg, #a855f7 0%, #ec4899 50%, #f97316 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', cursor: 'pointer', letterSpacing: '-0.5px' },
+      subtitle: { color: '#94a3b8', fontSize: '0.85rem', fontWeight: '500' },
+      breadcrumbs: { display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', fontSize: '0.9rem', color: '#94a3b8' },
+      breadcrumbLink: { color: '#a855f7', cursor: 'pointer', background: 'none', border: 'none', fontSize: '0.9rem', padding: 0, fontWeight: '500' },
       breadcrumbSep: { color: '#475569' },
-      breadcrumbCurrent: { color: 'white' },
-      card: { backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: '20px', padding: '20px', backdropFilter: 'blur(10px)', width: '100%' },
-      cardTitle: { fontSize: '1.1rem', fontWeight: '600', marginBottom: '16px', textAlign: 'center' },
-      modeGrid: { display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: '12px', marginBottom: '20px' },
-      modeBtn: { padding: '16px', borderRadius: '14px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'rgba(255, 255, 255, 0.05)', color: 'white', cursor: 'pointer', textAlign: 'left', minHeight: '72px' },
-      modeBtnActive: { borderColor: '#a855f7', backgroundColor: 'rgba(168, 85, 247, 0.2)' },
-      modeIcon: { fontSize: '1.25rem', marginBottom: '4px' },
-      modeName: { fontSize: '0.95rem', fontWeight: '600', marginBottom: '2px' },
-      modeDesc: { fontSize: '0.75rem', color: '#94a3b8' },
-      difficultyOptions: { display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' },
-      difficultyBtn: { padding: '14px 18px', borderRadius: '12px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'transparent', color: 'white', fontSize: '1rem', cursor: 'pointer', textAlign: 'left', minHeight: '56px' },
-      difficultyBtnActive: { borderColor: '#a855f7', backgroundColor: 'rgba(168, 85, 247, 0.2)' },
-      difficultyLabel: { fontWeight: '600' },
-      difficultyDesc: { fontSize: '0.8rem', color: '#94a3b8', marginTop: '2px' },
-      startBtn: { width: '100%', padding: '18px', borderRadius: '14px', border: 'none', background: 'linear-gradient(135deg, #a855f7, #ec4899)', color: 'white', fontSize: '1.1rem', fontWeight: '600', cursor: 'pointer', minHeight: '56px' },
-      scoreBoard: { display: 'flex', justifyContent: 'space-around', backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: '12px', padding: '12px' },
-      scoreStat: { display: 'flex', flexDirection: 'column', alignItems: 'center' },
-      scoreLabel: { fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' },
-      scoreValue: { fontSize: '1.1rem', fontWeight: '700' },
-      floatingPlayBtn: { position: 'fixed', bottom: '110px', right: '20px', width: '68px', height: '68px', borderRadius: '50%', border: 'none', background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', color: 'white', fontSize: '1.6rem', cursor: 'pointer', boxShadow: '0 8px 30px rgba(139, 92, 246, 0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' },
-      playHint: { marginTop: '8px', color: '#94a3b8', fontSize: '0.85rem', textAlign: 'center' },
-      choicesGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginTop: '16px' },
-      choiceBtn: { padding: '20px 14px', borderRadius: '14px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'rgba(255, 255, 255, 0.1)', color: 'white', fontSize: '1rem', fontWeight: '600', cursor: 'pointer', minHeight: '60px' },
-      choiceBtnCorrect: { borderColor: '#22c55e', backgroundColor: 'rgba(34, 197, 94, 0.3)' },
-      choiceBtnWrong: { borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.3)' },
-      actionButtons: { display: 'flex', gap: '12px', marginTop: '20px' },
-      nextBtn: { flex: 1, padding: '16px', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg, #22c55e, #16a34a)', color: 'white', fontSize: '1.05rem', fontWeight: '600', cursor: 'pointer', minHeight: '52px' },
-      resetBtn: { flex: 1, padding: '16px', borderRadius: '12px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'transparent', color: 'white', fontSize: '1rem', fontWeight: '500', cursor: 'pointer', minHeight: '52px' },
-      resultBox: { textAlign: 'center', padding: '16px', borderRadius: '12px', border: '2px solid', fontSize: '1.05rem', fontWeight: '600' },
-      bottomNav: { position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(22, 33, 62, 0.98)', backdropFilter: 'blur(20px)', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'stretch', padding: '8px 0 12px', zIndex: 999, width: '100%' },
-      bottomNavItem: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px', background: 'none', border: 'none', color: '#64748b', fontSize: '0.75rem', cursor: 'pointer', padding: '10px 8px', borderRadius: '8px', flex: 1, minHeight: '56px' },
-      bottomNavItemActive: { color: '#a855f7', backgroundColor: 'rgba(168, 85, 247, 0.1)' },
-      bottomNavIcon: { fontSize: '1.4rem' },
-      statsCard: { backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: '12px', padding: '16px', marginBottom: '12px' },
-      statsTitle: { fontSize: '1rem', fontWeight: '600', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' },
-      statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' },
-      statItem: { textAlign: 'center' },
-      statValue: { fontSize: '1.5rem', fontWeight: '700', color: '#a855f7' },
-      statLabel: { fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase' },
-      settingRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 0', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', minHeight: '56px' },
-      settingLabel: { fontSize: '0.95rem' },
-      select: { padding: '12px 16px', borderRadius: '10px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'rgba(255, 255, 255, 0.1)', color: 'white', fontSize: '1rem', cursor: 'pointer', minHeight: '44px', appearance: 'none', backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'white\' viewBox=\'0 0 24 24\'%3E%3Cpath d=\'M7 10l5 5 5-5z\'/%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center', backgroundSize: '20px', paddingRight: '36px' },
-      toggle: { width: '52px', height: '30px', borderRadius: '15px', border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 0.2s', minWidth: '52px' },
-      toggleKnob: { width: '26px', height: '26px', borderRadius: '50%', backgroundColor: 'white', position: 'absolute', top: '2px', transition: 'left 0.2s' },
-      dangerBtn: { padding: '16px', borderRadius: '12px', border: '2px solid #ef4444', backgroundColor: 'transparent', color: '#ef4444', fontSize: '1rem', cursor: 'pointer', marginTop: '20px', width: '100%', minHeight: '52px' },
-      shareBtn: { padding: '16px', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', color: 'white', fontSize: '1rem', cursor: 'pointer', marginTop: '16px', width: '100%', fontWeight: '600', minHeight: '52px' },
-      accordion: { backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: '14px', marginBottom: '10px', overflow: 'hidden' },
-      accordionHeader: { padding: '18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', background: 'none', border: 'none', width: '100%', color: 'white', textAlign: 'left', minHeight: '56px' },
+      breadcrumbCurrent: { color: 'white', fontWeight: '600' },
+
+      // Cards - Glassmorphism
+      card: { background: 'rgba(255, 255, 255, 0.08)', borderRadius: '24px', padding: '24px', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid rgba(255, 255, 255, 0.1)', boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)', width: '100%' },
+      cardTitle: { fontSize: '1.2rem', fontWeight: '700', marginBottom: '20px', textAlign: 'center', background: 'linear-gradient(135deg, #fff 0%, #94a3b8 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' },
+
+      // Mode Selection - Horizontal Scroll
+      modeScroll: { display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '12px', marginBottom: '20px', scrollSnapType: 'x mandatory', WebkitOverflowScrolling: 'touch' },
+      modeCard: { minWidth: '140px', padding: '20px 16px', borderRadius: '20px', border: '2px solid rgba(255, 255, 255, 0.15)', background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(10px)', color: 'white', cursor: 'pointer', textAlign: 'center', scrollSnapAlign: 'start', transition: 'all 0.3s ease' },
+      modeCardActive: { borderColor: '#a855f7', background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.3), rgba(236, 72, 153, 0.2))', boxShadow: '0 0 30px rgba(168, 85, 247, 0.3)' },
+      modeIcon: { fontSize: '2rem', marginBottom: '8px', display: 'block' },
+      modeName: { fontSize: '0.9rem', fontWeight: '600', marginBottom: '4px' },
+      modeDesc: { fontSize: '0.7rem', color: '#94a3b8', lineHeight: 1.3 },
+
+      // Difficulty - Chip Style
+      difficultyChips: { display: 'flex', gap: '10px', marginBottom: '24px', justifyContent: 'center', flexWrap: 'wrap' },
+      difficultyChip: { padding: '12px 24px', borderRadius: '50px', border: '2px solid rgba(255, 255, 255, 0.2)', background: 'rgba(255, 255, 255, 0.05)', color: 'white', fontSize: '0.95rem', fontWeight: '600', cursor: 'pointer', transition: 'all 0.3s ease' },
+      difficultyChipActive: { borderColor: '#a855f7', background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.4), rgba(236, 72, 153, 0.3))', boxShadow: '0 0 20px rgba(168, 85, 247, 0.3)' },
+
+      // Start Button
+      startBtn: { width: '100%', padding: '20px', borderRadius: '16px', border: 'none', background: 'linear-gradient(135deg, #a855f7, #ec4899, #f97316)', backgroundSize: '200% 200%', color: 'white', fontSize: '1.2rem', fontWeight: '700', cursor: 'pointer', minHeight: '60px', boxShadow: '0 8px 30px rgba(168, 85, 247, 0.4)', transition: 'all 0.3s ease', letterSpacing: '0.5px' },
+
+      // Score Board - Enhanced
+      scoreBoard: { display: 'flex', justifyContent: 'space-around', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '20px', padding: '20px 16px', backdropFilter: 'blur(10px)', border: '1px solid rgba(255, 255, 255, 0.1)' },
+      scoreStat: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' },
+      scoreLabel: { fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: '500' },
+      scoreValue: { fontSize: '1.4rem', fontWeight: '700' },
+
+      // Floating Play Button
+      floatingPlayBtn: { position: 'fixed', bottom: '120px', right: '24px', width: '72px', height: '72px', borderRadius: '50%', border: 'none', background: 'linear-gradient(135deg, #3b82f6, #8b5cf6, #a855f7)', color: 'white', fontSize: '1.8rem', cursor: 'pointer', boxShadow: '0 8px 30px rgba(139, 92, 246, 0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      playHint: { marginTop: '12px', color: '#64748b', fontSize: '0.85rem', textAlign: 'center', fontWeight: '500' },
+
+      // Choice Buttons - Enhanced
+      choicesGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '14px', marginTop: '20px' },
+      choiceBtn: { padding: '22px 16px', borderRadius: '18px', border: '2px solid rgba(255, 255, 255, 0.15)', background: 'rgba(255, 255, 255, 0.08)', backdropFilter: 'blur(10px)', color: 'white', fontSize: '1rem', fontWeight: '600', cursor: 'pointer', minHeight: '70px', transition: 'all 0.2s ease', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center' },
+      choiceBtnCorrect: { borderColor: '#22c55e', background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.4), rgba(22, 163, 74, 0.3))', boxShadow: '0 0 30px rgba(34, 197, 94, 0.4)' },
+      choiceBtnWrong: { borderColor: '#ef4444', background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.4), rgba(220, 38, 38, 0.3))', boxShadow: '0 0 30px rgba(239, 68, 68, 0.4)' },
+
+      // Action Buttons
+      actionButtons: { display: 'flex', gap: '14px', marginTop: '24px' },
+      nextBtn: { flex: 1, padding: '18px', borderRadius: '14px', border: 'none', background: 'linear-gradient(135deg, #22c55e, #16a34a)', color: 'white', fontSize: '1.1rem', fontWeight: '700', cursor: 'pointer', minHeight: '56px', boxShadow: '0 8px 25px rgba(34, 197, 94, 0.4)' },
+      resetBtn: { flex: 1, padding: '18px', borderRadius: '14px', border: '2px solid rgba(255, 255, 255, 0.2)', background: 'rgba(255, 255, 255, 0.05)', color: 'white', fontSize: '1rem', fontWeight: '600', cursor: 'pointer', minHeight: '56px' },
+
+      // Result Box
+      resultBox: { textAlign: 'center', padding: '20px', borderRadius: '16px', border: '2px solid', fontSize: '1.1rem', fontWeight: '700', backdropFilter: 'blur(10px)' },
+
+      // Bottom Navigation - Enhanced
+      bottomNav: { position: 'fixed', bottom: 0, left: 0, right: 0, background: 'rgba(15, 12, 41, 0.95)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'stretch', padding: '12px 8px 16px', zIndex: 999, width: '100%' },
+      bottomNavItem: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '6px', background: 'none', border: 'none', color: '#64748b', fontSize: '0.7rem', fontWeight: '500', cursor: 'pointer', padding: '8px', borderRadius: '12px', flex: 1, minHeight: '60px', transition: 'all 0.3s ease', position: 'relative' },
+      bottomNavItemActive: { color: '#a855f7' },
+      bottomNavIcon: { fontSize: '1.5rem', transition: 'transform 0.3s ease' },
+
+      // Stats Cards
+      statsCard: { background: 'rgba(255, 255, 255, 0.06)', borderRadius: '20px', padding: '20px', marginBottom: '14px', backdropFilter: 'blur(10px)', border: '1px solid rgba(255, 255, 255, 0.08)' },
+      statsTitle: { fontSize: '1.05rem', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px' },
+      statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' },
+      statItem: { textAlign: 'center', padding: '12px', background: 'rgba(255, 255, 255, 0.04)', borderRadius: '12px' },
+      statValue: { fontSize: '1.6rem', fontWeight: '700', background: 'linear-gradient(135deg, #a855f7, #ec4899)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' },
+      statLabel: { fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: '4px', fontWeight: '500' },
+
+      // Settings
+      settingRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 0', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', minHeight: '60px' },
+      settingLabel: { fontSize: '1rem', fontWeight: '500' },
+      select: { padding: '14px 18px', borderRadius: '12px', border: '2px solid rgba(255, 255, 255, 0.15)', background: 'rgba(255, 255, 255, 0.08)', color: 'white', fontSize: '1rem', cursor: 'pointer', minHeight: '48px', appearance: 'none', backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'white\' viewBox=\'0 0 24 24\'%3E%3Cpath d=\'M7 10l5 5 5-5z\'/%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '20px', paddingRight: '40px' },
+      toggle: { width: '56px', height: '32px', borderRadius: '16px', border: 'none', cursor: 'pointer', position: 'relative', transition: 'all 0.3s ease', minWidth: '56px' },
+      toggleKnob: { width: '28px', height: '28px', borderRadius: '50%', backgroundColor: 'white', position: 'absolute', top: '2px', transition: 'left 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55)', boxShadow: '0 2px 8px rgba(0,0,0,0.2)' },
+
+      // Buttons
+      dangerBtn: { padding: '18px', borderRadius: '14px', border: '2px solid #ef4444', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', fontSize: '1rem', fontWeight: '600', cursor: 'pointer', marginTop: '20px', width: '100%', minHeight: '56px' },
+      shareBtn: { padding: '18px', borderRadius: '14px', border: 'none', background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', color: 'white', fontSize: '1rem', cursor: 'pointer', marginTop: '16px', width: '100%', fontWeight: '700', minHeight: '56px', boxShadow: '0 8px 25px rgba(59, 130, 246, 0.4)' },
+
+      // Accordion
+      accordion: { background: 'rgba(255, 255, 255, 0.05)', borderRadius: '16px', marginBottom: '12px', overflow: 'hidden', border: '1px solid rgba(255, 255, 255, 0.08)' },
+      accordionHeader: { padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', background: 'none', border: 'none', width: '100%', color: 'white', textAlign: 'left', minHeight: '60px' },
       accordionTitle: { fontSize: '1rem', fontWeight: '600' },
-      accordionArrow: { fontSize: '1rem', transition: 'transform 0.3s' },
-      accordionBody: { padding: '0 16px 16px' },
-      refNotes: { fontSize: '0.9rem', color: '#a855f7', fontFamily: 'monospace', marginBottom: '8px' },
-      refDesc: { fontSize: '0.8rem', color: '#94a3b8', marginBottom: '8px' },
-      playSmallBtn: { padding: '12px 20px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', color: 'white', fontSize: '0.9rem', cursor: 'pointer', minHeight: '44px' },
-      swipeIndicator: { display: 'flex', justifyContent: 'center', gap: '12px', marginBottom: '16px' },
-      swipeDot: { width: '10px', height: '10px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.3)', cursor: 'pointer', padding: '8px', boxSizing: 'content-box' },
-      swipeDotActive: { backgroundColor: '#a855f7' },
-      skeleton: { height: '60px', marginBottom: '8px' },
+      accordionArrow: { fontSize: '0.9rem', transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)' },
+      accordionBody: { padding: '0 20px 20px' },
+      refNotes: { fontSize: '0.95rem', color: '#a855f7', fontFamily: 'monospace', marginBottom: '10px', fontWeight: '500' },
+      refDesc: { fontSize: '0.85rem', color: '#94a3b8', marginBottom: '12px', lineHeight: 1.5 },
+      playSmallBtn: { padding: '14px 24px', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', color: 'white', fontSize: '0.95rem', fontWeight: '600', cursor: 'pointer', minHeight: '48px' },
+
+      // Swipe Indicator
+      swipeIndicator: { display: 'flex', justifyContent: 'center', gap: '10px', marginBottom: '20px' },
+      swipeDot: { width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.2)', cursor: 'pointer', transition: 'all 0.3s ease' },
+      swipeDotActive: { backgroundColor: '#a855f7', width: '24px', borderRadius: '4px' },
+
+      // Skeleton
+      skeleton: { height: '60px', marginBottom: '12px' },
     };
 
     // ============================================
@@ -880,15 +1094,176 @@
       );
     }
 
-    // Bottom Navigation
-    function BottomNav({ currentView, setView }) {
+    // Confetti Component for celebrations
+    function Confetti({ trigger }) {
+      const [particles, setParticles] = useState([]);
+
+      useEffect(() => {
+        if (trigger) {
+          const colors = ['#a855f7', '#ec4899', '#f97316', '#22c55e', '#3b82f6', '#facc15'];
+          const newParticles = Array.from({ length: 30 }, (_, i) => ({
+            id: i,
+            left: Math.random() * 100,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            delay: Math.random() * 0.5,
+            size: Math.random() * 8 + 6,
+          }));
+          setParticles(newParticles);
+          setTimeout(() => setParticles([]), 3000);
+        }
+      }, [trigger]);
+
       return (
-        <nav style={styles.bottomNav} className="bottom-nav">
+        <>
+          {particles.map(p => (
+            <div key={p.id} className="confetti" style={{
+              left: `${p.left}%`,
+              backgroundColor: p.color,
+              animationDelay: `${p.delay}s`,
+              width: `${p.size}px`,
+              height: `${p.size}px`,
+              borderRadius: Math.random() > 0.5 ? '50%' : '2px',
+            }} />
+          ))}
+        </>
+      );
+    }
+
+    // Progress Ring Component for stats
+    function ProgressRing({ progress, size = 80, strokeWidth = 6, color = '#a855f7', label = '', value = '' }) {
+      const radius = (size - strokeWidth) / 2;
+      const circumference = radius * 2 * Math.PI;
+      const offset = circumference - (progress / 100) * circumference;
+
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+          <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+            <circle
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              fill="none"
+              stroke="rgba(255,255,255,0.1)"
+              strokeWidth={strokeWidth}
+            />
+            <circle
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              fill="none"
+              stroke={color}
+              strokeWidth={strokeWidth}
+              strokeDasharray={circumference}
+              strokeDashoffset={offset}
+              strokeLinecap="round"
+              className="progress-ring-circle"
+              style={{ filter: `drop-shadow(0 0 6px ${color})` }}
+            />
+          </svg>
+          <div style={{ position: 'absolute', marginTop: size / 2 - 10, fontSize: '1rem', fontWeight: '700' }}>{value}</div>
+          {label && <div style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</div>}
+        </div>
+      );
+    }
+
+    // Waveform Visualization Component
+    function Waveform({ isPlaying, barCount = 5 }) {
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '3px', height: '32px' }}>
+          {Array.from({ length: barCount }, (_, i) => (
+            <div
+              key={i}
+              className={isPlaying ? 'waveform-bar' : ''}
+              style={{
+                width: '4px',
+                height: isPlaying ? '100%' : '20%',
+                backgroundColor: '#a855f7',
+                borderRadius: '2px',
+                animationDelay: `${i * 0.1}s`,
+                transition: 'height 0.3s ease',
+              }}
+            />
+          ))}
+        </div>
+      );
+    }
+
+    // Streak Fire Animation
+    function StreakFire({ streak }) {
+      if (streak < 3) return null;
+      const flames = streak >= 10 ? 3 : streak >= 5 ? 2 : 1;
+      return (
+        <span className="fire-glow" style={{ display: 'inline-flex' }}>
+          {Array.from({ length: flames }, (_, i) => (
+            <span key={i} style={{ fontSize: '1.2rem' }}>🔥</span>
+          ))}
+        </span>
+      );
+    }
+
+    // Achievement Unlock Notification
+    function AchievementNotification({ achievement, onClose }) {
+      useEffect(() => {
+        const timer = setTimeout(onClose, 4000);
+        return () => clearTimeout(timer);
+      }, [onClose]);
+
+      return (
+        <div style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.95), rgba(236, 72, 153, 0.95))',
+          padding: '32px 48px',
+          borderRadius: '24px',
+          textAlign: 'center',
+          zIndex: 1100,
+          backdropFilter: 'blur(20px)',
+          border: '1px solid rgba(255,255,255,0.2)',
+          boxShadow: '0 20px 60px rgba(168, 85, 247, 0.5)',
+        }} className="achievement-unlock">
+          <div style={{ fontSize: '4rem', marginBottom: '12px' }}>{achievement.icon}</div>
+          <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '2px' }}>Achievement Unlocked!</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '8px' }}>{achievement.name}</div>
+          <div style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.8)' }}>{achievement.description}</div>
+        </div>
+      );
+    }
+
+    // Bottom Navigation with Pill Indicator with Pill Indicator
+    function BottomNav({ currentView, setView }) {
+      const navRef = useRef(null);
+      const [pillStyle, setPillStyle] = useState({ left: 0, width: 0 });
+
+      useEffect(() => {
+        const updatePill = () => {
+          if (navRef.current) {
+            const activeIdx = NAV_ITEMS.findIndex(item => item.id === currentView);
+            const buttons = navRef.current.querySelectorAll('button');
+            if (buttons[activeIdx]) {
+              const btn = buttons[activeIdx];
+              setPillStyle({
+                left: btn.offsetLeft + 8,
+                width: btn.offsetWidth - 16,
+              });
+            }
+          }
+        };
+        updatePill();
+        window.addEventListener('resize', updatePill);
+        return () => window.removeEventListener('resize', updatePill);
+      }, [currentView]);
+
+      return (
+        <nav ref={navRef} style={styles.bottomNav} className="bottom-nav">
+          {/* Animated pill indicator */}
+          <div className="nav-pill" style={{ ...pillStyle, position: 'absolute' }} />
           {NAV_ITEMS.map(item => (
             <button key={item.id} onClick={() => { setView(item.id); triggerHaptic('light'); }}
               className="btn-press"
               style={{ ...styles.bottomNavItem, ...(currentView === item.id ? styles.bottomNavItemActive : {}) }}>
-              <span style={styles.bottomNavIcon}>{item.icon}</span>
+              <span style={{ ...styles.bottomNavIcon, transform: currentView === item.id ? 'scale(1.15)' : 'scale(1)' }}>{item.icon}</span>
               <span>{item.label}</span>
             </button>
           ))}
@@ -991,13 +1366,28 @@
       );
     }
 
-    // Score Board
-    function ScoreBoard({ score, total, streak, bestStreak }) {
+    // Score Board with enhanced visuals
+    function ScoreBoard({ score, total, streak, bestStreak, isPlaying }) {
       return (
         <div style={styles.scoreBoard}>
-          <div style={styles.scoreStat}><span style={styles.scoreLabel}>Score</span><span style={styles.scoreValue}>{score}/{total}</span></div>
-          <div style={styles.scoreStat}><span style={styles.scoreLabel}>Streak</span><span style={styles.scoreValue}>{streak}</span></div>
-          <div style={styles.scoreStat}><span style={styles.scoreLabel}>Best</span><span style={styles.scoreValue}>{bestStreak}</span></div>
+          <div style={styles.scoreStat}>
+            <span style={styles.scoreLabel}>Score</span>
+            <span style={styles.scoreValue} className={score > 0 ? 'count-pop' : ''}>{score}/{total}</span>
+          </div>
+          <div style={styles.scoreStat}>
+            <span style={styles.scoreLabel}>Streak</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ ...styles.scoreValue, color: streak >= 5 ? '#f97316' : 'white' }}>{streak}</span>
+              <StreakFire streak={streak} />
+            </div>
+          </div>
+          <div style={styles.scoreStat}>
+            <span style={styles.scoreLabel}>Best</span>
+            <span style={{ ...styles.scoreValue, color: streak === bestStreak && bestStreak > 0 ? '#22c55e' : 'white' }}>{bestStreak}</span>
+          </div>
+          <div style={styles.scoreStat}>
+            <Waveform isPlaying={isPlaying} barCount={4} />
+          </div>
         </div>
       );
     }
@@ -1020,6 +1410,8 @@
       const [totalPlayed, setTotalPlayed] = useState(0);
       const [lastResult, setLastResult] = useState(null);
       const [selectedAnswer, setSelectedAnswer] = useState(null);
+      const [shakeWrong, setShakeWrong] = useState(false);
+      const [confettiTrigger, setConfettiTrigger] = useState(0);
 
       const generateRound = useCallback(() => {
         const question = buildQuestion(diffSettings, audio);
@@ -1028,6 +1420,7 @@
         setLastResult(null);
         setSelectedAnswer(null);
         setGameState('playing');
+        setShakeWrong(false);
         if (settings.autoPlayOnStart && question.play) {
           setTimeout(() => question.play(), 300);
         }
@@ -1056,6 +1449,8 @@
           } else {
             playSound('error');
             triggerHaptic('error');
+            setShakeWrong(true);
+            setTimeout(() => setShakeWrong(false), 500);
             setLastResult({ correct: false, message: `It was ${getChoiceLabel(correctAnswer)}`, hint, showPiano: currentQuestion.notes });
           }
         } else {
@@ -1070,12 +1465,15 @@
             setStreak(newStreak);
             if (newStreak > bestStreak) setBestStreak(newStreak);
             setLastResult({ correct: true, message: '✓ Correct!', hint });
-            if (newStreak === 5) addToast('🔥 5 streak! Keep going!', 'success');
-            if (newStreak === 10) addToast('🔥🔥 10 streak! Amazing!', 'success');
-            if (newStreak === 25) addToast('🔥🔥🔥 25 streak! Legendary!', 'success');
+            // Streak milestones with confetti
+            if (newStreak === 5) { addToast('🔥 5 streak! Keep going!', 'success'); setConfettiTrigger(Date.now()); }
+            if (newStreak === 10) { addToast('🔥🔥 10 streak! Amazing!', 'success'); setConfettiTrigger(Date.now()); }
+            if (newStreak === 25) { addToast('🔥🔥🔥 25 streak! Legendary!', 'success'); setConfettiTrigger(Date.now()); }
           } else {
             playSound('error');
             triggerHaptic('error');
+            setShakeWrong(true);
+            setTimeout(() => setShakeWrong(false), 500);
             setStreak(0);
             newStreak = 0;
             setLastResult({ correct: false, message: `✗ Wrong! It was ${getChoiceLabel(correctAnswer)}`, hint });
@@ -1106,33 +1504,34 @@
       }
 
       return (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }} className="page-enter">
+          <Confetti trigger={confettiTrigger} />
           <Breadcrumbs items={[{ label: 'Play', onClick: onBack }, { label: modeInfo.name }]} />
-          <ScoreBoard score={score} total={totalPlayed} streak={streak} bestStreak={bestStreak} />
+          <ScoreBoard score={score} total={totalPlayed} streak={streak} bestStreak={bestStreak} isPlaying={audio.isPlaying} />
 
           <p style={styles.playHint}>Tap the play button to hear again</p>
 
           {lastResult && (
-            <div style={{ ...styles.resultBox, backgroundColor: lastResult.correct ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)', borderColor: lastResult.correct ? '#22c55e' : '#ef4444' }}>
-              <div>{lastResult.message}</div>
+            <div className={lastResult.correct ? 'success-check' : ''} style={{ ...styles.resultBox, backgroundColor: lastResult.correct ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)', borderColor: lastResult.correct ? '#22c55e' : '#ef4444' }}>
+              <div style={{ fontSize: '1.2rem' }}>{lastResult.message}</div>
               {lastResult.hint && <div style={{ fontSize: '0.85rem', marginTop: '8px', color: '#94a3b8' }}>{lastResult.hint}</div>}
               {lastResult.showPiano && <PianoVisualization highlightedNotes={lastResult.showPiano} startOctave={3} octaves={2} />}
             </div>
           )}
           {settings.practiceMode && (
-            <div style={{ textAlign: 'center', padding: '8px', backgroundColor: 'rgba(168, 85, 247, 0.2)', borderRadius: '8px', fontSize: '0.85rem', color: '#a855f7' }}>
-              Practice Mode - No scoring
+            <div style={{ textAlign: 'center', padding: '10px', backgroundColor: 'rgba(168, 85, 247, 0.15)', borderRadius: '12px', fontSize: '0.85rem', color: '#a855f7', border: '1px solid rgba(168, 85, 247, 0.3)' }}>
+              🎓 Practice Mode - No scoring
             </div>
           )}
 
-          <div style={styles.choicesGrid}>
+          <div className={shakeWrong ? 'shake' : ''} style={styles.choicesGrid}>
             {choices.map((choice, i) => {
               const correctAnswer = currentQuestion ? getCorrectAnswer(currentQuestion) : null;
               const isCorrect = gameState === 'result' && choice === correctAnswer;
               const isWrong = gameState === 'result' && choice === selectedAnswer && choice !== correctAnswer;
               return (
                 <button key={i} onClick={() => handleGuess(choice)} disabled={gameState === 'result'}
-                  className="btn-press"
+                  className={`btn-press ${isCorrect ? 'glow-green' : ''} ${isWrong ? 'glow-red' : ''}`}
                   style={{ ...styles.choiceBtn, fontSize: '0.9rem', ...(isCorrect ? styles.choiceBtnCorrect : {}), ...(isWrong ? styles.choiceBtnWrong : {}), ...(gameState === 'result' ? { cursor: 'default' } : {}) }}>
                   {getChoiceLabel(choice)}
                 </button>
@@ -1316,7 +1715,7 @@
       const pages = { intervals: <IntervalsPage />, scales: <ScalesPage />, chords: <ChordsPage />, progressions: <ProgressionsPage />, guitar: <GuitarPage /> };
 
       return (
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1 }} className="page-enter">
           <Breadcrumbs items={[{ label: 'Learn' }]} />
           <p style={{ textAlign: 'center', color: '#64748b', fontSize: '0.8rem', marginBottom: '12px' }}>Swipe left/right to navigate</p>
           <SwipeContainer pages={pages} currentPage={currentPage} setCurrentPage={setCurrentPage} />
@@ -1330,9 +1729,11 @@
       const { addToast } = useToast();
       const [showAchievements, setShowAchievements] = useState(false);
 
-      const getAccuracy = (correct, total) => total === 0 ? '0%' : `${Math.round((correct / total) * 100)}%`;
+      const getAccuracy = (correct, total) => total === 0 ? 0 : Math.round((correct / total) * 100);
       const totalAnswered = Object.keys(GAME_MODES).reduce((sum, key) => sum + stats[key].totalAnswered, 0);
       const totalCorrect = Object.keys(GAME_MODES).reduce((sum, key) => sum + stats[key].totalCorrect, 0);
+      const overallAccuracy = getAccuracy(totalCorrect, totalAnswered);
+      const bestStreak = Math.max(...Object.keys(GAME_MODES).map(key => stats[key].bestStreak));
 
       // Check unlocked achievements
       const unlockedAchievements = Object.values(ACHIEVEMENTS).filter(a => a.requirement(stats));
@@ -1352,8 +1753,30 @@
       };
 
       return (
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1 }} className="page-enter">
           <Breadcrumbs items={[{ label: 'Stats' }]} />
+
+          {/* Overall Stats with Progress Rings */}
+          <div style={{ ...styles.statsCard, marginBottom: '16px' }}>
+            <div style={styles.statsTitle}>📊 Overall Progress</div>
+            <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', padding: '16px 0' }}>
+              <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <ProgressRing progress={overallAccuracy} size={90} strokeWidth={8} color="#22c55e" value={`${overallAccuracy}%`} />
+                <div style={{ marginTop: '36px', fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase' }}>Accuracy</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '2.5rem', fontWeight: '700', background: 'linear-gradient(135deg, #a855f7, #ec4899)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{totalAnswered}</div>
+                <div style={{ fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase' }}>Questions</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '2.5rem', fontWeight: '700', color: '#f97316', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                  {bestStreak}
+                  {bestStreak >= 5 && <span style={{ fontSize: '1.5rem' }}>🔥</span>}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase' }}>Best Streak</div>
+              </div>
+            </div>
+          </div>
 
           {/* Achievements Section */}
           <div style={styles.statsCard}>
@@ -1362,16 +1785,16 @@
               <div style={styles.statsTitle}>🏆 Achievements ({unlockedAchievements.length}/{Object.keys(ACHIEVEMENTS).length})</div>
               <span style={{ transform: showAchievements ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.3s' }}>▼</span>
             </button>
-            {showAchievements && (
+            <div className="accordion-content" style={{ maxHeight: showAchievements ? '600px' : '0', opacity: showAchievements ? 1 : 0 }}>
               <div style={{ marginTop: '12px' }}>
                 {unlockedAchievements.length > 0 && (
                   <div style={{ marginBottom: '16px' }}>
-                    <div style={{ fontSize: '0.8rem', color: '#22c55e', marginBottom: '8px' }}>Unlocked</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                    <div style={{ fontSize: '0.8rem', color: '#22c55e', marginBottom: '8px', fontWeight: '600' }}>Unlocked</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
                       {unlockedAchievements.map(a => (
-                        <div key={a.id} style={{ textAlign: 'center', padding: '12px 4px', backgroundColor: 'rgba(34, 197, 94, 0.2)', borderRadius: '12px' }}>
-                          <div style={{ fontSize: '1.5rem' }}>{a.icon}</div>
-                          <div style={{ fontSize: '0.7rem', fontWeight: '600', marginTop: '4px' }}>{a.name}</div>
+                        <div key={a.id} className="card-lift" style={{ textAlign: 'center', padding: '14px 6px', background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.25), rgba(16, 185, 129, 0.15))', borderRadius: '16px', border: '1px solid rgba(34, 197, 94, 0.3)' }}>
+                          <div style={{ fontSize: '1.8rem', marginBottom: '6px' }} className="badge-shine">{a.icon}</div>
+                          <div style={{ fontSize: '0.75rem', fontWeight: '600' }}>{a.name}</div>
                         </div>
                       ))}
                     </div>
@@ -1379,40 +1802,41 @@
                 )}
                 {lockedAchievements.length > 0 && (
                   <div>
-                    <div style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '8px' }}>Locked</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                    <div style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '8px', fontWeight: '600' }}>Locked</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
                       {lockedAchievements.map(a => (
-                        <div key={a.id} style={{ textAlign: 'center', padding: '12px 4px', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '12px', opacity: 0.5 }}>
-                          <div style={{ fontSize: '1.5rem' }}>🔒</div>
-                          <div style={{ fontSize: '0.7rem', fontWeight: '600', marginTop: '4px' }}>{a.name}</div>
-                          <div style={{ fontSize: '0.6rem', color: '#64748b', marginTop: '2px' }}>{a.description}</div>
+                        <div key={a.id} style={{ textAlign: 'center', padding: '14px 6px', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '16px', opacity: 0.6, border: '1px solid rgba(255,255,255,0.05)' }}>
+                          <div style={{ fontSize: '1.8rem', marginBottom: '6px', filter: 'grayscale(100%)' }}>🔒</div>
+                          <div style={{ fontSize: '0.75rem', fontWeight: '600', marginBottom: '4px' }}>{a.name}</div>
+                          <div style={{ fontSize: '0.6rem', color: '#64748b', lineHeight: 1.3 }}>{a.description}</div>
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
               </div>
-            )}
+            </div>
           </div>
 
-          <div style={styles.statsCard}>
-            <div style={styles.statsTitle}>Overall Stats</div>
-            <div style={styles.statsGrid}>
-              <div style={styles.statItem}><div style={styles.statValue}>{totalAnswered}</div><div style={styles.statLabel}>Questions</div></div>
-              <div style={styles.statItem}><div style={styles.statValue}>{getAccuracy(totalCorrect, totalAnswered)}</div><div style={styles.statLabel}>Accuracy</div></div>
-            </div>
-          </div>
-          {Object.entries(GAME_MODES).map(([key, mode]) => (
-            <div key={key} style={styles.statsCard}>
-              <div style={styles.statsTitle}><span>{mode.icon}</span><span>{mode.name}</span></div>
-              <div style={styles.statsGrid}>
-                <div style={styles.statItem}><div style={styles.statValue}>{stats[key].totalAnswered}</div><div style={styles.statLabel}>Answered</div></div>
-                <div style={styles.statItem}><div style={styles.statValue}>{getAccuracy(stats[key].totalCorrect, stats[key].totalAnswered)}</div><div style={styles.statLabel}>Accuracy</div></div>
-                <div style={styles.statItem}><div style={styles.statValue}>{stats[key].bestStreak}</div><div style={styles.statLabel}>Best Streak</div></div>
-                <div style={styles.statItem}><div style={styles.statValue}>{stats[key].totalCorrect}</div><div style={styles.statLabel}>Correct</div></div>
+          {/* Mode Stats */}
+          {Object.entries(GAME_MODES).map(([key, mode]) => {
+            const modeAccuracy = getAccuracy(stats[key].totalCorrect, stats[key].totalAnswered);
+            return (
+              <div key={key} style={styles.statsCard} className="card-lift">
+                <div style={styles.statsTitle}><span>{mode.icon}</span><span>{mode.name}</span></div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                  <div style={{ position: 'relative' }}>
+                    <ProgressRing progress={modeAccuracy} size={60} strokeWidth={5} color={modeAccuracy >= 80 ? '#22c55e' : modeAccuracy >= 50 ? '#f97316' : '#ef4444'} value={`${modeAccuracy}%`} />
+                  </div>
+                  <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                    <div style={styles.statItem}><div style={styles.statValue}>{stats[key].totalAnswered}</div><div style={styles.statLabel}>Answered</div></div>
+                    <div style={styles.statItem}><div style={styles.statValue}>{stats[key].bestStreak}</div><div style={styles.statLabel}>Best Streak</div></div>
+                    <div style={styles.statItem}><div style={styles.statValue}>{stats[key].totalCorrect}</div><div style={styles.statLabel}>Correct</div></div>
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
           <button onClick={handleShare} className="btn-press" style={styles.shareBtn}>📤 Share Results</button>
           <button onClick={() => { if (confirm('Reset all statistics?')) { resetStats(); addToast('Stats reset', 'info'); } }} className="btn-press" style={styles.dangerBtn}>
             Reset All Statistics
@@ -1434,7 +1858,7 @@
       );
 
       return (
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1 }} className="page-enter">
           <Breadcrumbs items={[{ label: 'Settings' }]} />
           <div style={styles.card}>
             <h3 style={styles.cardTitle}>Settings</h3>
@@ -1480,7 +1904,7 @@
             <p style={{ color: '#94a3b8', fontSize: '0.9rem', lineHeight: 1.6 }}>
               KeyPerfect is an ear training app to help musicians recognize notes, intervals, chords, scales, and progressions.
             </p>
-            <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '12px' }}>Version 3.0 (Mobile)</p>
+            <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '12px' }}>Version 4.0 (Enhanced UI)</p>
           </div>
         </div>
       );
@@ -1490,6 +1914,7 @@
     function MainMenu({ onStartGame }) {
       const [selectedMode, setSelectedMode] = useState('notes');
       const [selectedDifficulty, setSelectedDifficulty] = useState('easy');
+      const { settings } = useSettings();
 
       const getDifficulties = () => {
         const map = { notes: NOTE_DIFFICULTIES, intervals: INTERVAL_DIFFICULTIES, chords: CHORD_DIFFICULTIES, scales: SCALE_DIFFICULTIES, progressions: PROGRESSION_DIFFICULTIES };
@@ -1497,32 +1922,49 @@
       };
 
       return (
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1 }} className="page-enter">
           <Breadcrumbs items={[{ label: 'Play' }]} />
           <div style={styles.card}>
             <h2 style={styles.cardTitle}>Select Game Mode</h2>
-            <div style={styles.modeGrid}>
+
+            {/* Horizontal scrolling mode selector */}
+            <div style={styles.modeScroll}>
               {Object.entries(GAME_MODES).map(([key, mode]) => (
                 <button key={key} onClick={() => { setSelectedMode(key); triggerHaptic('light'); }}
-                  className="btn-press" style={{ ...styles.modeBtn, ...(selectedMode === key ? styles.modeBtnActive : {}) }}>
-                  <div style={styles.modeIcon}>{mode.icon}</div>
+                  className="btn-press card-lift" style={{ ...styles.modeCard, ...(selectedMode === key ? styles.modeCardActive : {}) }}>
+                  <span style={styles.modeIcon}>{mode.icon}</span>
                   <div style={styles.modeName}>{mode.name}</div>
                   <div style={styles.modeDesc}>{mode.description}</div>
                 </button>
               ))}
             </div>
-            <h3 style={{ ...styles.cardTitle, marginTop: '8px' }}>Select Difficulty</h3>
-            <div style={styles.difficultyOptions}>
+
+            <h3 style={{ ...styles.cardTitle, marginTop: '24px', marginBottom: '16px' }}>Difficulty</h3>
+
+            {/* Chip-style difficulty selector */}
+            <div style={styles.difficultyChips}>
               {Object.entries(getDifficulties()).map(([key, diff]) => (
                 <button key={key} onClick={() => { setSelectedDifficulty(key); triggerHaptic('light'); }}
-                  className="btn-press" style={{ ...styles.difficultyBtn, ...(selectedDifficulty === key ? styles.difficultyBtnActive : {}) }}>
-                  <div style={styles.difficultyLabel}>{diff.label}</div>
-                  <div style={styles.difficultyDesc}>{diff.description}</div>
+                  className="btn-press" style={{ ...styles.difficultyChip, ...(selectedDifficulty === key ? styles.difficultyChipActive : {}) }}>
+                  {diff.label}
                 </button>
               ))}
             </div>
+
+            {/* Difficulty description */}
+            <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem', marginBottom: '24px' }}>
+              {getDifficulties()[selectedDifficulty]?.description}
+            </p>
+
+            {/* Practice mode indicator */}
+            {settings.practiceMode && (
+              <div style={{ textAlign: 'center', padding: '10px', backgroundColor: 'rgba(168, 85, 247, 0.15)', borderRadius: '12px', fontSize: '0.85rem', color: '#a855f7', marginBottom: '16px', border: '1px solid rgba(168, 85, 247, 0.3)' }}>
+                🎓 Practice Mode Active
+              </div>
+            )}
+
             <button onClick={() => { onStartGame(selectedMode, selectedDifficulty); triggerHaptic('medium'); }}
-              className="btn-press" style={styles.startBtn}>
+              className="btn-press floating-btn" style={styles.startBtn}>
               Start Game
             </button>
           </div>
