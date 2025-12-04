@@ -18,6 +18,7 @@
       color: white;
     }
     #root { min-height: 100vh; }
+    select option { background: #1a1a2e; color: white; }
   </style>
 </head>
 <body>
@@ -57,6 +58,32 @@
       major7: { name: 'Major 7th', intervals: [0, 4, 7, 11], symbol: 'maj7' },
       minor7: { name: 'Minor 7th', intervals: [0, 3, 7, 10], symbol: 'm7' },
       dominant7: { name: 'Dominant 7th', intervals: [0, 4, 7, 10], symbol: '7' },
+      sus2: { name: 'Suspended 2nd', intervals: [0, 2, 7], symbol: 'sus2' },
+      sus4: { name: 'Suspended 4th', intervals: [0, 5, 7], symbol: 'sus4' },
+    };
+
+    const SCALE_TYPES = {
+      major: { name: 'Major', intervals: [0, 2, 4, 5, 7, 9, 11, 12], description: 'Happy, bright sound' },
+      natural_minor: { name: 'Natural Minor', intervals: [0, 2, 3, 5, 7, 8, 10, 12], description: 'Sad, dark sound' },
+      harmonic_minor: { name: 'Harmonic Minor', intervals: [0, 2, 3, 5, 7, 8, 11, 12], description: 'Exotic, Middle Eastern feel' },
+      melodic_minor: { name: 'Melodic Minor', intervals: [0, 2, 3, 5, 7, 9, 11, 12], description: 'Jazz minor scale' },
+      pentatonic_major: { name: 'Major Pentatonic', intervals: [0, 2, 4, 7, 9, 12], description: 'Folk, country sound' },
+      pentatonic_minor: { name: 'Minor Pentatonic', intervals: [0, 3, 5, 7, 10, 12], description: 'Blues, rock sound' },
+      blues: { name: 'Blues', intervals: [0, 3, 5, 6, 7, 10, 12], description: 'Blues with blue note' },
+      dorian: { name: 'Dorian', intervals: [0, 2, 3, 5, 7, 9, 10, 12], description: 'Minor with raised 6th' },
+      mixolydian: { name: 'Mixolydian', intervals: [0, 2, 4, 5, 7, 9, 10, 12], description: 'Major with flat 7th' },
+      phrygian: { name: 'Phrygian', intervals: [0, 1, 3, 5, 7, 8, 10, 12], description: 'Spanish, flamenco sound' },
+    };
+
+    const PROGRESSIONS = {
+      'I-IV-V-I': { name: 'I - IV - V - I', chords: ['major', 'major', 'major', 'major'], degrees: [0, 5, 7, 0], description: 'Classic rock/pop progression' },
+      'I-V-vi-IV': { name: 'I - V - vi - IV', chords: ['major', 'major', 'minor', 'major'], degrees: [0, 7, 9, 5], description: 'Pop punk, modern pop' },
+      'ii-V-I': { name: 'ii - V - I', chords: ['minor', 'major', 'major'], degrees: [2, 7, 0], description: 'Jazz standard progression' },
+      'I-vi-IV-V': { name: 'I - vi - IV - V', chords: ['major', 'minor', 'major', 'major'], degrees: [0, 9, 5, 7], description: '50s doo-wop progression' },
+      'vi-IV-I-V': { name: 'vi - IV - I - V', chords: ['minor', 'major', 'major', 'major'], degrees: [9, 5, 0, 7], description: 'Emotional pop progression' },
+      'I-IV-vi-V': { name: 'I - IV - vi - V', chords: ['major', 'major', 'minor', 'major'], degrees: [0, 5, 9, 7], description: 'Axis progression variant' },
+      'i-VI-III-VII': { name: 'i - VI - III - VII', chords: ['minor', 'major', 'major', 'major'], degrees: [0, 8, 3, 10], description: 'Andalusian cadence' },
+      'I-V-IV-V': { name: 'I - V - IV - V', chords: ['major', 'major', 'major', 'major'], degrees: [0, 7, 5, 7], description: 'Country/folk progression' },
     };
 
     const INSTRUMENTS = {
@@ -86,6 +113,8 @@
       notes: { name: 'Note Recognition', icon: '🎵', description: 'Identify single notes' },
       intervals: { name: 'Interval Training', icon: '↔️', description: 'Recognize intervals between notes' },
       chords: { name: 'Chord Recognition', icon: '🎹', description: 'Identify chord types' },
+      scales: { name: 'Scale Recognition', icon: '🎼', description: 'Identify scale types' },
+      progressions: { name: 'Chord Progressions', icon: '🔄', description: 'Recognize chord progressions' },
     };
 
     const NOTE_DIFFICULTIES = {
@@ -104,6 +133,18 @@
       easy: { chords: ['major', 'minor'], choices: 2, label: 'Easy', description: 'Major vs Minor' },
       medium: { chords: ['major', 'minor', 'diminished', 'augmented'], choices: 4, label: 'Medium', description: 'Triads' },
       hard: { chords: ['major', 'minor', 'diminished', 'augmented', 'major7', 'minor7', 'dominant7'], choices: 6, label: 'Hard', description: 'Triads & 7th chords' },
+    };
+
+    const SCALE_DIFFICULTIES = {
+      easy: { scales: ['major', 'natural_minor', 'pentatonic_major'], choices: 3, label: 'Easy', description: 'Major, Minor, Pentatonic' },
+      medium: { scales: ['major', 'natural_minor', 'harmonic_minor', 'pentatonic_major', 'pentatonic_minor', 'blues'], choices: 4, label: 'Medium', description: 'Common scales' },
+      hard: { scales: Object.keys(SCALE_TYPES), choices: 5, label: 'Hard', description: 'All scales including modes' },
+    };
+
+    const PROGRESSION_DIFFICULTIES = {
+      easy: { progressions: ['I-IV-V-I', 'I-V-vi-IV', 'I-vi-IV-V'], choices: 3, label: 'Easy', description: 'Common pop progressions' },
+      medium: { progressions: ['I-IV-V-I', 'I-V-vi-IV', 'ii-V-I', 'I-vi-IV-V', 'vi-IV-I-V'], choices: 4, label: 'Medium', description: 'Pop & jazz basics' },
+      hard: { progressions: Object.keys(PROGRESSIONS), choices: 5, label: 'Hard', description: 'All progressions' },
     };
 
     // ============================================
@@ -197,7 +238,23 @@
         }
       }, [synth, isPlaying]);
 
-      return { playNote, playNotes, playSequence, isPlaying };
+      const playChordSequence = useCallback(async (chordNotes, interval = 0.8) => {
+        if (!polySynth || isPlaying) return;
+        try {
+          await Tone.start();
+          setIsPlaying(true);
+          const now = Tone.now();
+          chordNotes.forEach((chord, i) => {
+            polySynth.triggerAttackRelease(chord, '2n', now + i * interval);
+          });
+          setTimeout(() => setIsPlaying(false), chordNotes.length * interval * 1000 + 800);
+        } catch (err) {
+          console.error('Audio error:', err);
+          setIsPlaying(false);
+        }
+      }, [polySynth, isPlaying]);
+
+      return { playNote, playNotes, playSequence, playChordSequence, isPlaying };
     }
 
     // ============================================
@@ -207,10 +264,12 @@
     const StatsContext = createContext();
 
     function StatsProvider({ children }) {
-      const [stats, setStats] = useLocalStorage('keyperfect_stats_v2', {
+      const [stats, setStats] = useLocalStorage('keyperfect_stats_v3', {
         notes: { gamesPlayed: 0, totalCorrect: 0, totalAnswered: 0, bestStreak: 0, byDifficulty: {} },
         intervals: { gamesPlayed: 0, totalCorrect: 0, totalAnswered: 0, bestStreak: 0, byDifficulty: {} },
         chords: { gamesPlayed: 0, totalCorrect: 0, totalAnswered: 0, bestStreak: 0, byDifficulty: {} },
+        scales: { gamesPlayed: 0, totalCorrect: 0, totalAnswered: 0, bestStreak: 0, byDifficulty: {} },
+        progressions: { gamesPlayed: 0, totalCorrect: 0, totalAnswered: 0, bestStreak: 0, byDifficulty: {} },
         history: [],
       });
 
@@ -229,7 +288,7 @@
 
           const newHistory = [...prev.history, {
             mode, difficulty, correct, timestamp: Date.now()
-          }].slice(-100); // Keep last 100 entries
+          }].slice(-100);
 
           return { ...prev, [mode]: modeStats, history: newHistory };
         });
@@ -247,6 +306,8 @@
           notes: { gamesPlayed: 0, totalCorrect: 0, totalAnswered: 0, bestStreak: 0, byDifficulty: {} },
           intervals: { gamesPlayed: 0, totalCorrect: 0, totalAnswered: 0, bestStreak: 0, byDifficulty: {} },
           chords: { gamesPlayed: 0, totalCorrect: 0, totalAnswered: 0, bestStreak: 0, byDifficulty: {} },
+          scales: { gamesPlayed: 0, totalCorrect: 0, totalAnswered: 0, bestStreak: 0, byDifficulty: {} },
+          progressions: { gamesPlayed: 0, totalCorrect: 0, totalAnswered: 0, bestStreak: 0, byDifficulty: {} },
           history: [],
         });
       }, [setStats]);
@@ -269,7 +330,7 @@
     const SettingsContext = createContext();
 
     function SettingsProvider({ children }) {
-      const [settings, setSettings] = useLocalStorage('keyperfect_settings_v2', {
+      const [settings, setSettings] = useLocalStorage('keyperfect_settings_v3', {
         instrument: 'piano',
         autoPlayOnStart: true,
         showOctaveInChoices: false,
@@ -311,8 +372,49 @@
       return NOTES[((index % 12) + 12) % 12];
     }
 
-    function getNoteName(note, octave, showOctave = false) {
-      return showOctave ? `${note}${octave}` : note;
+    function buildChord(rootNote, chordType, octave = 4) {
+      const rootIndex = getNoteIndex(rootNote);
+      const chord = CHORD_TYPES[chordType];
+      return chord.intervals.map(interval => {
+        const noteIndex = (rootIndex + interval) % 12;
+        const noteOctave = octave + Math.floor((rootIndex + interval) / 12);
+        return `${NOTES[noteIndex]}${noteOctave}`;
+      });
+    }
+
+    function buildScale(rootNote, scaleType, octave = 4) {
+      const rootIndex = getNoteIndex(rootNote);
+      const scale = SCALE_TYPES[scaleType];
+      return scale.intervals.map(interval => {
+        const noteIndex = (rootIndex + interval) % 12;
+        const noteOctave = octave + Math.floor((rootIndex + interval) / 12);
+        return `${NOTES[noteIndex]}${noteOctave}`;
+      });
+    }
+
+    function buildProgression(rootNote, progressionKey, octave = 3) {
+      const progression = PROGRESSIONS[progressionKey];
+      const rootIndex = getNoteIndex(rootNote);
+      return progression.degrees.map((degree, i) => {
+        const chordRoot = NOTES[(rootIndex + degree) % 12];
+        const chordOctave = octave + Math.floor((rootIndex + degree) / 12);
+        return buildChord(chordRoot, progression.chords[i], chordOctave);
+      });
+    }
+
+    function getShareText(stats) {
+      const totalAnswered = Object.keys(GAME_MODES).reduce((sum, key) => sum + stats[key].totalAnswered, 0);
+      const totalCorrect = Object.keys(GAME_MODES).reduce((sum, key) => sum + stats[key].totalCorrect, 0);
+      const accuracy = totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0;
+      const bestStreak = Math.max(...Object.keys(GAME_MODES).map(key => stats[key].bestStreak));
+
+      return `🎵 KeyPerfect Stats 🎵
+━━━━━━━━━━━━━━━
+📊 ${totalAnswered} questions answered
+✅ ${accuracy}% accuracy
+🔥 ${bestStreak} best streak
+
+Train your ear at KeyPerfect!`;
     }
 
     // ============================================
@@ -326,12 +428,12 @@
       subtitle: { color: '#94a3b8', fontSize: '0.9rem' },
       card: { backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: '20px', padding: '24px', backdropFilter: 'blur(10px)', width: '100%' },
       cardTitle: { fontSize: '1.15rem', fontWeight: '600', marginBottom: '16px', textAlign: 'center' },
-      modeGrid: { display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: '12px', marginBottom: '20px' },
-      modeBtn: { padding: '16px', borderRadius: '12px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'rgba(255, 255, 255, 0.05)', color: 'white', cursor: 'pointer', transition: 'all 0.2s', textAlign: 'left' },
+      modeGrid: { display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: '10px', marginBottom: '20px' },
+      modeBtn: { padding: '14px', borderRadius: '12px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'rgba(255, 255, 255, 0.05)', color: 'white', cursor: 'pointer', transition: 'all 0.2s', textAlign: 'left' },
       modeBtnActive: { borderColor: '#a855f7', backgroundColor: 'rgba(168, 85, 247, 0.2)' },
-      modeIcon: { fontSize: '1.5rem', marginBottom: '8px' },
-      modeName: { fontSize: '1rem', fontWeight: '600', marginBottom: '4px' },
-      modeDesc: { fontSize: '0.8rem', color: '#94a3b8' },
+      modeIcon: { fontSize: '1.25rem', marginBottom: '4px' },
+      modeName: { fontSize: '0.95rem', fontWeight: '600', marginBottom: '2px' },
+      modeDesc: { fontSize: '0.75rem', color: '#94a3b8' },
       difficultyOptions: { display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' },
       difficultyBtn: { padding: '12px 16px', borderRadius: '10px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'transparent', color: 'white', fontSize: '0.95rem', cursor: 'pointer', transition: 'all 0.2s', textAlign: 'left' },
       difficultyBtnActive: { borderColor: '#a855f7', backgroundColor: 'rgba(168, 85, 247, 0.2)' },
@@ -347,15 +449,15 @@
       playBtnDisabled: { opacity: 0.7, cursor: 'not-allowed' },
       playHint: { marginTop: '12px', color: '#94a3b8', fontSize: '0.9rem' },
       choicesGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' },
-      choiceBtn: { padding: '20px 16px', borderRadius: '12px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'rgba(255, 255, 255, 0.1)', color: 'white', fontSize: '1.25rem', fontWeight: '700', cursor: 'pointer', transition: 'all 0.2s' },
+      choiceBtn: { padding: '18px 14px', borderRadius: '12px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'rgba(255, 255, 255, 0.1)', color: 'white', fontSize: '1rem', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s' },
       choiceBtnCorrect: { borderColor: '#22c55e', backgroundColor: 'rgba(34, 197, 94, 0.3)' },
       choiceBtnWrong: { borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.3)' },
       actionButtons: { display: 'flex', gap: '10px', marginTop: '16px' },
       nextBtn: { flex: 1, padding: '14px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg, #22c55e, #16a34a)', color: 'white', fontSize: '1rem', fontWeight: '600', cursor: 'pointer' },
       resetBtn: { flex: 1, padding: '14px', borderRadius: '10px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'transparent', color: 'white', fontSize: '0.95rem', fontWeight: '500', cursor: 'pointer' },
       resultBox: { textAlign: 'center', padding: '12px', borderRadius: '10px', border: '2px solid', fontSize: '1rem', fontWeight: '600', marginBottom: '12px' },
-      navBar: { display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '16px' },
-      navBtn: { padding: '8px 16px', borderRadius: '8px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'transparent', color: 'white', fontSize: '0.85rem', cursor: 'pointer', transition: 'all 0.2s' },
+      navBar: { display: 'flex', justifyContent: 'center', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' },
+      navBtn: { padding: '8px 14px', borderRadius: '8px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'transparent', color: 'white', fontSize: '0.8rem', cursor: 'pointer', transition: 'all 0.2s' },
       navBtnActive: { borderColor: '#a855f7', backgroundColor: 'rgba(168, 85, 247, 0.2)' },
       statsCard: { backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: '12px', padding: '16px', marginBottom: '12px' },
       statsTitle: { fontSize: '1rem', fontWeight: '600', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' },
@@ -369,17 +471,25 @@
       toggle: { width: '48px', height: '26px', borderRadius: '13px', border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 0.2s' },
       toggleKnob: { width: '22px', height: '22px', borderRadius: '50%', backgroundColor: 'white', position: 'absolute', top: '2px', transition: 'left 0.2s' },
       dangerBtn: { padding: '12px', borderRadius: '8px', border: '2px solid #ef4444', backgroundColor: 'transparent', color: '#ef4444', fontSize: '0.9rem', cursor: 'pointer', marginTop: '16px', width: '100%' },
+      shareBtn: { padding: '12px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', color: 'white', fontSize: '0.9rem', cursor: 'pointer', marginTop: '12px', width: '100%', fontWeight: '600' },
       footer: { textAlign: 'center', padding: '16px', color: '#64748b', fontSize: '0.8rem', marginTop: 'auto' },
+      refCard: { backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: '12px', padding: '16px', marginBottom: '12px' },
+      refTitle: { fontSize: '1.1rem', fontWeight: '600', marginBottom: '4px' },
+      refSubtitle: { fontSize: '0.8rem', color: '#94a3b8', marginBottom: '12px' },
+      refNotes: { fontSize: '0.9rem', color: '#a855f7', fontFamily: 'monospace', marginBottom: '8px' },
+      refDesc: { fontSize: '0.8rem', color: '#94a3b8' },
+      playSmallBtn: { padding: '8px 16px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', color: 'white', fontSize: '0.8rem', cursor: 'pointer', marginTop: '8px' },
+      backBtn: { padding: '10px 20px', borderRadius: '8px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'transparent', color: 'white', fontSize: '0.9rem', cursor: 'pointer', marginBottom: '16px' },
     };
 
     // ============================================
     // COMPONENTS
     // ============================================
 
-    // Navigation Component
     function Navigation({ currentView, setView }) {
       const views = [
         { id: 'play', label: 'Play' },
+        { id: 'learn', label: 'Learn' },
         { id: 'stats', label: 'Stats' },
         { id: 'settings', label: 'Settings' },
       ];
@@ -398,7 +508,6 @@
       );
     }
 
-    // Mode Selection Component
     function ModeSelection({ selectedMode, onSelect }) {
       return (
         <div style={styles.modeGrid}>
@@ -417,11 +526,12 @@
       );
     }
 
-    // Difficulty Selection Component
     function DifficultySelection({ mode, selectedDifficulty, onSelect }) {
       const difficulties = mode === 'notes' ? NOTE_DIFFICULTIES
         : mode === 'intervals' ? INTERVAL_DIFFICULTIES
-        : CHORD_DIFFICULTIES;
+        : mode === 'chords' ? CHORD_DIFFICULTIES
+        : mode === 'scales' ? SCALE_DIFFICULTIES
+        : PROGRESSION_DIFFICULTIES;
 
       return (
         <div style={styles.difficultyOptions}>
@@ -439,7 +549,6 @@
       );
     }
 
-    // Score Board Component
     function ScoreBoard({ score, total, streak, bestStreak }) {
       return (
         <div style={styles.scoreBoard}>
@@ -496,17 +605,13 @@
         }
       }, [diffSettings, settings.autoPlayOnStart, playNote]);
 
-      useEffect(() => {
-        generateRound();
-      }, []);
+      useEffect(() => { generateRound(); }, []);
 
       const handleGuess = (guess) => {
         if (gameState !== 'playing') return;
-
         const correct = guess === currentNote;
         setSelectedAnswer(guess);
         setTotalPlayed(prev => prev + 1);
-
         let newStreak = streak;
         if (correct) {
           setScore(prev => prev + 1);
@@ -517,70 +622,39 @@
         } else {
           setStreak(0);
           newStreak = 0;
-          setLastResult({ correct: false, message: `Wrong! It was ${currentNote}${settings.showOctaveInChoices ? currentOctave : ''}` });
+          setLastResult({ correct: false, message: `Wrong! It was ${currentNote}` });
         }
-
         recordAnswer('notes', difficulty, correct, newStreak);
         setGameState('result');
-      };
-
-      const handleReplay = () => {
-        if (currentNote) playNote(currentNote, currentOctave);
       };
 
       return (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <ScoreBoard score={score} total={totalPlayed} streak={streak} bestStreak={bestStreak} />
-
           <div style={styles.playSection}>
-            <button
-              onClick={handleReplay}
-              disabled={isPlaying}
-              style={{ ...styles.playBtn, ...(isPlaying ? styles.playBtnDisabled : {}) }}
-            >
+            <button onClick={() => currentNote && playNote(currentNote, currentOctave)} disabled={isPlaying}
+              style={{ ...styles.playBtn, ...(isPlaying ? styles.playBtnDisabled : {}) }}>
               <span style={{ fontSize: '1.3rem' }}>{isPlaying ? '🔊' : '▶️'}</span>
               <span>{isPlaying ? 'Playing...' : 'Play Note'}</span>
             </button>
             <p style={styles.playHint}>Listen and identify the note!</p>
           </div>
-
           {lastResult && (
-            <div style={{
-              ...styles.resultBox,
-              backgroundColor: lastResult.correct ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)',
-              borderColor: lastResult.correct ? '#22c55e' : '#ef4444'
-            }}>
+            <div style={{ ...styles.resultBox, backgroundColor: lastResult.correct ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)', borderColor: lastResult.correct ? '#22c55e' : '#ef4444' }}>
               {lastResult.message}
             </div>
           )}
-
           <div style={styles.choicesGrid}>
-            {choices.map((note) => {
-              const isCorrectAnswer = gameState === 'result' && note === currentNote;
-              const isWrongSelected = gameState === 'result' && note === selectedAnswer && note !== currentNote;
-              return (
-                <button
-                  key={note}
-                  onClick={() => handleGuess(note)}
-                  disabled={gameState === 'result'}
-                  style={{
-                    ...styles.choiceBtn,
-                    ...(isCorrectAnswer ? styles.choiceBtnCorrect : {}),
-                    ...(isWrongSelected ? styles.choiceBtnWrong : {}),
-                    ...(gameState === 'result' ? { cursor: 'default' } : {})
-                  }}
-                >
-                  {note}
-                </button>
-              );
-            })}
+            {choices.map((note) => (
+              <button key={note} onClick={() => handleGuess(note)} disabled={gameState === 'result'}
+                style={{ ...styles.choiceBtn, ...(gameState === 'result' && note === currentNote ? styles.choiceBtnCorrect : {}), ...(gameState === 'result' && note === selectedAnswer && note !== currentNote ? styles.choiceBtnWrong : {}), ...(gameState === 'result' ? { cursor: 'default' } : {}) }}>
+                {note}
+              </button>
+            ))}
           </div>
-
           <div style={styles.actionButtons}>
-            {gameState === 'result' && (
-              <button onClick={generateRound} style={styles.nextBtn}>Next Note →</button>
-            )}
-            <button onClick={onBack} style={styles.resetBtn}>Exit Game</button>
+            {gameState === 'result' && <button onClick={generateRound} style={styles.nextBtn}>Next →</button>}
+            <button onClick={onBack} style={styles.resetBtn}>Exit</button>
           </div>
         </div>
       );
@@ -612,9 +686,7 @@
         const secondNoteIndex = (baseIndex + interval) % 12;
         const secondOctave = baseIndex + interval >= 12 ? 5 : 4;
         const secondNote = NOTES[secondNoteIndex];
-
         const notes = [`${baseNote}${baseOctave}`, `${secondNote}${secondOctave}`];
-
         const availableIntervals = diffSettings.intervals.filter(i => i !== interval);
         const wrongChoices = shuffle(availableIntervals).slice(0, diffSettings.choices - 1);
         const newChoices = shuffle([...wrongChoices, interval]);
@@ -625,23 +697,16 @@
         setLastResult(null);
         setSelectedAnswer(null);
         setGameState('playing');
-
-        if (settings.autoPlayOnStart) {
-          setTimeout(() => playSequence(notes), 300);
-        }
+        if (settings.autoPlayOnStart) setTimeout(() => playSequence(notes), 300);
       }, [diffSettings, settings.autoPlayOnStart, playSequence]);
 
-      useEffect(() => {
-        generateRound();
-      }, []);
+      useEffect(() => { generateRound(); }, []);
 
       const handleGuess = (guess) => {
         if (gameState !== 'playing') return;
-
         const correct = guess === currentInterval;
         setSelectedAnswer(guess);
         setTotalPlayed(prev => prev + 1);
-
         let newStreak = streak;
         if (correct) {
           setScore(prev => prev + 1);
@@ -654,69 +719,37 @@
           newStreak = 0;
           setLastResult({ correct: false, message: `Wrong! It was ${INTERVALS[currentInterval].name}` });
         }
-
         recordAnswer('intervals', difficulty, correct, newStreak);
         setGameState('result');
-      };
-
-      const handleReplay = () => {
-        if (currentNotes.length) playSequence(currentNotes);
       };
 
       return (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <ScoreBoard score={score} total={totalPlayed} streak={streak} bestStreak={bestStreak} />
-
           <div style={styles.playSection}>
-            <button
-              onClick={handleReplay}
-              disabled={isPlaying}
-              style={{ ...styles.playBtn, ...(isPlaying ? styles.playBtnDisabled : {}) }}
-            >
+            <button onClick={() => currentNotes.length && playSequence(currentNotes)} disabled={isPlaying}
+              style={{ ...styles.playBtn, ...(isPlaying ? styles.playBtnDisabled : {}) }}>
               <span style={{ fontSize: '1.3rem' }}>{isPlaying ? '🔊' : '▶️'}</span>
               <span>{isPlaying ? 'Playing...' : 'Play Interval'}</span>
             </button>
-            <p style={styles.playHint}>Listen to both notes and identify the interval!</p>
+            <p style={styles.playHint}>Listen to both notes!</p>
           </div>
-
           {lastResult && (
-            <div style={{
-              ...styles.resultBox,
-              backgroundColor: lastResult.correct ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)',
-              borderColor: lastResult.correct ? '#22c55e' : '#ef4444'
-            }}>
+            <div style={{ ...styles.resultBox, backgroundColor: lastResult.correct ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)', borderColor: lastResult.correct ? '#22c55e' : '#ef4444' }}>
               {lastResult.message}
             </div>
           )}
-
           <div style={styles.choicesGrid}>
-            {choices.map((interval) => {
-              const isCorrectAnswer = gameState === 'result' && interval === currentInterval;
-              const isWrongSelected = gameState === 'result' && interval === selectedAnswer && interval !== currentInterval;
-              return (
-                <button
-                  key={interval}
-                  onClick={() => handleGuess(interval)}
-                  disabled={gameState === 'result'}
-                  style={{
-                    ...styles.choiceBtn,
-                    fontSize: '1rem',
-                    ...(isCorrectAnswer ? styles.choiceBtnCorrect : {}),
-                    ...(isWrongSelected ? styles.choiceBtnWrong : {}),
-                    ...(gameState === 'result' ? { cursor: 'default' } : {})
-                  }}
-                >
-                  {INTERVALS[interval].name}
-                </button>
-              );
-            })}
+            {choices.map((interval) => (
+              <button key={interval} onClick={() => handleGuess(interval)} disabled={gameState === 'result'}
+                style={{ ...styles.choiceBtn, fontSize: '0.9rem', ...(gameState === 'result' && interval === currentInterval ? styles.choiceBtnCorrect : {}), ...(gameState === 'result' && interval === selectedAnswer && interval !== currentInterval ? styles.choiceBtnWrong : {}), ...(gameState === 'result' ? { cursor: 'default' } : {}) }}>
+                {INTERVALS[interval].name}
+              </button>
+            ))}
           </div>
-
           <div style={styles.actionButtons}>
-            {gameState === 'result' && (
-              <button onClick={generateRound} style={styles.nextBtn}>Next Interval →</button>
-            )}
-            <button onClick={onBack} style={styles.resetBtn}>Exit Game</button>
+            {gameState === 'result' && <button onClick={generateRound} style={styles.nextBtn}>Next →</button>}
+            <button onClick={onBack} style={styles.resetBtn}>Exit</button>
           </div>
         </div>
       );
@@ -742,16 +775,8 @@
 
       const generateRound = useCallback(() => {
         const chordType = diffSettings.chords[Math.floor(Math.random() * diffSettings.chords.length)];
-        const chord = CHORD_TYPES[chordType];
         const rootNote = NOTES[Math.floor(Math.random() * NOTES.length)];
-        const rootIndex = getNoteIndex(rootNote);
-
-        const notes = chord.intervals.map((interval, i) => {
-          const noteIndex = (rootIndex + interval) % 12;
-          const octave = rootIndex + interval >= 12 ? 5 : 4;
-          return `${NOTES[noteIndex]}${octave}`;
-        });
-
+        const notes = buildChord(rootNote, chordType, 4);
         const availableChords = diffSettings.chords.filter(c => c !== chordType);
         const wrongChoices = shuffle(availableChords).slice(0, diffSettings.choices - 1);
         const newChoices = shuffle([...wrongChoices, chordType]);
@@ -762,23 +787,16 @@
         setLastResult(null);
         setSelectedAnswer(null);
         setGameState('playing');
-
-        if (settings.autoPlayOnStart) {
-          setTimeout(() => playNotes(notes), 300);
-        }
+        if (settings.autoPlayOnStart) setTimeout(() => playNotes(notes), 300);
       }, [diffSettings, settings.autoPlayOnStart, playNotes]);
 
-      useEffect(() => {
-        generateRound();
-      }, []);
+      useEffect(() => { generateRound(); }, []);
 
       const handleGuess = (guess) => {
         if (gameState !== 'playing') return;
-
         const correct = guess === currentChord;
         setSelectedAnswer(guess);
         setTotalPlayed(prev => prev + 1);
-
         let newStreak = streak;
         if (correct) {
           setScore(prev => prev + 1);
@@ -791,86 +809,357 @@
           newStreak = 0;
           setLastResult({ correct: false, message: `Wrong! It was ${CHORD_TYPES[currentChord].name}` });
         }
-
         recordAnswer('chords', difficulty, correct, newStreak);
         setGameState('result');
-      };
-
-      const handleReplay = () => {
-        if (currentNotes.length) playNotes(currentNotes);
       };
 
       return (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <ScoreBoard score={score} total={totalPlayed} streak={streak} bestStreak={bestStreak} />
-
           <div style={styles.playSection}>
-            <button
-              onClick={handleReplay}
-              disabled={isPlaying}
-              style={{ ...styles.playBtn, ...(isPlaying ? styles.playBtnDisabled : {}) }}
-            >
+            <button onClick={() => currentNotes.length && playNotes(currentNotes)} disabled={isPlaying}
+              style={{ ...styles.playBtn, ...(isPlaying ? styles.playBtnDisabled : {}) }}>
               <span style={{ fontSize: '1.3rem' }}>{isPlaying ? '🔊' : '▶️'}</span>
               <span>{isPlaying ? 'Playing...' : 'Play Chord'}</span>
             </button>
-            <p style={styles.playHint}>Listen and identify the chord type!</p>
+            <p style={styles.playHint}>Identify the chord type!</p>
           </div>
-
           {lastResult && (
-            <div style={{
-              ...styles.resultBox,
-              backgroundColor: lastResult.correct ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)',
-              borderColor: lastResult.correct ? '#22c55e' : '#ef4444'
-            }}>
+            <div style={{ ...styles.resultBox, backgroundColor: lastResult.correct ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)', borderColor: lastResult.correct ? '#22c55e' : '#ef4444' }}>
               {lastResult.message}
             </div>
           )}
-
           <div style={styles.choicesGrid}>
-            {choices.map((chordType) => {
-              const isCorrectAnswer = gameState === 'result' && chordType === currentChord;
-              const isWrongSelected = gameState === 'result' && chordType === selectedAnswer && chordType !== currentChord;
-              return (
-                <button
-                  key={chordType}
-                  onClick={() => handleGuess(chordType)}
-                  disabled={gameState === 'result'}
-                  style={{
-                    ...styles.choiceBtn,
-                    fontSize: '1rem',
-                    ...(isCorrectAnswer ? styles.choiceBtnCorrect : {}),
-                    ...(isWrongSelected ? styles.choiceBtnWrong : {}),
-                    ...(gameState === 'result' ? { cursor: 'default' } : {})
-                  }}
-                >
-                  {CHORD_TYPES[chordType].name}
-                </button>
-              );
-            })}
+            {choices.map((chordType) => (
+              <button key={chordType} onClick={() => handleGuess(chordType)} disabled={gameState === 'result'}
+                style={{ ...styles.choiceBtn, fontSize: '0.9rem', ...(gameState === 'result' && chordType === currentChord ? styles.choiceBtnCorrect : {}), ...(gameState === 'result' && chordType === selectedAnswer && chordType !== currentChord ? styles.choiceBtnWrong : {}), ...(gameState === 'result' ? { cursor: 'default' } : {}) }}>
+                {CHORD_TYPES[chordType].name}
+              </button>
+            ))}
           </div>
-
           <div style={styles.actionButtons}>
-            {gameState === 'result' && (
-              <button onClick={generateRound} style={styles.nextBtn}>Next Chord →</button>
-            )}
-            <button onClick={onBack} style={styles.resetBtn}>Exit Game</button>
+            {gameState === 'result' && <button onClick={generateRound} style={styles.nextBtn}>Next →</button>}
+            <button onClick={onBack} style={styles.resetBtn}>Exit</button>
           </div>
         </div>
       );
     }
 
-    // Statistics View Component
+    // Scale Game Component
+    function ScaleGame({ difficulty, onBack }) {
+      const { settings } = useSettings();
+      const { recordAnswer } = useStats();
+      const { playSequence, isPlaying } = useAudio(settings.instrument);
+      const diffSettings = SCALE_DIFFICULTIES[difficulty];
+
+      const [gameState, setGameState] = useState('playing');
+      const [currentScale, setCurrentScale] = useState(null);
+      const [currentNotes, setCurrentNotes] = useState([]);
+      const [choices, setChoices] = useState([]);
+      const [score, setScore] = useState(0);
+      const [streak, setStreak] = useState(0);
+      const [bestStreak, setBestStreak] = useState(0);
+      const [totalPlayed, setTotalPlayed] = useState(0);
+      const [lastResult, setLastResult] = useState(null);
+      const [selectedAnswer, setSelectedAnswer] = useState(null);
+
+      const generateRound = useCallback(() => {
+        const scaleType = diffSettings.scales[Math.floor(Math.random() * diffSettings.scales.length)];
+        const rootNote = NATURAL_NOTES[Math.floor(Math.random() * NATURAL_NOTES.length)];
+        const notes = buildScale(rootNote, scaleType, 4);
+        const availableScales = diffSettings.scales.filter(s => s !== scaleType);
+        const wrongChoices = shuffle(availableScales).slice(0, diffSettings.choices - 1);
+        const newChoices = shuffle([...wrongChoices, scaleType]);
+
+        setCurrentScale(scaleType);
+        setCurrentNotes(notes);
+        setChoices(newChoices);
+        setLastResult(null);
+        setSelectedAnswer(null);
+        setGameState('playing');
+        if (settings.autoPlayOnStart) setTimeout(() => playSequence(notes, 0.25), 300);
+      }, [diffSettings, settings.autoPlayOnStart, playSequence]);
+
+      useEffect(() => { generateRound(); }, []);
+
+      const handleGuess = (guess) => {
+        if (gameState !== 'playing') return;
+        const correct = guess === currentScale;
+        setSelectedAnswer(guess);
+        setTotalPlayed(prev => prev + 1);
+        let newStreak = streak;
+        if (correct) {
+          setScore(prev => prev + 1);
+          newStreak = streak + 1;
+          setStreak(newStreak);
+          if (newStreak > bestStreak) setBestStreak(newStreak);
+          setLastResult({ correct: true, message: 'Correct!' });
+        } else {
+          setStreak(0);
+          newStreak = 0;
+          setLastResult({ correct: false, message: `Wrong! It was ${SCALE_TYPES[currentScale].name}` });
+        }
+        recordAnswer('scales', difficulty, correct, newStreak);
+        setGameState('result');
+      };
+
+      return (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <ScoreBoard score={score} total={totalPlayed} streak={streak} bestStreak={bestStreak} />
+          <div style={styles.playSection}>
+            <button onClick={() => currentNotes.length && playSequence(currentNotes, 0.25)} disabled={isPlaying}
+              style={{ ...styles.playBtn, ...(isPlaying ? styles.playBtnDisabled : {}) }}>
+              <span style={{ fontSize: '1.3rem' }}>{isPlaying ? '🔊' : '▶️'}</span>
+              <span>{isPlaying ? 'Playing...' : 'Play Scale'}</span>
+            </button>
+            <p style={styles.playHint}>Listen to the scale pattern!</p>
+          </div>
+          {lastResult && (
+            <div style={{ ...styles.resultBox, backgroundColor: lastResult.correct ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)', borderColor: lastResult.correct ? '#22c55e' : '#ef4444' }}>
+              {lastResult.message}
+            </div>
+          )}
+          <div style={styles.choicesGrid}>
+            {choices.map((scaleType) => (
+              <button key={scaleType} onClick={() => handleGuess(scaleType)} disabled={gameState === 'result'}
+                style={{ ...styles.choiceBtn, fontSize: '0.85rem', ...(gameState === 'result' && scaleType === currentScale ? styles.choiceBtnCorrect : {}), ...(gameState === 'result' && scaleType === selectedAnswer && scaleType !== currentScale ? styles.choiceBtnWrong : {}), ...(gameState === 'result' ? { cursor: 'default' } : {}) }}>
+                {SCALE_TYPES[scaleType].name}
+              </button>
+            ))}
+          </div>
+          <div style={styles.actionButtons}>
+            {gameState === 'result' && <button onClick={generateRound} style={styles.nextBtn}>Next →</button>}
+            <button onClick={onBack} style={styles.resetBtn}>Exit</button>
+          </div>
+        </div>
+      );
+    }
+
+    // Progression Game Component
+    function ProgressionGame({ difficulty, onBack }) {
+      const { settings } = useSettings();
+      const { recordAnswer } = useStats();
+      const { playChordSequence, isPlaying } = useAudio(settings.instrument);
+      const diffSettings = PROGRESSION_DIFFICULTIES[difficulty];
+
+      const [gameState, setGameState] = useState('playing');
+      const [currentProgression, setCurrentProgression] = useState(null);
+      const [currentChords, setCurrentChords] = useState([]);
+      const [choices, setChoices] = useState([]);
+      const [score, setScore] = useState(0);
+      const [streak, setStreak] = useState(0);
+      const [bestStreak, setBestStreak] = useState(0);
+      const [totalPlayed, setTotalPlayed] = useState(0);
+      const [lastResult, setLastResult] = useState(null);
+      const [selectedAnswer, setSelectedAnswer] = useState(null);
+
+      const generateRound = useCallback(() => {
+        const progressionKey = diffSettings.progressions[Math.floor(Math.random() * diffSettings.progressions.length)];
+        const rootNote = NATURAL_NOTES[Math.floor(Math.random() * NATURAL_NOTES.length)];
+        const chords = buildProgression(rootNote, progressionKey, 3);
+        const availableProgressions = diffSettings.progressions.filter(p => p !== progressionKey);
+        const wrongChoices = shuffle(availableProgressions).slice(0, diffSettings.choices - 1);
+        const newChoices = shuffle([...wrongChoices, progressionKey]);
+
+        setCurrentProgression(progressionKey);
+        setCurrentChords(chords);
+        setChoices(newChoices);
+        setLastResult(null);
+        setSelectedAnswer(null);
+        setGameState('playing');
+        if (settings.autoPlayOnStart) setTimeout(() => playChordSequence(chords), 300);
+      }, [diffSettings, settings.autoPlayOnStart, playChordSequence]);
+
+      useEffect(() => { generateRound(); }, []);
+
+      const handleGuess = (guess) => {
+        if (gameState !== 'playing') return;
+        const correct = guess === currentProgression;
+        setSelectedAnswer(guess);
+        setTotalPlayed(prev => prev + 1);
+        let newStreak = streak;
+        if (correct) {
+          setScore(prev => prev + 1);
+          newStreak = streak + 1;
+          setStreak(newStreak);
+          if (newStreak > bestStreak) setBestStreak(newStreak);
+          setLastResult({ correct: true, message: 'Correct!' });
+        } else {
+          setStreak(0);
+          newStreak = 0;
+          setLastResult({ correct: false, message: `Wrong! It was ${PROGRESSIONS[currentProgression].name}` });
+        }
+        recordAnswer('progressions', difficulty, correct, newStreak);
+        setGameState('result');
+      };
+
+      return (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <ScoreBoard score={score} total={totalPlayed} streak={streak} bestStreak={bestStreak} />
+          <div style={styles.playSection}>
+            <button onClick={() => currentChords.length && playChordSequence(currentChords)} disabled={isPlaying}
+              style={{ ...styles.playBtn, ...(isPlaying ? styles.playBtnDisabled : {}) }}>
+              <span style={{ fontSize: '1.3rem' }}>{isPlaying ? '🔊' : '▶️'}</span>
+              <span>{isPlaying ? 'Playing...' : 'Play Progression'}</span>
+            </button>
+            <p style={styles.playHint}>Listen to the chord sequence!</p>
+          </div>
+          {lastResult && (
+            <div style={{ ...styles.resultBox, backgroundColor: lastResult.correct ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)', borderColor: lastResult.correct ? '#22c55e' : '#ef4444' }}>
+              {lastResult.message}
+            </div>
+          )}
+          <div style={styles.choicesGrid}>
+            {choices.map((progKey) => (
+              <button key={progKey} onClick={() => handleGuess(progKey)} disabled={gameState === 'result'}
+                style={{ ...styles.choiceBtn, fontSize: '0.85rem', ...(gameState === 'result' && progKey === currentProgression ? styles.choiceBtnCorrect : {}), ...(gameState === 'result' && progKey === selectedAnswer && progKey !== currentProgression ? styles.choiceBtnWrong : {}), ...(gameState === 'result' ? { cursor: 'default' } : {}) }}>
+                {PROGRESSIONS[progKey].name}
+              </button>
+            ))}
+          </div>
+          <div style={styles.actionButtons}>
+            {gameState === 'result' && <button onClick={generateRound} style={styles.nextBtn}>Next →</button>}
+            <button onClick={onBack} style={styles.resetBtn}>Exit</button>
+          </div>
+        </div>
+      );
+    }
+
+    // Learn Navigation
+    function LearnNavigation({ currentPage, setPage }) {
+      const pages = [
+        { id: 'scales', label: 'Scales' },
+        { id: 'chords', label: 'Chords' },
+        { id: 'progressions', label: 'Progressions' },
+      ];
+      return (
+        <div style={{ ...styles.navBar, marginBottom: '20px' }}>
+          {pages.map(p => (
+            <button key={p.id} onClick={() => setPage(p.id)}
+              style={{ ...styles.navBtn, ...(currentPage === p.id ? styles.navBtnActive : {}) }}>
+              {p.label}
+            </button>
+          ))}
+        </div>
+      );
+    }
+
+    // Scales Reference Page
+    function ScalesReference() {
+      const { settings } = useSettings();
+      const { playSequence, isPlaying } = useAudio(settings.instrument);
+
+      return (
+        <div style={{ flex: 1 }}>
+          <h2 style={{ ...styles.cardTitle, marginBottom: '20px' }}>Scales Reference</h2>
+          {Object.entries(SCALE_TYPES).map(([key, scale]) => {
+            const notes = buildScale('C', key, 4);
+            const noteNames = scale.intervals.map(i => NOTES[(i % 12)]);
+            return (
+              <div key={key} style={styles.refCard}>
+                <div style={styles.refTitle}>{scale.name}</div>
+                <div style={styles.refNotes}>{noteNames.join(' - ')}</div>
+                <div style={styles.refDesc}>{scale.description}</div>
+                <button onClick={() => playSequence(notes, 0.25)} disabled={isPlaying} style={styles.playSmallBtn}>
+                  {isPlaying ? 'Playing...' : '▶ Play in C'}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    // Chords Reference Page
+    function ChordsReference() {
+      const { settings } = useSettings();
+      const { playNotes, isPlaying } = useAudio(settings.instrument);
+
+      return (
+        <div style={{ flex: 1 }}>
+          <h2 style={{ ...styles.cardTitle, marginBottom: '20px' }}>Chords Reference</h2>
+          {Object.entries(CHORD_TYPES).map(([key, chord]) => {
+            const notes = buildChord('C', key, 4);
+            const noteNames = chord.intervals.map(i => NOTES[(i % 12)]);
+            return (
+              <div key={key} style={styles.refCard}>
+                <div style={styles.refTitle}>C{chord.symbol} - {chord.name}</div>
+                <div style={styles.refNotes}>{noteNames.join(' - ')}</div>
+                <div style={styles.refDesc}>Intervals: {chord.intervals.join(', ')} semitones</div>
+                <button onClick={() => playNotes(notes)} disabled={isPlaying} style={styles.playSmallBtn}>
+                  {isPlaying ? 'Playing...' : '▶ Play Chord'}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    // Progressions Reference Page
+    function ProgressionsReference() {
+      const { settings } = useSettings();
+      const { playChordSequence, isPlaying } = useAudio(settings.instrument);
+
+      return (
+        <div style={{ flex: 1 }}>
+          <h2 style={{ ...styles.cardTitle, marginBottom: '20px' }}>Progressions Reference</h2>
+          {Object.entries(PROGRESSIONS).map(([key, prog]) => {
+            const chords = buildProgression('C', key, 3);
+            return (
+              <div key={key} style={styles.refCard}>
+                <div style={styles.refTitle}>{prog.name}</div>
+                <div style={styles.refDesc}>{prog.description}</div>
+                <button onClick={() => playChordSequence(chords)} disabled={isPlaying} style={styles.playSmallBtn}>
+                  {isPlaying ? 'Playing...' : '▶ Play in C'}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    // Learn View
+    function LearnView() {
+      const [page, setPage] = useState('scales');
+      return (
+        <div style={{ flex: 1 }}>
+          <LearnNavigation currentPage={page} setPage={setPage} />
+          {page === 'scales' && <ScalesReference />}
+          {page === 'chords' && <ChordsReference />}
+          {page === 'progressions' && <ProgressionsReference />}
+        </div>
+      );
+    }
+
+    // Statistics View
     function StatsView() {
       const { stats, resetStats } = useStats();
+      const [shareMessage, setShareMessage] = useState('');
 
       const getAccuracy = (correct, total) => {
         if (total === 0) return '0%';
         return `${Math.round((correct / total) * 100)}%`;
       };
 
-      const totalGames = stats.notes.gamesPlayed + stats.intervals.gamesPlayed + stats.chords.gamesPlayed;
-      const totalAnswered = stats.notes.totalAnswered + stats.intervals.totalAnswered + stats.chords.totalAnswered;
-      const totalCorrect = stats.notes.totalCorrect + stats.intervals.totalCorrect + stats.chords.totalCorrect;
+      const totalAnswered = Object.keys(GAME_MODES).reduce((sum, key) => sum + stats[key].totalAnswered, 0);
+      const totalCorrect = Object.keys(GAME_MODES).reduce((sum, key) => sum + stats[key].totalCorrect, 0);
+
+      const handleShare = async () => {
+        const text = getShareText(stats);
+        try {
+          if (navigator.share) {
+            await navigator.share({ title: 'KeyPerfect Stats', text });
+          } else if (navigator.clipboard) {
+            await navigator.clipboard.writeText(text);
+            setShareMessage('Copied to clipboard!');
+            setTimeout(() => setShareMessage(''), 2000);
+          }
+        } catch (err) {
+          console.error('Share failed:', err);
+        }
+      };
 
       return (
         <div style={{ flex: 1 }}>
@@ -915,6 +1204,11 @@
             </div>
           ))}
 
+          <button onClick={handleShare} style={styles.shareBtn}>
+            📤 Share Results
+          </button>
+          {shareMessage && <p style={{ textAlign: 'center', color: '#22c55e', marginTop: '8px', fontSize: '0.9rem' }}>{shareMessage}</p>}
+
           <button onClick={() => { if (confirm('Reset all statistics?')) resetStats(); }} style={styles.dangerBtn}>
             Reset All Statistics
           </button>
@@ -922,18 +1216,13 @@
       );
     }
 
-    // Settings View Component
+    // Settings View
     function SettingsView() {
       const { settings, updateSettings } = useSettings();
 
       const Toggle = ({ checked, onChange }) => (
-        <button
-          onClick={() => onChange(!checked)}
-          style={{
-            ...styles.toggle,
-            backgroundColor: checked ? '#a855f7' : 'rgba(255, 255, 255, 0.2)'
-          }}
-        >
+        <button onClick={() => onChange(!checked)}
+          style={{ ...styles.toggle, backgroundColor: checked ? '#a855f7' : 'rgba(255, 255, 255, 0.2)' }}>
           <div style={{ ...styles.toggleKnob, left: checked ? '24px' : '2px' }} />
         </button>
       );
@@ -942,51 +1231,36 @@
         <div style={{ flex: 1 }}>
           <div style={styles.card}>
             <h3 style={styles.cardTitle}>Settings</h3>
-
             <div style={styles.settingRow}>
               <span style={styles.settingLabel}>Instrument</span>
-              <select
-                value={settings.instrument}
-                onChange={(e) => updateSettings({ instrument: e.target.value })}
-                style={styles.select}
-              >
+              <select value={settings.instrument} onChange={(e) => updateSettings({ instrument: e.target.value })} style={styles.select}>
                 {Object.entries(INSTRUMENTS).map(([key, inst]) => (
                   <option key={key} value={key}>{inst.name}</option>
                 ))}
               </select>
             </div>
-
             <div style={styles.settingRow}>
               <span style={styles.settingLabel}>Auto-play on new round</span>
-              <Toggle
-                checked={settings.autoPlayOnStart}
-                onChange={(val) => updateSettings({ autoPlayOnStart: val })}
-              />
+              <Toggle checked={settings.autoPlayOnStart} onChange={(val) => updateSettings({ autoPlayOnStart: val })} />
             </div>
-
             <div style={{ ...styles.settingRow, borderBottom: 'none' }}>
-              <span style={styles.settingLabel}>Show octave in note choices</span>
-              <Toggle
-                checked={settings.showOctaveInChoices}
-                onChange={(val) => updateSettings({ showOctaveInChoices: val })}
-              />
+              <span style={styles.settingLabel}>Show octave in choices</span>
+              <Toggle checked={settings.showOctaveInChoices} onChange={(val) => updateSettings({ showOctaveInChoices: val })} />
             </div>
           </div>
 
           <div style={{ ...styles.card, marginTop: '16px' }}>
             <h3 style={styles.cardTitle}>About</h3>
             <p style={{ color: '#94a3b8', fontSize: '0.9rem', lineHeight: 1.6 }}>
-              KeyPerfect V2 is an ear training app to help musicians improve their ability to recognize notes, intervals, and chords.
+              KeyPerfect is an ear training app to help musicians recognize notes, intervals, chords, scales, and progressions.
             </p>
-            <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '12px' }}>
-              Version 2.0
-            </p>
+            <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '12px' }}>Version 2.1</p>
           </div>
         </div>
       );
     }
 
-    // Main Menu Component
+    // Main Menu
     function MainMenu({ onStartGame }) {
       const [selectedMode, setSelectedMode] = useState('notes');
       const [selectedDifficulty, setSelectedDifficulty] = useState('easy');
@@ -996,18 +1270,9 @@
           <div style={styles.card}>
             <h2 style={styles.cardTitle}>Select Game Mode</h2>
             <ModeSelection selectedMode={selectedMode} onSelect={setSelectedMode} />
-
             <h3 style={{ ...styles.cardTitle, marginTop: '8px' }}>Select Difficulty</h3>
-            <DifficultySelection
-              mode={selectedMode}
-              selectedDifficulty={selectedDifficulty}
-              onSelect={setSelectedDifficulty}
-            />
-
-            <button
-              onClick={() => onStartGame(selectedMode, selectedDifficulty)}
-              style={styles.startBtn}
-            >
+            <DifficultySelection mode={selectedMode} selectedDifficulty={selectedDifficulty} onSelect={setSelectedDifficulty} />
+            <button onClick={() => onStartGame(selectedMode, selectedDifficulty)} style={styles.startBtn}>
               Start Game
             </button>
           </div>
@@ -1020,8 +1285,8 @@
     // ============================================
 
     function App() {
-      const [view, setView] = useState('play'); // play, stats, settings
-      const [gameMode, setGameMode] = useState(null); // null = menu, notes, intervals, chords
+      const [view, setView] = useState('play');
+      const [gameMode, setGameMode] = useState(null);
       const [gameDifficulty, setGameDifficulty] = useState(null);
 
       const handleStartGame = (mode, difficulty) => {
@@ -1040,19 +1305,14 @@
       };
 
       const renderGameView = () => {
-        if (!gameMode) {
-          return <MainMenu onStartGame={handleStartGame} />;
-        }
-
+        if (!gameMode) return <MainMenu onStartGame={handleStartGame} />;
         switch (gameMode) {
-          case 'notes':
-            return <NoteGame difficulty={gameDifficulty} onBack={handleBackToMenu} />;
-          case 'intervals':
-            return <IntervalGame difficulty={gameDifficulty} onBack={handleBackToMenu} />;
-          case 'chords':
-            return <ChordGame difficulty={gameDifficulty} onBack={handleBackToMenu} />;
-          default:
-            return <MainMenu onStartGame={handleStartGame} />;
+          case 'notes': return <NoteGame difficulty={gameDifficulty} onBack={handleBackToMenu} />;
+          case 'intervals': return <IntervalGame difficulty={gameDifficulty} onBack={handleBackToMenu} />;
+          case 'chords': return <ChordGame difficulty={gameDifficulty} onBack={handleBackToMenu} />;
+          case 'scales': return <ScaleGame difficulty={gameDifficulty} onBack={handleBackToMenu} />;
+          case 'progressions': return <ProgressionGame difficulty={gameDifficulty} onBack={handleBackToMenu} />;
+          default: return <MainMenu onStartGame={handleStartGame} />;
         }
       };
 
@@ -1066,6 +1326,7 @@
           {!gameMode && <Navigation currentView={view} setView={setView} />}
 
           {view === 'play' && renderGameView()}
+          {view === 'learn' && !gameMode && <LearnView />}
           {view === 'stats' && !gameMode && <StatsView />}
           {view === 'settings' && !gameMode && <SettingsView />}
 
