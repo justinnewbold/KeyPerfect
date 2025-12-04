@@ -190,10 +190,20 @@
 
     const INSTRUMENTS = {
       piano: { name: 'Piano', config: { oscillator: { type: 'triangle' }, envelope: { attack: 0.02, decay: 0.3, sustain: 0.4, release: 1.5 } } },
+      electric_piano: { name: 'Electric Piano', config: { oscillator: { type: 'sine' }, envelope: { attack: 0.01, decay: 0.4, sustain: 0.3, release: 1.2 } } },
       synth: { name: 'Synth', config: { oscillator: { type: 'sawtooth' }, envelope: { attack: 0.01, decay: 0.2, sustain: 0.3, release: 0.8 } } },
       organ: { name: 'Organ', config: { oscillator: { type: 'sine' }, envelope: { attack: 0.05, decay: 0.1, sustain: 0.8, release: 0.3 } } },
       strings: { name: 'Strings', config: { oscillator: { type: 'fatsawtooth', spread: 20, count: 3 }, envelope: { attack: 0.3, decay: 0.1, sustain: 0.7, release: 1.0 } } },
+      cello: { name: 'Cello', config: { oscillator: { type: 'fatsawtooth', spread: 10, count: 2 }, envelope: { attack: 0.4, decay: 0.2, sustain: 0.6, release: 1.2 } } },
       bell: { name: 'Bell', config: { oscillator: { type: 'sine' }, envelope: { attack: 0.001, decay: 0.5, sustain: 0.1, release: 2.0 } } },
+      vibraphone: { name: 'Vibraphone', config: { oscillator: { type: 'sine' }, envelope: { attack: 0.01, decay: 0.8, sustain: 0.2, release: 2.5 } } },
+      marimba: { name: 'Marimba', config: { oscillator: { type: 'triangle' }, envelope: { attack: 0.001, decay: 0.3, sustain: 0.05, release: 0.8 } } },
+      guitar: { name: 'Guitar', config: { oscillator: { type: 'triangle' }, envelope: { attack: 0.005, decay: 0.4, sustain: 0.2, release: 1.0 } } },
+      harpsichord: { name: 'Harpsichord', config: { oscillator: { type: 'square' }, envelope: { attack: 0.001, decay: 0.2, sustain: 0.1, release: 0.5 } } },
+      brass: { name: 'Brass', config: { oscillator: { type: 'fatsawtooth', spread: 15, count: 2 }, envelope: { attack: 0.15, decay: 0.2, sustain: 0.6, release: 0.6 } } },
+      flute: { name: 'Flute', config: { oscillator: { type: 'sine' }, envelope: { attack: 0.1, decay: 0.1, sustain: 0.7, release: 0.5 } } },
+      bass: { name: 'Bass', config: { oscillator: { type: 'triangle' }, envelope: { attack: 0.02, decay: 0.3, sustain: 0.5, release: 0.8 } } },
+      pad: { name: 'Ambient Pad', config: { oscillator: { type: 'fatsine', spread: 30, count: 3 }, envelope: { attack: 0.5, decay: 0.3, sustain: 0.8, release: 2.0 } } },
     };
 
     const GAME_MODES = {
@@ -1111,7 +1121,7 @@
             <p style={{ color: '#94a3b8', fontSize: '0.9rem', lineHeight: 1.6 }}>
               KeyPerfect is an ear training app to help musicians recognize notes, intervals, chords, scales, and progressions.
             </p>
-            <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '12px' }}>Version 2.3 (Mobile)</p>
+            <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '12px' }}>Version 2.4 (Mobile)</p>
           </div>
         </div>
       );
