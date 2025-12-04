@@ -21,15 +21,20 @@
     #root { min-height: 100vh; }
     select option { background: #1a1a2e; color: white; }
 
-    /* Button press animations */
+    /* Button press animations - mobile-only, no hover states */
     .btn-press {
       transition: transform 0.1s ease, box-shadow 0.1s ease, opacity 0.1s ease;
-    }
-    .btn-press:hover {
-      transform: scale(1.02);
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
     }
     .btn-press:active {
       transform: scale(0.96);
+    }
+
+    /* Prevent text selection on buttons */
+    button, .btn-press {
+      -webkit-user-select: none;
+      user-select: none;
     }
 
     /* Skeleton loading animation */
@@ -62,6 +67,15 @@
       touch-action: pan-y;
     }
 
+    /* Floating button pulse animation */
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 8px 30px rgba(139, 92, 246, 0.5); }
+      50% { box-shadow: 0 8px 40px rgba(139, 92, 246, 0.7); }
+    }
+    .floating-btn {
+      animation: pulse 2s ease-in-out infinite;
+    }
+
     /* Accordion animation */
     .accordion-content {
       overflow: hidden;
@@ -70,7 +84,42 @@
 
     /* Bottom nav safe area */
     @supports (padding-bottom: env(safe-area-inset-bottom)) {
-      .bottom-nav { padding-bottom: env(safe-area-inset-bottom); }
+      .bottom-nav { padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
+    }
+
+    /* Mobile-first responsive bottom nav */
+    .bottom-nav {
+      display: flex !important;
+      justify-content: stretch !important;
+      width: 100%;
+    }
+    .bottom-nav button {
+      flex: 1;
+      min-height: 56px;
+    }
+
+    /* Mobile touch improvements */
+    * {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    input, select, button {
+      font-size: 16px; /* Prevents iOS zoom on focus */
+    }
+
+    /* Smooth scrolling */
+    html {
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* Hide scrollbars on mobile but allow scrolling */
+    ::-webkit-scrollbar {
+      display: none;
+    }
+    body {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
     }
   </style>
 </head>
@@ -510,7 +559,7 @@
     // ============================================
 
     const styles = {
-      container: { minHeight: '100vh', display: 'flex', flexDirection: 'column', padding: '16px', paddingBottom: '90px', maxWidth: '600px', margin: '0 auto' },
+      container: { minHeight: '100vh', display: 'flex', flexDirection: 'column', padding: '16px', paddingBottom: '100px', maxWidth: '100%', margin: '0 auto', width: '100%' },
       header: { textAlign: 'center', marginBottom: '12px' },
       title: { fontSize: '1.5rem', fontWeight: '700', marginBottom: '2px', background: 'linear-gradient(135deg, #a855f7, #ec4899)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', cursor: 'pointer' },
       subtitle: { color: '#94a3b8', fontSize: '0.8rem' },
@@ -520,35 +569,35 @@
       breadcrumbCurrent: { color: 'white' },
       card: { backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: '20px', padding: '20px', backdropFilter: 'blur(10px)', width: '100%' },
       cardTitle: { fontSize: '1.1rem', fontWeight: '600', marginBottom: '16px', textAlign: 'center' },
-      modeGrid: { display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: '10px', marginBottom: '16px' },
-      modeBtn: { padding: '14px', borderRadius: '12px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'rgba(255, 255, 255, 0.05)', color: 'white', cursor: 'pointer', textAlign: 'left' },
+      modeGrid: { display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: '12px', marginBottom: '20px' },
+      modeBtn: { padding: '16px', borderRadius: '14px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'rgba(255, 255, 255, 0.05)', color: 'white', cursor: 'pointer', textAlign: 'left', minHeight: '72px' },
       modeBtnActive: { borderColor: '#a855f7', backgroundColor: 'rgba(168, 85, 247, 0.2)' },
       modeIcon: { fontSize: '1.25rem', marginBottom: '4px' },
       modeName: { fontSize: '0.95rem', fontWeight: '600', marginBottom: '2px' },
       modeDesc: { fontSize: '0.75rem', color: '#94a3b8' },
-      difficultyOptions: { display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' },
-      difficultyBtn: { padding: '12px 16px', borderRadius: '10px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'transparent', color: 'white', fontSize: '0.95rem', cursor: 'pointer', textAlign: 'left' },
+      difficultyOptions: { display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' },
+      difficultyBtn: { padding: '14px 18px', borderRadius: '12px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'transparent', color: 'white', fontSize: '1rem', cursor: 'pointer', textAlign: 'left', minHeight: '56px' },
       difficultyBtnActive: { borderColor: '#a855f7', backgroundColor: 'rgba(168, 85, 247, 0.2)' },
       difficultyLabel: { fontWeight: '600' },
       difficultyDesc: { fontSize: '0.8rem', color: '#94a3b8', marginTop: '2px' },
-      startBtn: { width: '100%', padding: '16px', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg, #a855f7, #ec4899)', color: 'white', fontSize: '1.05rem', fontWeight: '600', cursor: 'pointer' },
+      startBtn: { width: '100%', padding: '18px', borderRadius: '14px', border: 'none', background: 'linear-gradient(135deg, #a855f7, #ec4899)', color: 'white', fontSize: '1.1rem', fontWeight: '600', cursor: 'pointer', minHeight: '56px' },
       scoreBoard: { display: 'flex', justifyContent: 'space-around', backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: '12px', padding: '12px' },
       scoreStat: { display: 'flex', flexDirection: 'column', alignItems: 'center' },
       scoreLabel: { fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' },
       scoreValue: { fontSize: '1.1rem', fontWeight: '700' },
-      floatingPlayBtn: { position: 'fixed', bottom: '100px', right: '20px', width: '64px', height: '64px', borderRadius: '50%', border: 'none', background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', color: 'white', fontSize: '1.5rem', cursor: 'pointer', boxShadow: '0 8px 30px rgba(139, 92, 246, 0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      floatingPlayBtn: { position: 'fixed', bottom: '110px', right: '20px', width: '68px', height: '68px', borderRadius: '50%', border: 'none', background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', color: 'white', fontSize: '1.6rem', cursor: 'pointer', boxShadow: '0 8px 30px rgba(139, 92, 246, 0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' },
       playHint: { marginTop: '8px', color: '#94a3b8', fontSize: '0.85rem', textAlign: 'center' },
-      choicesGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginTop: '16px' },
-      choiceBtn: { padding: '18px 14px', borderRadius: '12px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'rgba(255, 255, 255, 0.1)', color: 'white', fontSize: '1rem', fontWeight: '600', cursor: 'pointer' },
+      choicesGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginTop: '16px' },
+      choiceBtn: { padding: '20px 14px', borderRadius: '14px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'rgba(255, 255, 255, 0.1)', color: 'white', fontSize: '1rem', fontWeight: '600', cursor: 'pointer', minHeight: '60px' },
       choiceBtnCorrect: { borderColor: '#22c55e', backgroundColor: 'rgba(34, 197, 94, 0.3)' },
       choiceBtnWrong: { borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.3)' },
-      actionButtons: { display: 'flex', gap: '10px', marginTop: '16px' },
-      nextBtn: { flex: 1, padding: '14px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg, #22c55e, #16a34a)', color: 'white', fontSize: '1rem', fontWeight: '600', cursor: 'pointer' },
-      resetBtn: { flex: 1, padding: '14px', borderRadius: '10px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'transparent', color: 'white', fontSize: '0.95rem', fontWeight: '500', cursor: 'pointer' },
-      resultBox: { textAlign: 'center', padding: '12px', borderRadius: '10px', border: '2px solid', fontSize: '1rem', fontWeight: '600' },
-      bottomNav: { position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(22, 33, 62, 0.98)', backdropFilter: 'blur(20px)', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-around', padding: '8px 0 12px', zIndex: 999 },
-      bottomNavItem: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', background: 'none', border: 'none', color: '#64748b', fontSize: '0.7rem', cursor: 'pointer', padding: '8px 16px', borderRadius: '12px', minWidth: '64px' },
-      bottomNavItemActive: { color: '#a855f7' },
+      actionButtons: { display: 'flex', gap: '12px', marginTop: '20px' },
+      nextBtn: { flex: 1, padding: '16px', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg, #22c55e, #16a34a)', color: 'white', fontSize: '1.05rem', fontWeight: '600', cursor: 'pointer', minHeight: '52px' },
+      resetBtn: { flex: 1, padding: '16px', borderRadius: '12px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'transparent', color: 'white', fontSize: '1rem', fontWeight: '500', cursor: 'pointer', minHeight: '52px' },
+      resultBox: { textAlign: 'center', padding: '16px', borderRadius: '12px', border: '2px solid', fontSize: '1.05rem', fontWeight: '600' },
+      bottomNav: { position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(22, 33, 62, 0.98)', backdropFilter: 'blur(20px)', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'stretch', padding: '8px 0 12px', zIndex: 999, width: '100%' },
+      bottomNavItem: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px', background: 'none', border: 'none', color: '#64748b', fontSize: '0.75rem', cursor: 'pointer', padding: '10px 8px', borderRadius: '8px', flex: 1, minHeight: '56px' },
+      bottomNavItemActive: { color: '#a855f7', backgroundColor: 'rgba(168, 85, 247, 0.1)' },
       bottomNavIcon: { fontSize: '1.4rem' },
       statsCard: { backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: '12px', padding: '16px', marginBottom: '12px' },
       statsTitle: { fontSize: '1rem', fontWeight: '600', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' },
@@ -556,23 +605,23 @@
       statItem: { textAlign: 'center' },
       statValue: { fontSize: '1.5rem', fontWeight: '700', color: '#a855f7' },
       statLabel: { fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase' },
-      settingRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid rgba(255, 255, 255, 0.1)' },
+      settingRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 0', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', minHeight: '56px' },
       settingLabel: { fontSize: '0.95rem' },
-      select: { padding: '8px 12px', borderRadius: '8px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'rgba(255, 255, 255, 0.1)', color: 'white', fontSize: '0.9rem', cursor: 'pointer' },
-      toggle: { width: '48px', height: '26px', borderRadius: '13px', border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 0.2s' },
-      toggleKnob: { width: '22px', height: '22px', borderRadius: '50%', backgroundColor: 'white', position: 'absolute', top: '2px', transition: 'left 0.2s' },
-      dangerBtn: { padding: '12px', borderRadius: '8px', border: '2px solid #ef4444', backgroundColor: 'transparent', color: '#ef4444', fontSize: '0.9rem', cursor: 'pointer', marginTop: '16px', width: '100%' },
-      shareBtn: { padding: '12px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', color: 'white', fontSize: '0.9rem', cursor: 'pointer', marginTop: '12px', width: '100%', fontWeight: '600' },
-      accordion: { backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: '12px', marginBottom: '8px', overflow: 'hidden' },
-      accordionHeader: { padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', background: 'none', border: 'none', width: '100%', color: 'white', textAlign: 'left' },
+      select: { padding: '12px 16px', borderRadius: '10px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'rgba(255, 255, 255, 0.1)', color: 'white', fontSize: '1rem', cursor: 'pointer', minHeight: '44px', appearance: 'none', backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'white\' viewBox=\'0 0 24 24\'%3E%3Cpath d=\'M7 10l5 5 5-5z\'/%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center', backgroundSize: '20px', paddingRight: '36px' },
+      toggle: { width: '52px', height: '30px', borderRadius: '15px', border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 0.2s', minWidth: '52px' },
+      toggleKnob: { width: '26px', height: '26px', borderRadius: '50%', backgroundColor: 'white', position: 'absolute', top: '2px', transition: 'left 0.2s' },
+      dangerBtn: { padding: '16px', borderRadius: '12px', border: '2px solid #ef4444', backgroundColor: 'transparent', color: '#ef4444', fontSize: '1rem', cursor: 'pointer', marginTop: '20px', width: '100%', minHeight: '52px' },
+      shareBtn: { padding: '16px', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', color: 'white', fontSize: '1rem', cursor: 'pointer', marginTop: '16px', width: '100%', fontWeight: '600', minHeight: '52px' },
+      accordion: { backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: '14px', marginBottom: '10px', overflow: 'hidden' },
+      accordionHeader: { padding: '18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', background: 'none', border: 'none', width: '100%', color: 'white', textAlign: 'left', minHeight: '56px' },
       accordionTitle: { fontSize: '1rem', fontWeight: '600' },
       accordionArrow: { fontSize: '1rem', transition: 'transform 0.3s' },
       accordionBody: { padding: '0 16px 16px' },
       refNotes: { fontSize: '0.9rem', color: '#a855f7', fontFamily: 'monospace', marginBottom: '8px' },
       refDesc: { fontSize: '0.8rem', color: '#94a3b8', marginBottom: '8px' },
-      playSmallBtn: { padding: '8px 16px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', color: 'white', fontSize: '0.8rem', cursor: 'pointer' },
-      swipeIndicator: { display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '16px' },
-      swipeDot: { width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.3)' },
+      playSmallBtn: { padding: '12px 20px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', color: 'white', fontSize: '0.9rem', cursor: 'pointer', minHeight: '44px' },
+      swipeIndicator: { display: 'flex', justifyContent: 'center', gap: '12px', marginBottom: '16px' },
+      swipeDot: { width: '10px', height: '10px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.3)', cursor: 'pointer', padding: '8px', boxSizing: 'content-box' },
       swipeDotActive: { backgroundColor: '#a855f7' },
       skeleton: { height: '60px', marginBottom: '8px' },
     };
@@ -629,7 +678,7 @@
       );
       return (
         <button onClick={() => { onClick(); triggerHaptic('medium'); }} disabled={isPlaying}
-          className="btn-press"
+          className={`btn-press ${!isPlaying ? 'floating-btn' : ''}`}
           style={{ ...styles.floatingPlayBtn, opacity: isPlaying ? 0.7 : 1 }}>
           <span>{isPlaying ? '🔊' : '▶️'}</span>
         </button>
@@ -1062,7 +1111,7 @@
             <p style={{ color: '#94a3b8', fontSize: '0.9rem', lineHeight: 1.6 }}>
               KeyPerfect is an ear training app to help musicians recognize notes, intervals, chords, scales, and progressions.
             </p>
-            <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '12px' }}>Version 2.2</p>
+            <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '12px' }}>Version 2.3 (Mobile)</p>
           </div>
         </div>
       );
