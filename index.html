@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Music Key Guesser</title>
+  <title>KeyPerfect - Music Ear Training</title>
   <script src="https://unpkg.com/tone@14.8.49/build/Tone.js"></script>
   <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -23,194 +23,1071 @@
 <body>
   <div id="root"></div>
   <script type="text/babel">
-    const { useState, useEffect, useCallback } = React;
+    const { useState, useEffect, useCallback, useMemo, createContext, useContext } = React;
+
+    // ============================================
+    // CONSTANTS & CONFIGURATION
+    // ============================================
 
     const NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-    
-    const DIFFICULTIES = {
-      easy: { notes: ['C', 'D', 'E', 'F', 'G', 'A', 'B'], choices: 4, label: 'Easy (Natural Notes)' },
-      medium: { notes: NOTES, choices: 4, label: 'Medium (All Notes)' },
-      hard: { notes: NOTES, choices: 6, label: 'Hard (All Notes, More Choices)' },
+    const NATURAL_NOTES = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+    const OCTAVES = [3, 4, 5];
+
+    const INTERVALS = {
+      0: { name: 'Unison', short: 'P1' },
+      1: { name: 'Minor 2nd', short: 'm2' },
+      2: { name: 'Major 2nd', short: 'M2' },
+      3: { name: 'Minor 3rd', short: 'm3' },
+      4: { name: 'Major 3rd', short: 'M3' },
+      5: { name: 'Perfect 4th', short: 'P4' },
+      6: { name: 'Tritone', short: 'TT' },
+      7: { name: 'Perfect 5th', short: 'P5' },
+      8: { name: 'Minor 6th', short: 'm6' },
+      9: { name: 'Major 6th', short: 'M6' },
+      10: { name: 'Minor 7th', short: 'm7' },
+      11: { name: 'Major 7th', short: 'M7' },
+      12: { name: 'Octave', short: 'P8' },
     };
 
-    function App() {
-      const [gameState, setGameState] = useState('start');
-      const [difficulty, setDifficulty] = useState('easy');
+    const CHORD_TYPES = {
+      major: { name: 'Major', intervals: [0, 4, 7], symbol: '' },
+      minor: { name: 'Minor', intervals: [0, 3, 7], symbol: 'm' },
+      diminished: { name: 'Diminished', intervals: [0, 3, 6], symbol: 'dim' },
+      augmented: { name: 'Augmented', intervals: [0, 4, 8], symbol: 'aug' },
+      major7: { name: 'Major 7th', intervals: [0, 4, 7, 11], symbol: 'maj7' },
+      minor7: { name: 'Minor 7th', intervals: [0, 3, 7, 10], symbol: 'm7' },
+      dominant7: { name: 'Dominant 7th', intervals: [0, 4, 7, 10], symbol: '7' },
+    };
+
+    const INSTRUMENTS = {
+      piano: {
+        name: 'Piano',
+        config: { oscillator: { type: 'triangle' }, envelope: { attack: 0.02, decay: 0.3, sustain: 0.4, release: 1.5 } }
+      },
+      synth: {
+        name: 'Synth',
+        config: { oscillator: { type: 'sawtooth' }, envelope: { attack: 0.01, decay: 0.2, sustain: 0.3, release: 0.8 } }
+      },
+      organ: {
+        name: 'Organ',
+        config: { oscillator: { type: 'sine' }, envelope: { attack: 0.05, decay: 0.1, sustain: 0.8, release: 0.3 } }
+      },
+      strings: {
+        name: 'Strings',
+        config: { oscillator: { type: 'fatsawtooth', spread: 20, count: 3 }, envelope: { attack: 0.3, decay: 0.1, sustain: 0.7, release: 1.0 } }
+      },
+      bell: {
+        name: 'Bell',
+        config: { oscillator: { type: 'sine' }, envelope: { attack: 0.001, decay: 0.5, sustain: 0.1, release: 2.0 } }
+      },
+    };
+
+    const GAME_MODES = {
+      notes: { name: 'Note Recognition', icon: '🎵', description: 'Identify single notes' },
+      intervals: { name: 'Interval Training', icon: '↔️', description: 'Recognize intervals between notes' },
+      chords: { name: 'Chord Recognition', icon: '🎹', description: 'Identify chord types' },
+    };
+
+    const NOTE_DIFFICULTIES = {
+      easy: { notes: NATURAL_NOTES, choices: 4, octaves: [4], label: 'Easy', description: 'Natural notes, single octave' },
+      medium: { notes: NOTES, choices: 4, octaves: [4], label: 'Medium', description: 'All notes, single octave' },
+      hard: { notes: NOTES, choices: 6, octaves: [3, 4, 5], label: 'Hard', description: 'All notes, multiple octaves' },
+    };
+
+    const INTERVAL_DIFFICULTIES = {
+      easy: { intervals: [3, 4, 5, 7], choices: 4, label: 'Easy', description: '3rds, 4ths, 5ths only' },
+      medium: { intervals: [1, 2, 3, 4, 5, 7, 8, 9], choices: 4, label: 'Medium', description: 'Common intervals' },
+      hard: { intervals: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], choices: 6, label: 'Hard', description: 'All intervals' },
+    };
+
+    const CHORD_DIFFICULTIES = {
+      easy: { chords: ['major', 'minor'], choices: 2, label: 'Easy', description: 'Major vs Minor' },
+      medium: { chords: ['major', 'minor', 'diminished', 'augmented'], choices: 4, label: 'Medium', description: 'Triads' },
+      hard: { chords: ['major', 'minor', 'diminished', 'augmented', 'major7', 'minor7', 'dominant7'], choices: 6, label: 'Hard', description: 'Triads & 7th chords' },
+    };
+
+    // ============================================
+    // LOCAL STORAGE HOOKS
+    // ============================================
+
+    function useLocalStorage(key, initialValue) {
+      const [storedValue, setStoredValue] = useState(() => {
+        try {
+          const item = window.localStorage.getItem(key);
+          return item ? JSON.parse(item) : initialValue;
+        } catch (error) {
+          console.error(`Error reading localStorage key "${key}":`, error);
+          return initialValue;
+        }
+      });
+
+      const setValue = useCallback((value) => {
+        try {
+          const valueToStore = value instanceof Function ? value(storedValue) : value;
+          setStoredValue(valueToStore);
+          window.localStorage.setItem(key, JSON.stringify(valueToStore));
+        } catch (error) {
+          console.error(`Error setting localStorage key "${key}":`, error);
+        }
+      }, [key, storedValue]);
+
+      return [storedValue, setValue];
+    }
+
+    // ============================================
+    // AUDIO HOOK
+    // ============================================
+
+    function useAudio(instrument) {
+      const [synth, setSynth] = useState(null);
+      const [polySynth, setPolySynth] = useState(null);
+      const [isPlaying, setIsPlaying] = useState(false);
+
+      useEffect(() => {
+        const config = INSTRUMENTS[instrument]?.config || INSTRUMENTS.piano.config;
+        const newSynth = new Tone.Synth(config).toDestination();
+        const newPolySynth = new Tone.PolySynth(Tone.Synth, config).toDestination();
+        setSynth(newSynth);
+        setPolySynth(newPolySynth);
+        return () => {
+          newSynth.dispose();
+          newPolySynth.dispose();
+        };
+      }, [instrument]);
+
+      const playNote = useCallback(async (note, octave = 4, duration = '2n') => {
+        if (!synth || isPlaying) return;
+        try {
+          await Tone.start();
+          setIsPlaying(true);
+          synth.triggerAttackRelease(`${note}${octave}`, duration);
+          setTimeout(() => setIsPlaying(false), 1500);
+        } catch (err) {
+          console.error('Audio error:', err);
+          setIsPlaying(false);
+        }
+      }, [synth, isPlaying]);
+
+      const playNotes = useCallback(async (notes, duration = '2n') => {
+        if (!polySynth || isPlaying) return;
+        try {
+          await Tone.start();
+          setIsPlaying(true);
+          polySynth.triggerAttackRelease(notes, duration);
+          setTimeout(() => setIsPlaying(false), 1800);
+        } catch (err) {
+          console.error('Audio error:', err);
+          setIsPlaying(false);
+        }
+      }, [polySynth, isPlaying]);
+
+      const playSequence = useCallback(async (notes, interval = 0.5) => {
+        if (!synth || isPlaying) return;
+        try {
+          await Tone.start();
+          setIsPlaying(true);
+          const now = Tone.now();
+          notes.forEach((note, i) => {
+            synth.triggerAttackRelease(note, '4n', now + i * interval);
+          });
+          setTimeout(() => setIsPlaying(false), notes.length * interval * 1000 + 500);
+        } catch (err) {
+          console.error('Audio error:', err);
+          setIsPlaying(false);
+        }
+      }, [synth, isPlaying]);
+
+      return { playNote, playNotes, playSequence, isPlaying };
+    }
+
+    // ============================================
+    // STATISTICS CONTEXT
+    // ============================================
+
+    const StatsContext = createContext();
+
+    function StatsProvider({ children }) {
+      const [stats, setStats] = useLocalStorage('keyperfect_stats_v2', {
+        notes: { gamesPlayed: 0, totalCorrect: 0, totalAnswered: 0, bestStreak: 0, byDifficulty: {} },
+        intervals: { gamesPlayed: 0, totalCorrect: 0, totalAnswered: 0, bestStreak: 0, byDifficulty: {} },
+        chords: { gamesPlayed: 0, totalCorrect: 0, totalAnswered: 0, bestStreak: 0, byDifficulty: {} },
+        history: [],
+      });
+
+      const recordAnswer = useCallback((mode, difficulty, correct, streak) => {
+        setStats(prev => {
+          const modeStats = { ...prev[mode] };
+          modeStats.totalAnswered += 1;
+          if (correct) modeStats.totalCorrect += 1;
+          if (streak > modeStats.bestStreak) modeStats.bestStreak = streak;
+
+          if (!modeStats.byDifficulty[difficulty]) {
+            modeStats.byDifficulty[difficulty] = { correct: 0, total: 0 };
+          }
+          modeStats.byDifficulty[difficulty].total += 1;
+          if (correct) modeStats.byDifficulty[difficulty].correct += 1;
+
+          const newHistory = [...prev.history, {
+            mode, difficulty, correct, timestamp: Date.now()
+          }].slice(-100); // Keep last 100 entries
+
+          return { ...prev, [mode]: modeStats, history: newHistory };
+        });
+      }, [setStats]);
+
+      const recordGameComplete = useCallback((mode) => {
+        setStats(prev => ({
+          ...prev,
+          [mode]: { ...prev[mode], gamesPlayed: prev[mode].gamesPlayed + 1 }
+        }));
+      }, [setStats]);
+
+      const resetStats = useCallback(() => {
+        setStats({
+          notes: { gamesPlayed: 0, totalCorrect: 0, totalAnswered: 0, bestStreak: 0, byDifficulty: {} },
+          intervals: { gamesPlayed: 0, totalCorrect: 0, totalAnswered: 0, bestStreak: 0, byDifficulty: {} },
+          chords: { gamesPlayed: 0, totalCorrect: 0, totalAnswered: 0, bestStreak: 0, byDifficulty: {} },
+          history: [],
+        });
+      }, [setStats]);
+
+      return (
+        <StatsContext.Provider value={{ stats, recordAnswer, recordGameComplete, resetStats }}>
+          {children}
+        </StatsContext.Provider>
+      );
+    }
+
+    function useStats() {
+      return useContext(StatsContext);
+    }
+
+    // ============================================
+    // SETTINGS CONTEXT
+    // ============================================
+
+    const SettingsContext = createContext();
+
+    function SettingsProvider({ children }) {
+      const [settings, setSettings] = useLocalStorage('keyperfect_settings_v2', {
+        instrument: 'piano',
+        autoPlayOnStart: true,
+        showOctaveInChoices: false,
+      });
+
+      const updateSettings = useCallback((updates) => {
+        setSettings(prev => ({ ...prev, ...updates }));
+      }, [setSettings]);
+
+      return (
+        <SettingsContext.Provider value={{ settings, updateSettings }}>
+          {children}
+        </SettingsContext.Provider>
+      );
+    }
+
+    function useSettings() {
+      return useContext(SettingsContext);
+    }
+
+    // ============================================
+    // UTILITY FUNCTIONS
+    // ============================================
+
+    function shuffle(array) {
+      const arr = [...array];
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    function getNoteIndex(note) {
+      return NOTES.indexOf(note);
+    }
+
+    function getNoteFromIndex(index) {
+      return NOTES[((index % 12) + 12) % 12];
+    }
+
+    function getNoteName(note, octave, showOctave = false) {
+      return showOctave ? `${note}${octave}` : note;
+    }
+
+    // ============================================
+    // STYLES
+    // ============================================
+
+    const styles = {
+      container: { minHeight: '100vh', display: 'flex', flexDirection: 'column', padding: '20px', maxWidth: '600px', margin: '0 auto' },
+      header: { textAlign: 'center', marginBottom: '20px' },
+      title: { fontSize: '1.75rem', fontWeight: '700', marginBottom: '4px', background: 'linear-gradient(135deg, #a855f7, #ec4899)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', cursor: 'pointer' },
+      subtitle: { color: '#94a3b8', fontSize: '0.9rem' },
+      card: { backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: '20px', padding: '24px', backdropFilter: 'blur(10px)', width: '100%' },
+      cardTitle: { fontSize: '1.15rem', fontWeight: '600', marginBottom: '16px', textAlign: 'center' },
+      modeGrid: { display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: '12px', marginBottom: '20px' },
+      modeBtn: { padding: '16px', borderRadius: '12px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'rgba(255, 255, 255, 0.05)', color: 'white', cursor: 'pointer', transition: 'all 0.2s', textAlign: 'left' },
+      modeBtnActive: { borderColor: '#a855f7', backgroundColor: 'rgba(168, 85, 247, 0.2)' },
+      modeIcon: { fontSize: '1.5rem', marginBottom: '8px' },
+      modeName: { fontSize: '1rem', fontWeight: '600', marginBottom: '4px' },
+      modeDesc: { fontSize: '0.8rem', color: '#94a3b8' },
+      difficultyOptions: { display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' },
+      difficultyBtn: { padding: '12px 16px', borderRadius: '10px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'transparent', color: 'white', fontSize: '0.95rem', cursor: 'pointer', transition: 'all 0.2s', textAlign: 'left' },
+      difficultyBtnActive: { borderColor: '#a855f7', backgroundColor: 'rgba(168, 85, 247, 0.2)' },
+      difficultyLabel: { fontWeight: '600' },
+      difficultyDesc: { fontSize: '0.8rem', color: '#94a3b8', marginTop: '2px' },
+      startBtn: { width: '100%', padding: '16px', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg, #a855f7, #ec4899)', color: 'white', fontSize: '1.05rem', fontWeight: '600', cursor: 'pointer' },
+      scoreBoard: { display: 'flex', justifyContent: 'space-around', backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: '12px', padding: '12px' },
+      scoreStat: { display: 'flex', flexDirection: 'column', alignItems: 'center' },
+      scoreLabel: { fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' },
+      scoreValue: { fontSize: '1.1rem', fontWeight: '700' },
+      playSection: { textAlign: 'center', padding: '16px' },
+      playBtn: { display: 'inline-flex', alignItems: 'center', gap: '10px', padding: '16px 32px', borderRadius: '50px', border: 'none', background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', color: 'white', fontSize: '1.1rem', fontWeight: '600', cursor: 'pointer', boxShadow: '0 10px 40px rgba(139, 92, 246, 0.3)', transition: 'transform 0.2s' },
+      playBtnDisabled: { opacity: 0.7, cursor: 'not-allowed' },
+      playHint: { marginTop: '12px', color: '#94a3b8', fontSize: '0.9rem' },
+      choicesGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' },
+      choiceBtn: { padding: '20px 16px', borderRadius: '12px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'rgba(255, 255, 255, 0.1)', color: 'white', fontSize: '1.25rem', fontWeight: '700', cursor: 'pointer', transition: 'all 0.2s' },
+      choiceBtnCorrect: { borderColor: '#22c55e', backgroundColor: 'rgba(34, 197, 94, 0.3)' },
+      choiceBtnWrong: { borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.3)' },
+      actionButtons: { display: 'flex', gap: '10px', marginTop: '16px' },
+      nextBtn: { flex: 1, padding: '14px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg, #22c55e, #16a34a)', color: 'white', fontSize: '1rem', fontWeight: '600', cursor: 'pointer' },
+      resetBtn: { flex: 1, padding: '14px', borderRadius: '10px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'transparent', color: 'white', fontSize: '0.95rem', fontWeight: '500', cursor: 'pointer' },
+      resultBox: { textAlign: 'center', padding: '12px', borderRadius: '10px', border: '2px solid', fontSize: '1rem', fontWeight: '600', marginBottom: '12px' },
+      navBar: { display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '16px' },
+      navBtn: { padding: '8px 16px', borderRadius: '8px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'transparent', color: 'white', fontSize: '0.85rem', cursor: 'pointer', transition: 'all 0.2s' },
+      navBtnActive: { borderColor: '#a855f7', backgroundColor: 'rgba(168, 85, 247, 0.2)' },
+      statsCard: { backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: '12px', padding: '16px', marginBottom: '12px' },
+      statsTitle: { fontSize: '1rem', fontWeight: '600', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' },
+      statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' },
+      statItem: { textAlign: 'center' },
+      statValue: { fontSize: '1.5rem', fontWeight: '700', color: '#a855f7' },
+      statLabel: { fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase' },
+      settingRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid rgba(255, 255, 255, 0.1)' },
+      settingLabel: { fontSize: '0.95rem' },
+      select: { padding: '8px 12px', borderRadius: '8px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'rgba(255, 255, 255, 0.1)', color: 'white', fontSize: '0.9rem', cursor: 'pointer' },
+      toggle: { width: '48px', height: '26px', borderRadius: '13px', border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 0.2s' },
+      toggleKnob: { width: '22px', height: '22px', borderRadius: '50%', backgroundColor: 'white', position: 'absolute', top: '2px', transition: 'left 0.2s' },
+      dangerBtn: { padding: '12px', borderRadius: '8px', border: '2px solid #ef4444', backgroundColor: 'transparent', color: '#ef4444', fontSize: '0.9rem', cursor: 'pointer', marginTop: '16px', width: '100%' },
+      footer: { textAlign: 'center', padding: '16px', color: '#64748b', fontSize: '0.8rem', marginTop: 'auto' },
+    };
+
+    // ============================================
+    // COMPONENTS
+    // ============================================
+
+    // Navigation Component
+    function Navigation({ currentView, setView }) {
+      const views = [
+        { id: 'play', label: 'Play' },
+        { id: 'stats', label: 'Stats' },
+        { id: 'settings', label: 'Settings' },
+      ];
+      return (
+        <div style={styles.navBar}>
+          {views.map(v => (
+            <button
+              key={v.id}
+              onClick={() => setView(v.id)}
+              style={{ ...styles.navBtn, ...(currentView === v.id ? styles.navBtnActive : {}) }}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
+      );
+    }
+
+    // Mode Selection Component
+    function ModeSelection({ selectedMode, onSelect }) {
+      return (
+        <div style={styles.modeGrid}>
+          {Object.entries(GAME_MODES).map(([key, mode]) => (
+            <button
+              key={key}
+              onClick={() => onSelect(key)}
+              style={{ ...styles.modeBtn, ...(selectedMode === key ? styles.modeBtnActive : {}) }}
+            >
+              <div style={styles.modeIcon}>{mode.icon}</div>
+              <div style={styles.modeName}>{mode.name}</div>
+              <div style={styles.modeDesc}>{mode.description}</div>
+            </button>
+          ))}
+        </div>
+      );
+    }
+
+    // Difficulty Selection Component
+    function DifficultySelection({ mode, selectedDifficulty, onSelect }) {
+      const difficulties = mode === 'notes' ? NOTE_DIFFICULTIES
+        : mode === 'intervals' ? INTERVAL_DIFFICULTIES
+        : CHORD_DIFFICULTIES;
+
+      return (
+        <div style={styles.difficultyOptions}>
+          {Object.entries(difficulties).map(([key, diff]) => (
+            <button
+              key={key}
+              onClick={() => onSelect(key)}
+              style={{ ...styles.difficultyBtn, ...(selectedDifficulty === key ? styles.difficultyBtnActive : {}) }}
+            >
+              <div style={styles.difficultyLabel}>{diff.label}</div>
+              <div style={styles.difficultyDesc}>{diff.description}</div>
+            </button>
+          ))}
+        </div>
+      );
+    }
+
+    // Score Board Component
+    function ScoreBoard({ score, total, streak, bestStreak }) {
+      return (
+        <div style={styles.scoreBoard}>
+          <div style={styles.scoreStat}>
+            <span style={styles.scoreLabel}>Score</span>
+            <span style={styles.scoreValue}>{score}/{total}</span>
+          </div>
+          <div style={styles.scoreStat}>
+            <span style={styles.scoreLabel}>Streak</span>
+            <span style={styles.scoreValue}>{streak}</span>
+          </div>
+          <div style={styles.scoreStat}>
+            <span style={styles.scoreLabel}>Best</span>
+            <span style={styles.scoreValue}>{bestStreak}</span>
+          </div>
+        </div>
+      );
+    }
+
+    // Note Game Component
+    function NoteGame({ difficulty, onBack }) {
+      const { settings } = useSettings();
+      const { recordAnswer } = useStats();
+      const { playNote, isPlaying } = useAudio(settings.instrument);
+      const diffSettings = NOTE_DIFFICULTIES[difficulty];
+
+      const [gameState, setGameState] = useState('playing');
       const [currentNote, setCurrentNote] = useState(null);
+      const [currentOctave, setCurrentOctave] = useState(4);
       const [choices, setChoices] = useState([]);
       const [score, setScore] = useState(0);
       const [streak, setStreak] = useState(0);
       const [bestStreak, setBestStreak] = useState(0);
       const [totalPlayed, setTotalPlayed] = useState(0);
       const [lastResult, setLastResult] = useState(null);
-      const [isPlaying, setIsPlaying] = useState(false);
-      const [synth, setSynth] = useState(null);
+      const [selectedAnswer, setSelectedAnswer] = useState(null);
 
-      useEffect(() => {
-        const newSynth = new Tone.Synth({
-          oscillator: { type: 'triangle' },
-          envelope: { attack: 0.02, decay: 0.3, sustain: 0.4, release: 1.5 }
-        }).toDestination();
-        setSynth(newSynth);
-        return () => { newSynth.dispose(); };
-      }, []);
-
-      const generateChoices = useCallback((correctNote, diffSettings) => {
-        const availableNotes = diffSettings.notes.filter(n => n !== correctNote);
-        const shuffled = availableNotes.sort(() => Math.random() - 0.5);
-        const wrongChoices = shuffled.slice(0, diffSettings.choices - 1);
-        return [...wrongChoices, correctNote].sort(() => Math.random() - 0.5);
-      }, []);
-
-      const startNewRound = useCallback(async () => {
-        const diffSettings = DIFFICULTIES[difficulty];
+      const generateRound = useCallback(() => {
         const randomNote = diffSettings.notes[Math.floor(Math.random() * diffSettings.notes.length)];
-        const newChoices = generateChoices(randomNote, diffSettings);
+        const randomOctave = diffSettings.octaves[Math.floor(Math.random() * diffSettings.octaves.length)];
+        const availableNotes = diffSettings.notes.filter(n => n !== randomNote);
+        const wrongChoices = shuffle(availableNotes).slice(0, diffSettings.choices - 1);
+        const newChoices = shuffle([...wrongChoices, randomNote]);
+
         setCurrentNote(randomNote);
+        setCurrentOctave(randomOctave);
         setChoices(newChoices);
         setLastResult(null);
+        setSelectedAnswer(null);
         setGameState('playing');
-        setTimeout(() => playNote(randomNote), 300);
-      }, [difficulty, generateChoices]);
 
-      const playNote = async (note) => {
-        if (!synth || isPlaying) return;
-        try {
-          await Tone.start();
-          setIsPlaying(true);
-          synth.triggerAttackRelease(`${note}4`, '1n');
-          setTimeout(() => setIsPlaying(false), 1500);
-        } catch (err) {
-          console.error('Audio error:', err);
-          setIsPlaying(false);
+        if (settings.autoPlayOnStart) {
+          setTimeout(() => playNote(randomNote, randomOctave), 300);
         }
-      };
+      }, [diffSettings, settings.autoPlayOnStart, playNote]);
+
+      useEffect(() => {
+        generateRound();
+      }, []);
 
       const handleGuess = (guess) => {
+        if (gameState !== 'playing') return;
+
         const correct = guess === currentNote;
+        setSelectedAnswer(guess);
         setTotalPlayed(prev => prev + 1);
+
+        let newStreak = streak;
         if (correct) {
           setScore(prev => prev + 1);
-          setStreak(prev => {
-            const newStreak = prev + 1;
-            if (newStreak > bestStreak) setBestStreak(newStreak);
-            return newStreak;
-          });
-          setLastResult({ correct: true, message: 'Correct! 🎉' });
+          newStreak = streak + 1;
+          setStreak(newStreak);
+          if (newStreak > bestStreak) setBestStreak(newStreak);
+          setLastResult({ correct: true, message: 'Correct!' });
         } else {
           setStreak(0);
-          setLastResult({ correct: false, message: `Wrong! It was ${currentNote}` });
+          newStreak = 0;
+          setLastResult({ correct: false, message: `Wrong! It was ${currentNote}${settings.showOctaveInChoices ? currentOctave : ''}` });
         }
+
+        recordAnswer('notes', difficulty, correct, newStreak);
         setGameState('result');
       };
 
-      const replayNote = () => { if (currentNote) playNote(currentNote); };
-      const resetGame = () => {
-        setScore(0); setStreak(0); setTotalPlayed(0);
-        setGameState('start'); setLastResult(null);
+      const handleReplay = () => {
+        if (currentNote) playNote(currentNote, currentOctave);
       };
 
-      const styles = {
-        container: { minHeight: '100vh', display: 'flex', flexDirection: 'column', padding: '20px', maxWidth: '600px', margin: '0 auto' },
-        header: { textAlign: 'center', marginBottom: '30px' },
-        title: { fontSize: '2rem', fontWeight: '700', marginBottom: '8px', background: 'linear-gradient(135deg, #a855f7, #ec4899)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' },
-        subtitle: { color: '#94a3b8', fontSize: '1rem' },
-        card: { backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: '20px', padding: '30px', backdropFilter: 'blur(10px)', width: '100%' },
-        cardTitle: { fontSize: '1.25rem', fontWeight: '600', marginBottom: '20px', textAlign: 'center' },
-        difficultyOptions: { display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '25px' },
-        difficultyBtn: { padding: '15px 20px', borderRadius: '12px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'transparent', color: 'white', fontSize: '1rem', cursor: 'pointer', transition: 'all 0.2s' },
-        difficultyBtnActive: { borderColor: '#a855f7', backgroundColor: 'rgba(168, 85, 247, 0.2)' },
-        startBtn: { width: '100%', padding: '18px', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg, #a855f7, #ec4899)', color: 'white', fontSize: '1.1rem', fontWeight: '600', cursor: 'pointer' },
-        scoreBoard: { display: 'flex', justifyContent: 'space-around', backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: '15px', padding: '15px' },
-        scoreStat: { display: 'flex', flexDirection: 'column', alignItems: 'center' },
-        scoreLabel: { fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase' },
-        scoreValue: { fontSize: '1.25rem', fontWeight: '700' },
-        playSection: { textAlign: 'center', padding: '20px' },
-        playBtn: { display: 'inline-flex', alignItems: 'center', gap: '10px', padding: '20px 40px', borderRadius: '50px', border: 'none', background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', color: 'white', fontSize: '1.25rem', fontWeight: '600', cursor: 'pointer', boxShadow: '0 10px 40px rgba(139, 92, 246, 0.3)', transition: 'transform 0.2s' },
-        playBtnDisabled: { opacity: 0.7, cursor: 'not-allowed' },
-        playHint: { marginTop: '15px', color: '#94a3b8' },
-        choicesGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' },
-        choiceBtn: { padding: '25px 20px', borderRadius: '15px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'rgba(255, 255, 255, 0.1)', color: 'white', fontSize: '1.5rem', fontWeight: '700', cursor: 'pointer', transition: 'all 0.2s' },
-        choiceBtnCorrect: { borderColor: '#22c55e', backgroundColor: 'rgba(34, 197, 94, 0.3)' },
-        actionButtons: { display: 'flex', gap: '12px', marginTop: 'auto' },
-        nextBtn: { flex: 1, padding: '18px', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg, #22c55e, #16a34a)', color: 'white', fontSize: '1.1rem', fontWeight: '600', cursor: 'pointer' },
-        resetBtn: { flex: 1, padding: '18px', borderRadius: '12px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'transparent', color: 'white', fontSize: '1rem', fontWeight: '500', cursor: 'pointer' },
-        footer: { textAlign: 'center', padding: '20px', color: '#64748b', fontSize: '0.875rem' }
+      return (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <ScoreBoard score={score} total={totalPlayed} streak={streak} bestStreak={bestStreak} />
+
+          <div style={styles.playSection}>
+            <button
+              onClick={handleReplay}
+              disabled={isPlaying}
+              style={{ ...styles.playBtn, ...(isPlaying ? styles.playBtnDisabled : {}) }}
+            >
+              <span style={{ fontSize: '1.3rem' }}>{isPlaying ? '🔊' : '▶️'}</span>
+              <span>{isPlaying ? 'Playing...' : 'Play Note'}</span>
+            </button>
+            <p style={styles.playHint}>Listen and identify the note!</p>
+          </div>
+
+          {lastResult && (
+            <div style={{
+              ...styles.resultBox,
+              backgroundColor: lastResult.correct ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+              borderColor: lastResult.correct ? '#22c55e' : '#ef4444'
+            }}>
+              {lastResult.message}
+            </div>
+          )}
+
+          <div style={styles.choicesGrid}>
+            {choices.map((note) => {
+              const isCorrectAnswer = gameState === 'result' && note === currentNote;
+              const isWrongSelected = gameState === 'result' && note === selectedAnswer && note !== currentNote;
+              return (
+                <button
+                  key={note}
+                  onClick={() => handleGuess(note)}
+                  disabled={gameState === 'result'}
+                  style={{
+                    ...styles.choiceBtn,
+                    ...(isCorrectAnswer ? styles.choiceBtnCorrect : {}),
+                    ...(isWrongSelected ? styles.choiceBtnWrong : {}),
+                    ...(gameState === 'result' ? { cursor: 'default' } : {})
+                  }}
+                >
+                  {note}
+                </button>
+              );
+            })}
+          </div>
+
+          <div style={styles.actionButtons}>
+            {gameState === 'result' && (
+              <button onClick={generateRound} style={styles.nextBtn}>Next Note →</button>
+            )}
+            <button onClick={onBack} style={styles.resetBtn}>Exit Game</button>
+          </div>
+        </div>
+      );
+    }
+
+    // Interval Game Component
+    function IntervalGame({ difficulty, onBack }) {
+      const { settings } = useSettings();
+      const { recordAnswer } = useStats();
+      const { playSequence, isPlaying } = useAudio(settings.instrument);
+      const diffSettings = INTERVAL_DIFFICULTIES[difficulty];
+
+      const [gameState, setGameState] = useState('playing');
+      const [currentInterval, setCurrentInterval] = useState(null);
+      const [currentNotes, setCurrentNotes] = useState([]);
+      const [choices, setChoices] = useState([]);
+      const [score, setScore] = useState(0);
+      const [streak, setStreak] = useState(0);
+      const [bestStreak, setBestStreak] = useState(0);
+      const [totalPlayed, setTotalPlayed] = useState(0);
+      const [lastResult, setLastResult] = useState(null);
+      const [selectedAnswer, setSelectedAnswer] = useState(null);
+
+      const generateRound = useCallback(() => {
+        const interval = diffSettings.intervals[Math.floor(Math.random() * diffSettings.intervals.length)];
+        const baseNote = NOTES[Math.floor(Math.random() * NOTES.length)];
+        const baseOctave = 4;
+        const baseIndex = getNoteIndex(baseNote);
+        const secondNoteIndex = (baseIndex + interval) % 12;
+        const secondOctave = baseIndex + interval >= 12 ? 5 : 4;
+        const secondNote = NOTES[secondNoteIndex];
+
+        const notes = [`${baseNote}${baseOctave}`, `${secondNote}${secondOctave}`];
+
+        const availableIntervals = diffSettings.intervals.filter(i => i !== interval);
+        const wrongChoices = shuffle(availableIntervals).slice(0, diffSettings.choices - 1);
+        const newChoices = shuffle([...wrongChoices, interval]);
+
+        setCurrentInterval(interval);
+        setCurrentNotes(notes);
+        setChoices(newChoices);
+        setLastResult(null);
+        setSelectedAnswer(null);
+        setGameState('playing');
+
+        if (settings.autoPlayOnStart) {
+          setTimeout(() => playSequence(notes), 300);
+        }
+      }, [diffSettings, settings.autoPlayOnStart, playSequence]);
+
+      useEffect(() => {
+        generateRound();
+      }, []);
+
+      const handleGuess = (guess) => {
+        if (gameState !== 'playing') return;
+
+        const correct = guess === currentInterval;
+        setSelectedAnswer(guess);
+        setTotalPlayed(prev => prev + 1);
+
+        let newStreak = streak;
+        if (correct) {
+          setScore(prev => prev + 1);
+          newStreak = streak + 1;
+          setStreak(newStreak);
+          if (newStreak > bestStreak) setBestStreak(newStreak);
+          setLastResult({ correct: true, message: 'Correct!' });
+        } else {
+          setStreak(0);
+          newStreak = 0;
+          setLastResult({ correct: false, message: `Wrong! It was ${INTERVALS[currentInterval].name}` });
+        }
+
+        recordAnswer('intervals', difficulty, correct, newStreak);
+        setGameState('result');
+      };
+
+      const handleReplay = () => {
+        if (currentNotes.length) playSequence(currentNotes);
+      };
+
+      return (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <ScoreBoard score={score} total={totalPlayed} streak={streak} bestStreak={bestStreak} />
+
+          <div style={styles.playSection}>
+            <button
+              onClick={handleReplay}
+              disabled={isPlaying}
+              style={{ ...styles.playBtn, ...(isPlaying ? styles.playBtnDisabled : {}) }}
+            >
+              <span style={{ fontSize: '1.3rem' }}>{isPlaying ? '🔊' : '▶️'}</span>
+              <span>{isPlaying ? 'Playing...' : 'Play Interval'}</span>
+            </button>
+            <p style={styles.playHint}>Listen to both notes and identify the interval!</p>
+          </div>
+
+          {lastResult && (
+            <div style={{
+              ...styles.resultBox,
+              backgroundColor: lastResult.correct ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+              borderColor: lastResult.correct ? '#22c55e' : '#ef4444'
+            }}>
+              {lastResult.message}
+            </div>
+          )}
+
+          <div style={styles.choicesGrid}>
+            {choices.map((interval) => {
+              const isCorrectAnswer = gameState === 'result' && interval === currentInterval;
+              const isWrongSelected = gameState === 'result' && interval === selectedAnswer && interval !== currentInterval;
+              return (
+                <button
+                  key={interval}
+                  onClick={() => handleGuess(interval)}
+                  disabled={gameState === 'result'}
+                  style={{
+                    ...styles.choiceBtn,
+                    fontSize: '1rem',
+                    ...(isCorrectAnswer ? styles.choiceBtnCorrect : {}),
+                    ...(isWrongSelected ? styles.choiceBtnWrong : {}),
+                    ...(gameState === 'result' ? { cursor: 'default' } : {})
+                  }}
+                >
+                  {INTERVALS[interval].name}
+                </button>
+              );
+            })}
+          </div>
+
+          <div style={styles.actionButtons}>
+            {gameState === 'result' && (
+              <button onClick={generateRound} style={styles.nextBtn}>Next Interval →</button>
+            )}
+            <button onClick={onBack} style={styles.resetBtn}>Exit Game</button>
+          </div>
+        </div>
+      );
+    }
+
+    // Chord Game Component
+    function ChordGame({ difficulty, onBack }) {
+      const { settings } = useSettings();
+      const { recordAnswer } = useStats();
+      const { playNotes, isPlaying } = useAudio(settings.instrument);
+      const diffSettings = CHORD_DIFFICULTIES[difficulty];
+
+      const [gameState, setGameState] = useState('playing');
+      const [currentChord, setCurrentChord] = useState(null);
+      const [currentNotes, setCurrentNotes] = useState([]);
+      const [choices, setChoices] = useState([]);
+      const [score, setScore] = useState(0);
+      const [streak, setStreak] = useState(0);
+      const [bestStreak, setBestStreak] = useState(0);
+      const [totalPlayed, setTotalPlayed] = useState(0);
+      const [lastResult, setLastResult] = useState(null);
+      const [selectedAnswer, setSelectedAnswer] = useState(null);
+
+      const generateRound = useCallback(() => {
+        const chordType = diffSettings.chords[Math.floor(Math.random() * diffSettings.chords.length)];
+        const chord = CHORD_TYPES[chordType];
+        const rootNote = NOTES[Math.floor(Math.random() * NOTES.length)];
+        const rootIndex = getNoteIndex(rootNote);
+
+        const notes = chord.intervals.map((interval, i) => {
+          const noteIndex = (rootIndex + interval) % 12;
+          const octave = rootIndex + interval >= 12 ? 5 : 4;
+          return `${NOTES[noteIndex]}${octave}`;
+        });
+
+        const availableChords = diffSettings.chords.filter(c => c !== chordType);
+        const wrongChoices = shuffle(availableChords).slice(0, diffSettings.choices - 1);
+        const newChoices = shuffle([...wrongChoices, chordType]);
+
+        setCurrentChord(chordType);
+        setCurrentNotes(notes);
+        setChoices(newChoices);
+        setLastResult(null);
+        setSelectedAnswer(null);
+        setGameState('playing');
+
+        if (settings.autoPlayOnStart) {
+          setTimeout(() => playNotes(notes), 300);
+        }
+      }, [diffSettings, settings.autoPlayOnStart, playNotes]);
+
+      useEffect(() => {
+        generateRound();
+      }, []);
+
+      const handleGuess = (guess) => {
+        if (gameState !== 'playing') return;
+
+        const correct = guess === currentChord;
+        setSelectedAnswer(guess);
+        setTotalPlayed(prev => prev + 1);
+
+        let newStreak = streak;
+        if (correct) {
+          setScore(prev => prev + 1);
+          newStreak = streak + 1;
+          setStreak(newStreak);
+          if (newStreak > bestStreak) setBestStreak(newStreak);
+          setLastResult({ correct: true, message: 'Correct!' });
+        } else {
+          setStreak(0);
+          newStreak = 0;
+          setLastResult({ correct: false, message: `Wrong! It was ${CHORD_TYPES[currentChord].name}` });
+        }
+
+        recordAnswer('chords', difficulty, correct, newStreak);
+        setGameState('result');
+      };
+
+      const handleReplay = () => {
+        if (currentNotes.length) playNotes(currentNotes);
+      };
+
+      return (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <ScoreBoard score={score} total={totalPlayed} streak={streak} bestStreak={bestStreak} />
+
+          <div style={styles.playSection}>
+            <button
+              onClick={handleReplay}
+              disabled={isPlaying}
+              style={{ ...styles.playBtn, ...(isPlaying ? styles.playBtnDisabled : {}) }}
+            >
+              <span style={{ fontSize: '1.3rem' }}>{isPlaying ? '🔊' : '▶️'}</span>
+              <span>{isPlaying ? 'Playing...' : 'Play Chord'}</span>
+            </button>
+            <p style={styles.playHint}>Listen and identify the chord type!</p>
+          </div>
+
+          {lastResult && (
+            <div style={{
+              ...styles.resultBox,
+              backgroundColor: lastResult.correct ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+              borderColor: lastResult.correct ? '#22c55e' : '#ef4444'
+            }}>
+              {lastResult.message}
+            </div>
+          )}
+
+          <div style={styles.choicesGrid}>
+            {choices.map((chordType) => {
+              const isCorrectAnswer = gameState === 'result' && chordType === currentChord;
+              const isWrongSelected = gameState === 'result' && chordType === selectedAnswer && chordType !== currentChord;
+              return (
+                <button
+                  key={chordType}
+                  onClick={() => handleGuess(chordType)}
+                  disabled={gameState === 'result'}
+                  style={{
+                    ...styles.choiceBtn,
+                    fontSize: '1rem',
+                    ...(isCorrectAnswer ? styles.choiceBtnCorrect : {}),
+                    ...(isWrongSelected ? styles.choiceBtnWrong : {}),
+                    ...(gameState === 'result' ? { cursor: 'default' } : {})
+                  }}
+                >
+                  {CHORD_TYPES[chordType].name}
+                </button>
+              );
+            })}
+          </div>
+
+          <div style={styles.actionButtons}>
+            {gameState === 'result' && (
+              <button onClick={generateRound} style={styles.nextBtn}>Next Chord →</button>
+            )}
+            <button onClick={onBack} style={styles.resetBtn}>Exit Game</button>
+          </div>
+        </div>
+      );
+    }
+
+    // Statistics View Component
+    function StatsView() {
+      const { stats, resetStats } = useStats();
+
+      const getAccuracy = (correct, total) => {
+        if (total === 0) return '0%';
+        return `${Math.round((correct / total) * 100)}%`;
+      };
+
+      const totalGames = stats.notes.gamesPlayed + stats.intervals.gamesPlayed + stats.chords.gamesPlayed;
+      const totalAnswered = stats.notes.totalAnswered + stats.intervals.totalAnswered + stats.chords.totalAnswered;
+      const totalCorrect = stats.notes.totalCorrect + stats.intervals.totalCorrect + stats.chords.totalCorrect;
+
+      return (
+        <div style={{ flex: 1 }}>
+          <div style={styles.statsCard}>
+            <div style={styles.statsTitle}>Overall Stats</div>
+            <div style={styles.statsGrid}>
+              <div style={styles.statItem}>
+                <div style={styles.statValue}>{totalAnswered}</div>
+                <div style={styles.statLabel}>Questions</div>
+              </div>
+              <div style={styles.statItem}>
+                <div style={styles.statValue}>{getAccuracy(totalCorrect, totalAnswered)}</div>
+                <div style={styles.statLabel}>Accuracy</div>
+              </div>
+            </div>
+          </div>
+
+          {Object.entries(GAME_MODES).map(([key, mode]) => (
+            <div key={key} style={styles.statsCard}>
+              <div style={styles.statsTitle}>
+                <span>{mode.icon}</span>
+                <span>{mode.name}</span>
+              </div>
+              <div style={styles.statsGrid}>
+                <div style={styles.statItem}>
+                  <div style={styles.statValue}>{stats[key].totalAnswered}</div>
+                  <div style={styles.statLabel}>Answered</div>
+                </div>
+                <div style={styles.statItem}>
+                  <div style={styles.statValue}>{getAccuracy(stats[key].totalCorrect, stats[key].totalAnswered)}</div>
+                  <div style={styles.statLabel}>Accuracy</div>
+                </div>
+                <div style={styles.statItem}>
+                  <div style={styles.statValue}>{stats[key].bestStreak}</div>
+                  <div style={styles.statLabel}>Best Streak</div>
+                </div>
+                <div style={styles.statItem}>
+                  <div style={styles.statValue}>{stats[key].totalCorrect}</div>
+                  <div style={styles.statLabel}>Correct</div>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          <button onClick={() => { if (confirm('Reset all statistics?')) resetStats(); }} style={styles.dangerBtn}>
+            Reset All Statistics
+          </button>
+        </div>
+      );
+    }
+
+    // Settings View Component
+    function SettingsView() {
+      const { settings, updateSettings } = useSettings();
+
+      const Toggle = ({ checked, onChange }) => (
+        <button
+          onClick={() => onChange(!checked)}
+          style={{
+            ...styles.toggle,
+            backgroundColor: checked ? '#a855f7' : 'rgba(255, 255, 255, 0.2)'
+          }}
+        >
+          <div style={{ ...styles.toggleKnob, left: checked ? '24px' : '2px' }} />
+        </button>
+      );
+
+      return (
+        <div style={{ flex: 1 }}>
+          <div style={styles.card}>
+            <h3 style={styles.cardTitle}>Settings</h3>
+
+            <div style={styles.settingRow}>
+              <span style={styles.settingLabel}>Instrument</span>
+              <select
+                value={settings.instrument}
+                onChange={(e) => updateSettings({ instrument: e.target.value })}
+                style={styles.select}
+              >
+                {Object.entries(INSTRUMENTS).map(([key, inst]) => (
+                  <option key={key} value={key}>{inst.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div style={styles.settingRow}>
+              <span style={styles.settingLabel}>Auto-play on new round</span>
+              <Toggle
+                checked={settings.autoPlayOnStart}
+                onChange={(val) => updateSettings({ autoPlayOnStart: val })}
+              />
+            </div>
+
+            <div style={{ ...styles.settingRow, borderBottom: 'none' }}>
+              <span style={styles.settingLabel}>Show octave in note choices</span>
+              <Toggle
+                checked={settings.showOctaveInChoices}
+                onChange={(val) => updateSettings({ showOctaveInChoices: val })}
+              />
+            </div>
+          </div>
+
+          <div style={{ ...styles.card, marginTop: '16px' }}>
+            <h3 style={styles.cardTitle}>About</h3>
+            <p style={{ color: '#94a3b8', fontSize: '0.9rem', lineHeight: 1.6 }}>
+              KeyPerfect V2 is an ear training app to help musicians improve their ability to recognize notes, intervals, and chords.
+            </p>
+            <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '12px' }}>
+              Version 2.0
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    // Main Menu Component
+    function MainMenu({ onStartGame }) {
+      const [selectedMode, setSelectedMode] = useState('notes');
+      const [selectedDifficulty, setSelectedDifficulty] = useState('easy');
+
+      return (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <div style={styles.card}>
+            <h2 style={styles.cardTitle}>Select Game Mode</h2>
+            <ModeSelection selectedMode={selectedMode} onSelect={setSelectedMode} />
+
+            <h3 style={{ ...styles.cardTitle, marginTop: '8px' }}>Select Difficulty</h3>
+            <DifficultySelection
+              mode={selectedMode}
+              selectedDifficulty={selectedDifficulty}
+              onSelect={setSelectedDifficulty}
+            />
+
+            <button
+              onClick={() => onStartGame(selectedMode, selectedDifficulty)}
+              style={styles.startBtn}
+            >
+              Start Game
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================
+    // MAIN APP
+    // ============================================
+
+    function App() {
+      const [view, setView] = useState('play'); // play, stats, settings
+      const [gameMode, setGameMode] = useState(null); // null = menu, notes, intervals, chords
+      const [gameDifficulty, setGameDifficulty] = useState(null);
+
+      const handleStartGame = (mode, difficulty) => {
+        setGameMode(mode);
+        setGameDifficulty(difficulty);
+      };
+
+      const handleBackToMenu = () => {
+        setGameMode(null);
+        setGameDifficulty(null);
+      };
+
+      const handleTitleClick = () => {
+        setView('play');
+        handleBackToMenu();
+      };
+
+      const renderGameView = () => {
+        if (!gameMode) {
+          return <MainMenu onStartGame={handleStartGame} />;
+        }
+
+        switch (gameMode) {
+          case 'notes':
+            return <NoteGame difficulty={gameDifficulty} onBack={handleBackToMenu} />;
+          case 'intervals':
+            return <IntervalGame difficulty={gameDifficulty} onBack={handleBackToMenu} />;
+          case 'chords':
+            return <ChordGame difficulty={gameDifficulty} onBack={handleBackToMenu} />;
+          default:
+            return <MainMenu onStartGame={handleStartGame} />;
+        }
       };
 
       return (
         <div style={styles.container}>
           <header style={styles.header}>
-            <h1 style={styles.title}>🎵 Music Key Guesser</h1>
-            <p style={styles.subtitle}>Train your ear to recognize musical notes</p>
+            <h1 style={styles.title} onClick={handleTitleClick}>KeyPerfect</h1>
+            <p style={styles.subtitle}>Train your musical ear</p>
           </header>
 
-          {gameState === 'start' && (
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={styles.card}>
-                <h2 style={styles.cardTitle}>Select Difficulty</h2>
-                <div style={styles.difficultyOptions}>
-                  {Object.entries(DIFFICULTIES).map(([key, value]) => (
-                    <button key={key} onClick={() => setDifficulty(key)}
-                      style={{ ...styles.difficultyBtn, ...(difficulty === key ? styles.difficultyBtnActive : {}) }}>
-                      {value.label}
-                    </button>
-                  ))}
-                </div>
-                <button onClick={startNewRound} style={styles.startBtn}>Start Game 🎹</button>
-              </div>
-            </div>
-          )}
+          {!gameMode && <Navigation currentView={view} setView={setView} />}
 
-          {(gameState === 'playing' || gameState === 'result') && (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <div style={styles.scoreBoard}>
-                <div style={styles.scoreStat}><span style={styles.scoreLabel}>Score</span><span style={styles.scoreValue}>{score}/{totalPlayed}</span></div>
-                <div style={styles.scoreStat}><span style={styles.scoreLabel}>Streak</span><span style={styles.scoreValue}>🔥 {streak}</span></div>
-                <div style={styles.scoreStat}><span style={styles.scoreLabel}>Best</span><span style={styles.scoreValue}>⭐ {bestStreak}</span></div>
-              </div>
+          {view === 'play' && renderGameView()}
+          {view === 'stats' && !gameMode && <StatsView />}
+          {view === 'settings' && !gameMode && <SettingsView />}
 
-              <div style={styles.playSection}>
-                <button onClick={replayNote} disabled={isPlaying}
-                  style={{ ...styles.playBtn, ...(isPlaying ? styles.playBtnDisabled : {}) }}>
-                  <span style={{ fontSize: '1.5rem' }}>{isPlaying ? '🔊' : '▶️'}</span>
-                  <span>{isPlaying ? 'Playing...' : 'Play Note'}</span>
-                </button>
-                <p style={styles.playHint}>Listen carefully and guess the note!</p>
-              </div>
-
-              {lastResult && (
-                <div style={{ textAlign: 'center', padding: '15px', borderRadius: '12px', border: '2px solid', fontSize: '1.1rem', fontWeight: '600',
-                  backgroundColor: lastResult.correct ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)',
-                  borderColor: lastResult.correct ? '#22c55e' : '#ef4444' }}>
-                  {lastResult.message}
-                </div>
-              )}
-
-              <div style={styles.choicesGrid}>
-                {choices.map((note) => (
-                  <button key={note} onClick={() => gameState === 'playing' && handleGuess(note)} disabled={gameState === 'result'}
-                    style={{ ...styles.choiceBtn,
-                      ...(gameState === 'result' && note === currentNote ? styles.choiceBtnCorrect : {}),
-                      ...(gameState === 'result' ? { cursor: 'default' } : {}) }}>
-                    {note}
-                  </button>
-                ))}
-              </div>
-
-              <div style={styles.actionButtons}>
-                {gameState === 'result' && (<button onClick={startNewRound} style={styles.nextBtn}>Next Note →</button>)}
-                <button onClick={resetGame} style={styles.resetBtn}>New Game</button>
-              </div>
-            </div>
-          )}
-
-          <footer style={styles.footer}><p>Built with ♪ for music lovers</p></footer>
+          <footer style={styles.footer}>
+            <p>Built with love for music</p>
+          </footer>
         </div>
       );
     }
 
-    ReactDOM.render(<App />, document.getElementById('root'));
+    // ============================================
+    // RENDER
+    // ============================================
+
+    ReactDOM.render(
+      <SettingsProvider>
+        <StatsProvider>
+          <App />
+        </StatsProvider>
+      </SettingsProvider>,
+      document.getElementById('root')
+    );
   </script>
 </body>
 </html>
