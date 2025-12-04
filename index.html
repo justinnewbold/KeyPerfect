@@ -305,6 +305,41 @@
       transform: translateY(-2px);
       box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
     }
+
+    /* Timer animations */
+    @keyframes timerPulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+    .timer-warning {
+      animation: timerPulse 0.5s ease-in-out infinite;
+      color: #ef4444 !important;
+    }
+    @keyframes timerTick {
+      0% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+    .timer-tick {
+      animation: timerTick 0.2s ease-out;
+    }
+
+    /* Daily challenge badge */
+    @keyframes dailyGlow {
+      0%, 100% { box-shadow: 0 0 10px rgba(251, 191, 36, 0.5); }
+      50% { box-shadow: 0 0 25px rgba(251, 191, 36, 0.8); }
+    }
+    .daily-badge {
+      animation: dailyGlow 2s ease-in-out infinite;
+    }
+
+    /* Bonus points animation */
+    @keyframes bonusFloat {
+      0% { opacity: 1; transform: translateY(0) scale(1); }
+      100% { opacity: 0; transform: translateY(-40px) scale(1.2); }
+    }
+    .bonus-float {
+      animation: bonusFloat 1s ease-out forwards;
+    }
   </style>
 </head>
 <body>
@@ -776,13 +811,16 @@
     const SettingsContext = createContext();
 
     function SettingsProvider({ children }) {
-      const [settings, setSettings] = useLocalStorage('keyperfect_settings_v5', {
+      const [settings, setSettings] = useLocalStorage('keyperfect_settings_v6', {
         instrument: 'piano',
         autoPlayOnStart: true,
         showOctaveInChoices: false,
         useMidi: false,
         volume: 0.7,
         practiceMode: false,
+        timedMode: false,
+        timerDuration: 10,
+        intervalPlayback: 'melodic', // 'melodic' or 'harmonic'
       });
 
       const updateSettings = useCallback((updates) => {
@@ -806,6 +844,26 @@
       const arr = [...array];
       for (let i = arr.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    // Seeded random for Daily Challenge (same questions each day)
+    function seededRandom(seed) {
+      const x = Math.sin(seed) * 10000;
+      return x - Math.floor(x);
+    }
+
+    function getDailySeed() {
+      const today = new Date();
+      return today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+    }
+
+    function seededShuffle(array, seed) {
+      const arr = [...array];
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(seededRandom(seed + i) * (i + 1));
         [arr[i], arr[j]] = [arr[j], arr[i]];
       }
       return arr;
@@ -1231,7 +1289,139 @@
       );
     }
 
-    // Bottom Navigation with Pill Indicator with Pill Indicator
+    // Countdown Timer Component
+    function CountdownTimer({ duration, onTimeUp, isActive, onTick }) {
+      const [timeLeft, setTimeLeft] = useState(duration);
+      const [tickKey, setTickKey] = useState(0);
+
+      useEffect(() => {
+        setTimeLeft(duration);
+      }, [duration]);
+
+      useEffect(() => {
+        if (!isActive) return;
+        if (timeLeft <= 0) {
+          onTimeUp();
+          return;
+        }
+        const timer = setInterval(() => {
+          setTimeLeft(prev => {
+            const newTime = prev - 1;
+            setTickKey(k => k + 1);
+            if (onTick) onTick(newTime);
+            return newTime;
+          });
+        }, 1000);
+        return () => clearInterval(timer);
+      }, [isActive, timeLeft, onTimeUp, onTick]);
+
+      const isWarning = timeLeft <= 3;
+      const progress = (timeLeft / duration) * 100;
+
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', background: 'rgba(255,255,255,0.08)', borderRadius: '16px', backdropFilter: 'blur(10px)' }}>
+          <div style={{ position: 'relative', width: '50px', height: '50px' }}>
+            <svg width="50" height="50" style={{ transform: 'rotate(-90deg)' }}>
+              <circle cx="25" cy="25" r="22" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="4" />
+              <circle cx="25" cy="25" r="22" fill="none" stroke={isWarning ? '#ef4444' : '#a855f7'} strokeWidth="4"
+                strokeDasharray={138} strokeDashoffset={138 - (progress / 100) * 138} strokeLinecap="round"
+                style={{ transition: 'stroke-dashoffset 0.3s ease', filter: `drop-shadow(0 0 4px ${isWarning ? '#ef4444' : '#a855f7'})` }} />
+            </svg>
+            <div key={tickKey} className={`${isWarning ? 'timer-warning' : ''} timer-tick`} style={{
+              position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+              fontSize: '1.1rem', fontWeight: '700', color: isWarning ? '#ef4444' : 'white'
+            }}>{timeLeft}</div>
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px' }}>Time Left</div>
+            <div style={{ fontSize: '0.9rem', fontWeight: '600', color: isWarning ? '#ef4444' : 'white' }}>
+              {isWarning ? 'Hurry!' : 'Answer quickly for bonus points!'}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Bonus Points Floating Animation
+    function BonusPoints({ points, trigger }) {
+      const [show, setShow] = useState(false);
+
+      useEffect(() => {
+        if (trigger > 0) {
+          setShow(true);
+          const timer = setTimeout(() => setShow(false), 1000);
+          return () => clearTimeout(timer);
+        }
+      }, [trigger]);
+
+      if (!show || points <= 0) return null;
+
+      return (
+        <div className="bonus-float" style={{
+          position: 'fixed', top: '30%', left: '50%', transform: 'translateX(-50%)',
+          fontSize: '1.5rem', fontWeight: '700', color: '#fbbf24', textShadow: '0 0 10px rgba(251, 191, 36, 0.5)',
+          zIndex: 1000, pointerEvents: 'none'
+        }}>
+          +{points} Bonus!
+        </div>
+      );
+    }
+
+    // Daily Challenge Hook
+    function useDailyChallenge() {
+      const [dailyStats, setDailyStats] = useLocalStorage('keyperfect_daily', {
+        lastPlayedDate: null,
+        completed: false,
+        score: 0,
+        streak: 0,
+      });
+
+      const todayStr = new Date().toISOString().split('T')[0];
+      const hasPlayedToday = dailyStats.lastPlayedDate === todayStr;
+      const seed = getDailySeed();
+
+      const startDaily = useCallback(() => {
+        if (!hasPlayedToday) {
+          setDailyStats(prev => ({ ...prev, lastPlayedDate: todayStr, completed: false, score: 0, streak: 0 }));
+        }
+      }, [hasPlayedToday, todayStr, setDailyStats]);
+
+      const completeDaily = useCallback((score, streak) => {
+        setDailyStats(prev => ({ ...prev, completed: true, score, streak }));
+      }, [setDailyStats]);
+
+      return { dailyStats, hasPlayedToday, seed, startDaily, completeDaily, todayStr };
+    }
+
+    // Sound Preview Component
+    function SoundPreview({ instrument, useMidi, volume }) {
+      const audio = useAudio(instrument, useMidi, volume);
+      const [isPreviewPlaying, setIsPreviewPlaying] = useState(false);
+
+      const playPreview = () => {
+        if (audio.isLoading || isPreviewPlaying) return;
+        setIsPreviewPlaying(true);
+        // Play a simple C major chord
+        audio.playNotes(['C4', 'E4', 'G4']);
+        setTimeout(() => setIsPreviewPlaying(false), 2000);
+      };
+
+      return (
+        <button onClick={playPreview} disabled={audio.isLoading || isPreviewPlaying}
+          className="btn-press" style={{
+            padding: '10px 16px', borderRadius: '10px', border: 'none',
+            background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
+            color: 'white', fontSize: '0.85rem', fontWeight: '600',
+            cursor: audio.isLoading ? 'wait' : 'pointer',
+            opacity: audio.isLoading || isPreviewPlaying ? 0.7 : 1,
+            display: 'flex', alignItems: 'center', gap: '6px'
+          }}>
+          {audio.isLoading ? '⏳' : isPreviewPlaying ? '🔊' : '▶'} Preview
+        </button>
+      );
+    }
+
+    // Bottom Navigation with Pill Indicator
     function BottomNav({ currentView, setView }) {
       const navRef = useRef(null);
       const [pillStyle, setPillStyle] = useState({ left: 0, width: 0 });
@@ -1412,6 +1602,10 @@
       const [selectedAnswer, setSelectedAnswer] = useState(null);
       const [shakeWrong, setShakeWrong] = useState(false);
       const [confettiTrigger, setConfettiTrigger] = useState(0);
+      const [timerKey, setTimerKey] = useState(0);
+      const [timeRemaining, setTimeRemaining] = useState(settings.timerDuration);
+      const [bonusPoints, setBonusPoints] = useState(0);
+      const [bonusTrigger, setBonusTrigger] = useState(0);
 
       const generateRound = useCallback(() => {
         const question = buildQuestion(diffSettings, audio);
@@ -1421,12 +1615,24 @@
         setSelectedAnswer(null);
         setGameState('playing');
         setShakeWrong(false);
+        setTimerKey(k => k + 1);
+        setTimeRemaining(settings.timerDuration);
         if (settings.autoPlayOnStart && question.play) {
           setTimeout(() => question.play(), 300);
         }
       }, [diffSettings, settings.autoPlayOnStart, audio, buildQuestion]);
 
       useEffect(() => { if (!audio.isLoading) generateRound(); }, [audio.isLoading]);
+
+      // Calculate bonus points based on time remaining (timed mode only)
+      const calculateBonus = () => {
+        if (!settings.timedMode || !correct) return 0;
+        const timePercent = timeRemaining / settings.timerDuration;
+        if (timePercent > 0.7) return 3; // Fast answer
+        if (timePercent > 0.4) return 2; // Good answer
+        if (timePercent > 0.1) return 1; // OK answer
+        return 0;
+      };
 
       const handleGuess = (guess) => {
         if (gameState !== 'playing') return;
@@ -1457,14 +1663,29 @@
           // Normal mode with scoring
           setTotalPlayed(prev => prev + 1);
           let newStreak = streak;
+          let bonus = 0;
+
           if (correct) {
             playSound('success');
             triggerHaptic('success');
-            setScore(prev => prev + 1);
+
+            // Calculate time bonus in timed mode
+            if (settings.timedMode) {
+              const timePercent = timeRemaining / settings.timerDuration;
+              if (timePercent > 0.7) bonus = 3;
+              else if (timePercent > 0.4) bonus = 2;
+              else if (timePercent > 0.1) bonus = 1;
+              if (bonus > 0) {
+                setBonusPoints(bonus);
+                setBonusTrigger(Date.now());
+              }
+            }
+
+            setScore(prev => prev + 1 + bonus);
             newStreak = streak + 1;
             setStreak(newStreak);
             if (newStreak > bestStreak) setBestStreak(newStreak);
-            setLastResult({ correct: true, message: '✓ Correct!', hint });
+            setLastResult({ correct: true, message: bonus > 0 ? `✓ Correct! +${bonus} bonus!` : '✓ Correct!', hint });
             // Streak milestones with confetti
             if (newStreak === 5) { addToast('🔥 5 streak! Keep going!', 'success'); setConfettiTrigger(Date.now()); }
             if (newStreak === 10) { addToast('🔥🔥 10 streak! Amazing!', 'success'); setConfettiTrigger(Date.now()); }
@@ -1482,6 +1703,21 @@
         }
         setGameState('result');
       };
+
+      // Handle timer running out
+      const handleTimeUp = useCallback(() => {
+        if (gameState !== 'playing') return;
+        playSound('error');
+        triggerHaptic('error');
+        setShakeWrong(true);
+        setTimeout(() => setShakeWrong(false), 500);
+        const correctAnswer = getCorrectAnswer(currentQuestion);
+        setLastResult({ correct: false, message: `⏱ Time's up! It was ${getChoiceLabel(correctAnswer)}` });
+        setTotalPlayed(prev => prev + 1);
+        setStreak(0);
+        recordAnswer(mode, difficulty, false, 0);
+        setGameState('result');
+      }, [gameState, currentQuestion, getCorrectAnswer, getChoiceLabel, playSound, mode, difficulty, recordAnswer]);
 
       const handleReplay = () => {
         if (currentQuestion?.play) {
@@ -1506,10 +1742,22 @@
       return (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }} className="page-enter">
           <Confetti trigger={confettiTrigger} />
+          <BonusPoints points={bonusPoints} trigger={bonusTrigger} />
           <Breadcrumbs items={[{ label: 'Play', onClick: onBack }, { label: modeInfo.name }]} />
           <ScoreBoard score={score} total={totalPlayed} streak={streak} bestStreak={bestStreak} isPlaying={audio.isPlaying} />
 
-          <p style={styles.playHint}>Tap the play button to hear again</p>
+          {/* Timed Mode Timer */}
+          {settings.timedMode && !settings.practiceMode && gameState === 'playing' && (
+            <CountdownTimer
+              key={timerKey}
+              duration={settings.timerDuration}
+              onTimeUp={handleTimeUp}
+              isActive={gameState === 'playing'}
+              onTick={setTimeRemaining}
+            />
+          )}
+
+          {!settings.timedMode && <p style={styles.playHint}>Tap the play button to hear again</p>}
 
           {lastResult && (
             <div className={lastResult.correct ? 'success-check' : ''} style={{ ...styles.resultBox, backgroundColor: lastResult.correct ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)', borderColor: lastResult.correct ? '#22c55e' : '#ef4444' }}>
@@ -1521,6 +1769,11 @@
           {settings.practiceMode && (
             <div style={{ textAlign: 'center', padding: '10px', backgroundColor: 'rgba(168, 85, 247, 0.15)', borderRadius: '12px', fontSize: '0.85rem', color: '#a855f7', border: '1px solid rgba(168, 85, 247, 0.3)' }}>
               🎓 Practice Mode - No scoring
+            </div>
+          )}
+          {settings.timedMode && !settings.practiceMode && gameState !== 'playing' && (
+            <div style={{ textAlign: 'center', padding: '10px', backgroundColor: 'rgba(251, 191, 36, 0.15)', borderRadius: '12px', fontSize: '0.85rem', color: '#fbbf24', border: '1px solid rgba(251, 191, 36, 0.3)' }}>
+              ⏱ Timed Mode - Answer quickly for bonus points!
             </div>
           )}
 
@@ -1563,8 +1816,9 @@
         buildQuestion={buildQuestion} getChoiceLabel={c => c} getCorrectAnswer={q => q.note} />;
     }
 
-    // Interval Game
+    // Interval Game with Melodic/Harmonic support
     function IntervalGame({ difficulty, onBack }) {
+      const { settings } = useSettings();
       const buildQuestion = (diffSettings, audio) => {
         const interval = diffSettings.intervals[Math.floor(Math.random() * diffSettings.intervals.length)];
         const baseNote = NOTES[Math.floor(Math.random() * NOTES.length)];
@@ -1575,7 +1829,11 @@
         const available = diffSettings.intervals.filter(i => i !== interval);
         const wrong = shuffle(available).slice(0, diffSettings.choices - 1);
         const choices = shuffle([...wrong, interval]);
-        return { interval, notes, choices, play: () => audio.playSequence(notes) };
+        // Play melodically (sequentially) or harmonically (together) based on setting
+        const play = settings.intervalPlayback === 'harmonic'
+          ? () => audio.playNotes(notes)
+          : () => audio.playSequence(notes);
+        return { interval, notes, choices, play };
       };
       return <GameComponent mode="intervals" difficulty={difficulty} onBack={onBack} difficultySettings={INTERVAL_DIFFICULTIES}
         buildQuestion={buildQuestion} getChoiceLabel={c => INTERVALS[c].name} getCorrectAnswer={q => q.interval} />;
@@ -1860,13 +2118,19 @@
       return (
         <div style={{ flex: 1 }} className="page-enter">
           <Breadcrumbs items={[{ label: 'Settings' }]} />
+
+          {/* Sound Settings */}
           <div style={styles.card}>
-            <h3 style={styles.cardTitle}>Settings</h3>
+            <h3 style={styles.cardTitle}>Sound</h3>
             <div style={styles.settingRow}>
               <span style={styles.settingLabel}>Instrument</span>
               <select value={settings.instrument} onChange={(e) => updateSettings({ instrument: e.target.value })} style={styles.select}>
                 {Object.entries(INSTRUMENTS).map(([key, inst]) => (<option key={key} value={key}>{inst.name}</option>))}
               </select>
+            </div>
+            <div style={styles.settingRow}>
+              <span style={styles.settingLabel}>Preview Sound</span>
+              <SoundPreview instrument={settings.instrument} useMidi={settings.useMidi} volume={settings.volume} />
             </div>
             <div style={styles.settingRow}>
               <div>
@@ -1876,16 +2140,21 @@
               <Toggle checked={settings.useMidi} onChange={(val) => updateSettings({ useMidi: val })} />
             </div>
             <div style={styles.settingRow}>
-              <span style={styles.settingLabel}>Auto-play on new round</span>
-              <Toggle checked={settings.autoPlayOnStart} onChange={(val) => updateSettings({ autoPlayOnStart: val })} />
-            </div>
-            <div style={styles.settingRow}>
               <span style={styles.settingLabel}>Volume</span>
               <VolumeSlider value={settings.volume} onChange={(val) => updateSettings({ volume: val })} />
             </div>
-            <div style={styles.settingRow}>
+            <div style={{ ...styles.settingRow, borderBottom: 'none' }}>
               <span style={styles.settingLabel}>Sound effects</span>
               <Toggle checked={sfxEnabled} onChange={setSfxEnabled} />
+            </div>
+          </div>
+
+          {/* Game Settings */}
+          <div style={{ ...styles.card, marginTop: '16px' }}>
+            <h3 style={styles.cardTitle}>Game</h3>
+            <div style={styles.settingRow}>
+              <span style={styles.settingLabel}>Auto-play on new round</span>
+              <Toggle checked={settings.autoPlayOnStart} onChange={(val) => updateSettings({ autoPlayOnStart: val })} />
             </div>
             <div style={styles.settingRow}>
               <div>
@@ -1894,27 +2163,81 @@
               </div>
               <Toggle checked={settings.practiceMode} onChange={(val) => updateSettings({ practiceMode: val })} />
             </div>
+            <div style={styles.settingRow}>
+              <div>
+                <span style={styles.settingLabel}>Timed Mode</span>
+                <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>Race against the clock for bonus points</div>
+              </div>
+              <Toggle checked={settings.timedMode} onChange={(val) => updateSettings({ timedMode: val })} />
+            </div>
+            {settings.timedMode && (
+              <div style={styles.settingRow}>
+                <span style={styles.settingLabel}>Timer Duration</span>
+                <select value={settings.timerDuration} onChange={(e) => updateSettings({ timerDuration: parseInt(e.target.value) })} style={{ ...styles.select, minWidth: '100px' }}>
+                  <option value={5}>5 sec</option>
+                  <option value={10}>10 sec</option>
+                  <option value={15}>15 sec</option>
+                  <option value={20}>20 sec</option>
+                  <option value={30}>30 sec</option>
+                </select>
+              </div>
+            )}
             <div style={{ ...styles.settingRow, borderBottom: 'none' }}>
               <span style={styles.settingLabel}>Show octave in choices</span>
               <Toggle checked={settings.showOctaveInChoices} onChange={(val) => updateSettings({ showOctaveInChoices: val })} />
             </div>
           </div>
+
+          {/* Interval Settings */}
+          <div style={{ ...styles.card, marginTop: '16px' }}>
+            <h3 style={styles.cardTitle}>Intervals</h3>
+            <div style={{ ...styles.settingRow, borderBottom: 'none' }}>
+              <div>
+                <span style={styles.settingLabel}>Interval Playback</span>
+                <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>
+                  {settings.intervalPlayback === 'melodic' ? 'Notes played one after another' : 'Notes played together'}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button onClick={() => { updateSettings({ intervalPlayback: 'melodic' }); triggerHaptic('light'); }}
+                  className="btn-press" style={{
+                    padding: '10px 16px', borderRadius: '10px', fontSize: '0.85rem', fontWeight: '600',
+                    border: settings.intervalPlayback === 'melodic' ? '2px solid #a855f7' : '2px solid rgba(255,255,255,0.2)',
+                    background: settings.intervalPlayback === 'melodic' ? 'rgba(168, 85, 247, 0.3)' : 'rgba(255,255,255,0.05)',
+                    color: 'white'
+                  }}>
+                  Melodic
+                </button>
+                <button onClick={() => { updateSettings({ intervalPlayback: 'harmonic' }); triggerHaptic('light'); }}
+                  className="btn-press" style={{
+                    padding: '10px 16px', borderRadius: '10px', fontSize: '0.85rem', fontWeight: '600',
+                    border: settings.intervalPlayback === 'harmonic' ? '2px solid #a855f7' : '2px solid rgba(255,255,255,0.2)',
+                    background: settings.intervalPlayback === 'harmonic' ? 'rgba(168, 85, 247, 0.3)' : 'rgba(255,255,255,0.05)',
+                    color: 'white'
+                  }}>
+                  Harmonic
+                </button>
+              </div>
+            </div>
+          </div>
+
           <div style={{ ...styles.card, marginTop: '16px' }}>
             <h3 style={styles.cardTitle}>About</h3>
             <p style={{ color: '#94a3b8', fontSize: '0.9rem', lineHeight: 1.6 }}>
               KeyPerfect is an ear training app to help musicians recognize notes, intervals, chords, scales, and progressions.
             </p>
-            <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '12px' }}>Version 4.0 (Enhanced UI)</p>
+            <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '12px' }}>Version 5.0</p>
           </div>
         </div>
       );
     }
 
     // Main Menu
-    function MainMenu({ onStartGame }) {
+    function MainMenu({ onStartGame, onStartDaily }) {
       const [selectedMode, setSelectedMode] = useState('notes');
       const [selectedDifficulty, setSelectedDifficulty] = useState('easy');
       const { settings } = useSettings();
+      const { dailyStats, hasPlayedToday } = useDailyChallenge();
 
       const getDifficulties = () => {
         const map = { notes: NOTE_DIFFICULTIES, intervals: INTERVAL_DIFFICULTIES, chords: CHORD_DIFFICULTIES, scales: SCALE_DIFFICULTIES, progressions: PROGRESSION_DIFFICULTIES };
@@ -1924,6 +2247,47 @@
       return (
         <div style={{ flex: 1 }} className="page-enter">
           <Breadcrumbs items={[{ label: 'Play' }]} />
+
+          {/* Daily Challenge Card */}
+          <div className={hasPlayedToday ? '' : 'daily-badge'} style={{
+            ...styles.card,
+            background: hasPlayedToday
+              ? 'rgba(255, 255, 255, 0.08)'
+              : 'linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.15))',
+            border: hasPlayedToday ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(251, 191, 36, 0.4)',
+            marginBottom: '16px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <span style={{ fontSize: '1.5rem' }}>📅</span>
+                  <span style={{ fontSize: '1.1rem', fontWeight: '700', color: hasPlayedToday ? '#94a3b8' : '#fbbf24' }}>Daily Challenge</span>
+                </div>
+                {hasPlayedToday ? (
+                  <div style={{ fontSize: '0.85rem', color: '#94a3b8' }}>
+                    Completed! Score: {dailyStats.score} | Streak: {dailyStats.streak}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: '0.85rem', color: '#fbbf24' }}>
+                    10 questions, one attempt. Can you beat yesterday?
+                  </div>
+                )}
+              </div>
+              <button onClick={() => { if (!hasPlayedToday) { onStartDaily(); triggerHaptic('medium'); } }}
+                disabled={hasPlayedToday}
+                className="btn-press" style={{
+                  padding: '12px 20px', borderRadius: '12px', border: 'none',
+                  background: hasPlayedToday ? 'rgba(255,255,255,0.1)' : 'linear-gradient(135deg, #fbbf24, #f59e0b)',
+                  color: hasPlayedToday ? '#64748b' : '#1a1a2e',
+                  fontWeight: '700', fontSize: '0.9rem',
+                  cursor: hasPlayedToday ? 'not-allowed' : 'pointer',
+                  opacity: hasPlayedToday ? 0.6 : 1
+                }}>
+                {hasPlayedToday ? '✓ Done' : 'Play'}
+              </button>
+            </div>
+          </div>
+
           <div style={styles.card}>
             <h2 style={styles.cardTitle}>Select Game Mode</h2>
 
@@ -1956,18 +2320,262 @@
               {getDifficulties()[selectedDifficulty]?.description}
             </p>
 
-            {/* Practice mode indicator */}
-            {settings.practiceMode && (
-              <div style={{ textAlign: 'center', padding: '10px', backgroundColor: 'rgba(168, 85, 247, 0.15)', borderRadius: '12px', fontSize: '0.85rem', color: '#a855f7', marginBottom: '16px', border: '1px solid rgba(168, 85, 247, 0.3)' }}>
-                🎓 Practice Mode Active
-              </div>
-            )}
+            {/* Mode indicators */}
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginBottom: '16px', flexWrap: 'wrap' }}>
+              {settings.practiceMode && (
+                <div style={{ padding: '8px 14px', backgroundColor: 'rgba(168, 85, 247, 0.15)', borderRadius: '20px', fontSize: '0.8rem', color: '#a855f7', border: '1px solid rgba(168, 85, 247, 0.3)' }}>
+                  🎓 Practice
+                </div>
+              )}
+              {settings.timedMode && !settings.practiceMode && (
+                <div style={{ padding: '8px 14px', backgroundColor: 'rgba(251, 191, 36, 0.15)', borderRadius: '20px', fontSize: '0.8rem', color: '#fbbf24', border: '1px solid rgba(251, 191, 36, 0.3)' }}>
+                  ⏱ {settings.timerDuration}s Timer
+                </div>
+              )}
+            </div>
 
             <button onClick={() => { onStartGame(selectedMode, selectedDifficulty); triggerHaptic('medium'); }}
               className="btn-press floating-btn" style={styles.startBtn}>
               Start Game
             </button>
           </div>
+        </div>
+      );
+    }
+
+    // Daily Challenge Component
+    function DailyChallenge({ onBack }) {
+      const { settings } = useSettings();
+      const { addToast } = useToast();
+      const { playSound } = useSoundEffects();
+      const audio = useAudio(settings.instrument, settings.useMidi, settings.volume);
+      const { seed, startDaily, completeDaily, hasPlayedToday } = useDailyChallenge();
+
+      const [questionIndex, setQuestionIndex] = useState(0);
+      const [score, setScore] = useState(0);
+      const [streak, setStreak] = useState(0);
+      const [bestStreak, setBestStreak] = useState(0);
+      const [gameState, setGameState] = useState('playing');
+      const [questions, setQuestions] = useState([]);
+      const [selectedAnswer, setSelectedAnswer] = useState(null);
+      const [lastResult, setLastResult] = useState(null);
+      const [completed, setCompleted] = useState(false);
+      const [confettiTrigger, setConfettiTrigger] = useState(0);
+
+      const TOTAL_QUESTIONS = 10;
+
+      // Generate all questions using seeded random at start
+      useEffect(() => {
+        if (hasPlayedToday) {
+          setCompleted(true);
+          return;
+        }
+        startDaily();
+
+        const newQuestions = [];
+        const modes = ['notes', 'intervals', 'chords', 'scales'];
+
+        for (let i = 0; i < TOTAL_QUESTIONS; i++) {
+          const modeIndex = Math.floor(seededRandom(seed + i * 100) * modes.length);
+          const mode = modes[modeIndex];
+
+          if (mode === 'notes') {
+            const noteIndex = Math.floor(seededRandom(seed + i * 101) * NOTES.length);
+            const note = NOTES[noteIndex];
+            const octave = 4;
+            const available = NOTES.filter(n => n !== note);
+            const wrongChoices = seededShuffle(available, seed + i * 102).slice(0, 3);
+            const choices = seededShuffle([...wrongChoices, note], seed + i * 103);
+            newQuestions.push({ mode, note, octave, choices, answer: note });
+          } else if (mode === 'intervals') {
+            const intervals = [0, 2, 4, 5, 7, 12];
+            const intIndex = Math.floor(seededRandom(seed + i * 104) * intervals.length);
+            const interval = intervals[intIndex];
+            const baseNote = NOTES[Math.floor(seededRandom(seed + i * 105) * NOTES.length)];
+            const baseIndex = getNoteIndex(baseNote);
+            const secondIndex = (baseIndex + interval) % 12;
+            const secondOctave = baseIndex + interval >= 12 ? 5 : 4;
+            const notes = [`${baseNote}4`, `${NOTES[secondIndex]}${secondOctave}`];
+            const available = intervals.filter(i => i !== interval);
+            const wrongChoices = seededShuffle(available, seed + i * 106).slice(0, 3);
+            const choices = seededShuffle([...wrongChoices, interval], seed + i * 107);
+            newQuestions.push({ mode, interval, notes, choices, answer: interval });
+          } else if (mode === 'chords') {
+            const chords = ['major', 'minor', 'dim', 'aug'];
+            const chordIndex = Math.floor(seededRandom(seed + i * 108) * chords.length);
+            const chordType = chords[chordIndex];
+            const rootNote = NOTES[Math.floor(seededRandom(seed + i * 109) * NOTES.length)];
+            const notes = buildChord(rootNote, chordType, 4);
+            const available = chords.filter(c => c !== chordType);
+            const wrongChoices = seededShuffle(available, seed + i * 110).slice(0, 3);
+            const choices = seededShuffle([...wrongChoices, chordType], seed + i * 111);
+            newQuestions.push({ mode, chordType, notes, choices, answer: chordType });
+          } else if (mode === 'scales') {
+            const scales = ['major', 'minor', 'dorian', 'mixolydian'];
+            const scaleIndex = Math.floor(seededRandom(seed + i * 112) * scales.length);
+            const scaleType = scales[scaleIndex];
+            const rootNote = NOTES[Math.floor(seededRandom(seed + i * 113) * NOTES.length)];
+            const notes = buildScale(rootNote, scaleType, 4);
+            const available = scales.filter(s => s !== scaleType);
+            const wrongChoices = seededShuffle(available, seed + i * 114).slice(0, 3);
+            const choices = seededShuffle([...wrongChoices, scaleType], seed + i * 115);
+            newQuestions.push({ mode, scaleType, notes, choices, answer: scaleType });
+          }
+        }
+        setQuestions(newQuestions);
+      }, [seed, hasPlayedToday, startDaily]);
+
+      const currentQuestion = questions[questionIndex];
+
+      const playCurrentQuestion = useCallback(() => {
+        if (!currentQuestion || audio.isLoading) return;
+        if (currentQuestion.mode === 'notes') {
+          audio.playNote(currentQuestion.note, currentQuestion.octave);
+        } else if (currentQuestion.mode === 'intervals') {
+          audio.playSequence(currentQuestion.notes);
+        } else if (currentQuestion.mode === 'chords') {
+          audio.playNotes(currentQuestion.notes);
+        } else if (currentQuestion.mode === 'scales') {
+          audio.playSequence(currentQuestion.notes);
+        }
+      }, [currentQuestion, audio]);
+
+      useEffect(() => {
+        if (currentQuestion && !audio.isLoading && settings.autoPlayOnStart && gameState === 'playing') {
+          setTimeout(playCurrentQuestion, 300);
+        }
+      }, [questionIndex, audio.isLoading]);
+
+      const getChoiceLabel = (choice) => {
+        if (!currentQuestion) return '';
+        if (currentQuestion.mode === 'notes') return choice;
+        if (currentQuestion.mode === 'intervals') return INTERVALS[choice]?.name || choice;
+        if (currentQuestion.mode === 'chords') return CHORD_TYPES[choice]?.name || choice;
+        if (currentQuestion.mode === 'scales') return SCALE_TYPES[choice]?.name || choice;
+        return choice;
+      };
+
+      const handleGuess = (guess) => {
+        if (gameState !== 'playing') return;
+        const correct = guess === currentQuestion.answer;
+        setSelectedAnswer(guess);
+
+        if (correct) {
+          playSound('success');
+          triggerHaptic('success');
+          setScore(s => s + 1);
+          const newStreak = streak + 1;
+          setStreak(newStreak);
+          if (newStreak > bestStreak) setBestStreak(newStreak);
+          setLastResult({ correct: true, message: '✓ Correct!' });
+          if (newStreak === 5) setConfettiTrigger(Date.now());
+        } else {
+          playSound('error');
+          triggerHaptic('error');
+          setStreak(0);
+          setLastResult({ correct: false, message: `✗ Wrong! It was ${getChoiceLabel(currentQuestion.answer)}` });
+        }
+        setGameState('result');
+      };
+
+      const handleNext = () => {
+        if (questionIndex >= TOTAL_QUESTIONS - 1) {
+          setCompleted(true);
+          completeDaily(score, bestStreak);
+          setConfettiTrigger(Date.now());
+          addToast(`Daily Complete! Score: ${score}/${TOTAL_QUESTIONS}`, 'success');
+        } else {
+          setQuestionIndex(i => i + 1);
+          setSelectedAnswer(null);
+          setLastResult(null);
+          setGameState('playing');
+        }
+      };
+
+      if (completed) {
+        return (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }} className="page-enter">
+            <Confetti trigger={confettiTrigger} />
+            <Breadcrumbs items={[{ label: 'Play', onClick: onBack }, { label: 'Daily Challenge' }]} />
+            <div style={{ ...styles.card, textAlign: 'center', padding: '32px' }}>
+              <div style={{ fontSize: '4rem', marginBottom: '16px' }}>🏆</div>
+              <h2 style={{ fontSize: '1.5rem', marginBottom: '8px', color: '#fbbf24' }}>Daily Complete!</h2>
+              <p style={{ color: '#94a3b8', marginBottom: '24px' }}>Come back tomorrow for a new challenge</p>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '32px', marginBottom: '24px' }}>
+                <div><div style={{ fontSize: '2rem', fontWeight: '700', color: '#22c55e' }}>{score}/{TOTAL_QUESTIONS}</div><div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Score</div></div>
+                <div><div style={{ fontSize: '2rem', fontWeight: '700', color: '#f97316' }}>{bestStreak}</div><div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Best Streak</div></div>
+              </div>
+              <button onClick={onBack} className="btn-press" style={styles.startBtn}>Back to Menu</button>
+            </div>
+          </div>
+        );
+      }
+
+      if (!currentQuestion || audio.isLoading) {
+        return (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <Breadcrumbs items={[{ label: 'Play', onClick: onBack }, { label: 'Daily Challenge' }]} />
+            <Skeleton height={60} />
+            <Skeleton height={100} />
+            <Skeleton height={200} />
+          </div>
+        );
+      }
+
+      const modeLabels = { notes: 'Note', intervals: 'Interval', chords: 'Chord', scales: 'Scale' };
+
+      return (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }} className="page-enter">
+          <Confetti trigger={confettiTrigger} />
+          <Breadcrumbs items={[{ label: 'Play', onClick: onBack }, { label: 'Daily Challenge' }]} />
+
+          {/* Progress bar */}
+          <div style={{ background: 'rgba(255,255,255,0.1)', borderRadius: '10px', overflow: 'hidden', height: '8px' }}>
+            <div style={{ width: `${((questionIndex + 1) / TOTAL_QUESTIONS) * 100}%`, height: '100%', background: 'linear-gradient(90deg, #fbbf24, #f59e0b)', transition: 'width 0.3s ease' }} />
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ fontSize: '0.9rem', color: '#fbbf24', fontWeight: '600' }}>📅 Question {questionIndex + 1}/{TOTAL_QUESTIONS}</div>
+            <div style={{ fontSize: '0.9rem', color: '#94a3b8' }}>
+              Score: <span style={{ color: '#22c55e', fontWeight: '700' }}>{score}</span> | Streak: <span style={{ color: '#f97316', fontWeight: '700' }}>{streak}</span>
+            </div>
+          </div>
+
+          <div style={{ ...styles.card, textAlign: 'center', padding: '20px' }}>
+            <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px' }}>
+              Identify the {modeLabels[currentQuestion.mode]}
+            </div>
+          </div>
+
+          {lastResult && (
+            <div className={lastResult.correct ? 'success-check' : ''} style={{ ...styles.resultBox, backgroundColor: lastResult.correct ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)', borderColor: lastResult.correct ? '#22c55e' : '#ef4444' }}>
+              <div style={{ fontSize: '1.2rem' }}>{lastResult.message}</div>
+            </div>
+          )}
+
+          <div style={styles.choicesGrid}>
+            {currentQuestion.choices.map((choice, i) => {
+              const isCorrect = gameState === 'result' && choice === currentQuestion.answer;
+              const isWrong = gameState === 'result' && choice === selectedAnswer && choice !== currentQuestion.answer;
+              return (
+                <button key={i} onClick={() => handleGuess(choice)} disabled={gameState === 'result'}
+                  className={`btn-press ${isCorrect ? 'glow-green' : ''} ${isWrong ? 'glow-red' : ''}`}
+                  style={{ ...styles.choiceBtn, fontSize: '0.9rem', ...(isCorrect ? styles.choiceBtnCorrect : {}), ...(isWrong ? styles.choiceBtnWrong : {}), ...(gameState === 'result' ? { cursor: 'default' } : {}) }}>
+                  {getChoiceLabel(choice)}
+                </button>
+              );
+            })}
+          </div>
+
+          <div style={styles.actionButtons}>
+            {gameState === 'result' && (
+              <button onClick={handleNext} className="btn-press" style={styles.nextBtn}>
+                {questionIndex >= TOTAL_QUESTIONS - 1 ? 'Finish' : 'Next →'}
+              </button>
+            )}
+          </div>
+
+          <FloatingPlayButton onClick={playCurrentQuestion} isPlaying={audio.isPlaying} isLoading={audio.isLoading} />
         </div>
       );
     }
@@ -1980,13 +2588,16 @@
       const [view, setView] = useState('play');
       const [gameMode, setGameMode] = useState(null);
       const [gameDifficulty, setGameDifficulty] = useState(null);
+      const [dailyMode, setDailyMode] = useState(false);
 
-      const handleStartGame = (mode, difficulty) => { setGameMode(mode); setGameDifficulty(difficulty); };
-      const handleBackToMenu = () => { setGameMode(null); setGameDifficulty(null); };
+      const handleStartGame = (mode, difficulty) => { setGameMode(mode); setGameDifficulty(difficulty); setDailyMode(false); };
+      const handleStartDaily = () => { setGameMode('daily'); setDailyMode(true); };
+      const handleBackToMenu = () => { setGameMode(null); setGameDifficulty(null); setDailyMode(false); };
       const handleTitleClick = () => { setView('play'); handleBackToMenu(); };
 
       const renderGameView = () => {
-        if (!gameMode) return <MainMenu onStartGame={handleStartGame} />;
+        if (!gameMode) return <MainMenu onStartGame={handleStartGame} onStartDaily={handleStartDaily} />;
+        if (dailyMode) return <DailyChallenge onBack={handleBackToMenu} />;
         const games = { notes: NoteGame, intervals: IntervalGame, chords: ChordGame, scales: ScaleGame, progressions: ProgressionGame };
         const GameComp = games[gameMode];
         return <GameComp difficulty={gameDifficulty} onBack={handleBackToMenu} />;
