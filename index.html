@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <title>KeyPerfect - Music Ear Training</title>
   <script src="https://unpkg.com/tone@14.8.49/build/Tone.js"></script>
+  <script src="https://unpkg.com/soundfont-player@0.12.0/dist/soundfont-player.min.js"></script>
   <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -189,21 +190,21 @@
     };
 
     const INSTRUMENTS = {
-      piano: { name: 'Piano', config: { oscillator: { type: 'triangle' }, envelope: { attack: 0.02, decay: 0.3, sustain: 0.4, release: 1.5 } } },
-      electric_piano: { name: 'Electric Piano', config: { oscillator: { type: 'sine' }, envelope: { attack: 0.01, decay: 0.4, sustain: 0.3, release: 1.2 } } },
-      synth: { name: 'Synth', config: { oscillator: { type: 'sawtooth' }, envelope: { attack: 0.01, decay: 0.2, sustain: 0.3, release: 0.8 } } },
-      organ: { name: 'Organ', config: { oscillator: { type: 'sine' }, envelope: { attack: 0.05, decay: 0.1, sustain: 0.8, release: 0.3 } } },
-      strings: { name: 'Strings', config: { oscillator: { type: 'fatsawtooth', spread: 20, count: 3 }, envelope: { attack: 0.3, decay: 0.1, sustain: 0.7, release: 1.0 } } },
-      cello: { name: 'Cello', config: { oscillator: { type: 'fatsawtooth', spread: 10, count: 2 }, envelope: { attack: 0.4, decay: 0.2, sustain: 0.6, release: 1.2 } } },
-      bell: { name: 'Bell', config: { oscillator: { type: 'sine' }, envelope: { attack: 0.001, decay: 0.5, sustain: 0.1, release: 2.0 } } },
-      vibraphone: { name: 'Vibraphone', config: { oscillator: { type: 'sine' }, envelope: { attack: 0.01, decay: 0.8, sustain: 0.2, release: 2.5 } } },
-      marimba: { name: 'Marimba', config: { oscillator: { type: 'triangle' }, envelope: { attack: 0.001, decay: 0.3, sustain: 0.05, release: 0.8 } } },
-      guitar: { name: 'Guitar', config: { oscillator: { type: 'triangle' }, envelope: { attack: 0.005, decay: 0.4, sustain: 0.2, release: 1.0 } } },
-      harpsichord: { name: 'Harpsichord', config: { oscillator: { type: 'square' }, envelope: { attack: 0.001, decay: 0.2, sustain: 0.1, release: 0.5 } } },
-      brass: { name: 'Brass', config: { oscillator: { type: 'fatsawtooth', spread: 15, count: 2 }, envelope: { attack: 0.15, decay: 0.2, sustain: 0.6, release: 0.6 } } },
-      flute: { name: 'Flute', config: { oscillator: { type: 'sine' }, envelope: { attack: 0.1, decay: 0.1, sustain: 0.7, release: 0.5 } } },
-      bass: { name: 'Bass', config: { oscillator: { type: 'triangle' }, envelope: { attack: 0.02, decay: 0.3, sustain: 0.5, release: 0.8 } } },
-      pad: { name: 'Ambient Pad', config: { oscillator: { type: 'fatsine', spread: 30, count: 3 }, envelope: { attack: 0.5, decay: 0.3, sustain: 0.8, release: 2.0 } } },
+      piano: { name: 'Piano', midi: 'acoustic_grand_piano', config: { oscillator: { type: 'triangle' }, envelope: { attack: 0.02, decay: 0.3, sustain: 0.4, release: 1.5 } } },
+      electric_piano: { name: 'Electric Piano', midi: 'electric_piano_1', config: { oscillator: { type: 'sine' }, envelope: { attack: 0.01, decay: 0.4, sustain: 0.3, release: 1.2 } } },
+      synth: { name: 'Synth', midi: 'synth_brass_1', config: { oscillator: { type: 'sawtooth' }, envelope: { attack: 0.01, decay: 0.2, sustain: 0.3, release: 0.8 } } },
+      organ: { name: 'Organ', midi: 'church_organ', config: { oscillator: { type: 'sine' }, envelope: { attack: 0.05, decay: 0.1, sustain: 0.8, release: 0.3 } } },
+      strings: { name: 'Strings', midi: 'string_ensemble_1', config: { oscillator: { type: 'fatsawtooth', spread: 20, count: 3 }, envelope: { attack: 0.3, decay: 0.1, sustain: 0.7, release: 1.0 } } },
+      cello: { name: 'Cello', midi: 'cello', config: { oscillator: { type: 'fatsawtooth', spread: 10, count: 2 }, envelope: { attack: 0.4, decay: 0.2, sustain: 0.6, release: 1.2 } } },
+      bell: { name: 'Bell', midi: 'tubular_bells', config: { oscillator: { type: 'sine' }, envelope: { attack: 0.001, decay: 0.5, sustain: 0.1, release: 2.0 } } },
+      vibraphone: { name: 'Vibraphone', midi: 'vibraphone', config: { oscillator: { type: 'sine' }, envelope: { attack: 0.01, decay: 0.8, sustain: 0.2, release: 2.5 } } },
+      marimba: { name: 'Marimba', midi: 'marimba', config: { oscillator: { type: 'triangle' }, envelope: { attack: 0.001, decay: 0.3, sustain: 0.05, release: 0.8 } } },
+      guitar: { name: 'Guitar', midi: 'acoustic_guitar_nylon', config: { oscillator: { type: 'triangle' }, envelope: { attack: 0.005, decay: 0.4, sustain: 0.2, release: 1.0 } } },
+      harpsichord: { name: 'Harpsichord', midi: 'harpsichord', config: { oscillator: { type: 'square' }, envelope: { attack: 0.001, decay: 0.2, sustain: 0.1, release: 0.5 } } },
+      brass: { name: 'Brass', midi: 'brass_section', config: { oscillator: { type: 'fatsawtooth', spread: 15, count: 2 }, envelope: { attack: 0.15, decay: 0.2, sustain: 0.6, release: 0.6 } } },
+      flute: { name: 'Flute', midi: 'flute', config: { oscillator: { type: 'sine' }, envelope: { attack: 0.1, decay: 0.1, sustain: 0.7, release: 0.5 } } },
+      bass: { name: 'Bass', midi: 'acoustic_bass', config: { oscillator: { type: 'triangle' }, envelope: { attack: 0.02, decay: 0.3, sustain: 0.5, release: 0.8 } } },
+      pad: { name: 'Ambient Pad', midi: 'pad_2_warm', config: { oscillator: { type: 'fatsine', spread: 30, count: 3 }, envelope: { attack: 0.5, decay: 0.3, sustain: 0.8, release: 2.0 } } },
     };
 
     const GAME_MODES = {
@@ -373,13 +374,25 @@
     // AUDIO HOOK
     // ============================================
 
-    function useAudio(instrument) {
+    // MIDI Audio Context for soundfont
+    const audioContextRef = { current: null };
+    function getAudioContext() {
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      return audioContextRef.current;
+    }
+
+    function useAudio(instrument, useMidi = false) {
       const [synth, setSynth] = useState(null);
       const [polySynth, setPolySynth] = useState(null);
+      const [midiInstrument, setMidiInstrument] = useState(null);
       const [isPlaying, setIsPlaying] = useState(false);
       const [isLoading, setIsLoading] = useState(true);
 
+      // Load synth instruments
       useEffect(() => {
+        if (useMidi) return;
         setIsLoading(true);
         const config = INSTRUMENTS[instrument]?.config || INSTRUMENTS.piano.config;
         const newSynth = new Tone.Synth(config).toDestination();
@@ -388,49 +401,95 @@
         setPolySynth(newPolySynth);
         setTimeout(() => setIsLoading(false), 300);
         return () => { newSynth.dispose(); newPolySynth.dispose(); };
-      }, [instrument]);
+      }, [instrument, useMidi]);
+
+      // Load MIDI instrument
+      useEffect(() => {
+        if (!useMidi) return;
+        setIsLoading(true);
+        const midiName = INSTRUMENTS[instrument]?.midi || 'acoustic_grand_piano';
+        const ac = getAudioContext();
+        Soundfont.instrument(ac, midiName, {
+          soundfont: 'MusyngKite',
+          format: 'mp3'
+        }).then(inst => {
+          setMidiInstrument(inst);
+          setIsLoading(false);
+        }).catch(err => {
+          console.error('Failed to load MIDI instrument:', err);
+          setIsLoading(false);
+        });
+      }, [instrument, useMidi]);
 
       const playNote = useCallback(async (note, octave = 4, duration = '2n') => {
-        if (!synth || isPlaying) return;
+        if (isPlaying) return;
+        setIsPlaying(true);
         try {
-          await Tone.start();
-          setIsPlaying(true);
-          synth.triggerAttackRelease(`${note}${octave}`, duration);
+          if (useMidi && midiInstrument) {
+            const ac = getAudioContext();
+            if (ac.state === 'suspended') await ac.resume();
+            midiInstrument.play(`${note}${octave}`, ac.currentTime, { duration: 1.5 });
+          } else if (synth) {
+            await Tone.start();
+            synth.triggerAttackRelease(`${note}${octave}`, duration);
+          }
           setTimeout(() => setIsPlaying(false), 1500);
         } catch (err) { setIsPlaying(false); }
-      }, [synth, isPlaying]);
+      }, [synth, midiInstrument, isPlaying, useMidi]);
 
       const playNotes = useCallback(async (notes, duration = '2n') => {
-        if (!polySynth || isPlaying) return;
+        if (isPlaying) return;
+        setIsPlaying(true);
         try {
-          await Tone.start();
-          setIsPlaying(true);
-          polySynth.triggerAttackRelease(notes, duration);
+          if (useMidi && midiInstrument) {
+            const ac = getAudioContext();
+            if (ac.state === 'suspended') await ac.resume();
+            notes.forEach(note => midiInstrument.play(note, ac.currentTime, { duration: 1.8 }));
+          } else if (polySynth) {
+            await Tone.start();
+            polySynth.triggerAttackRelease(notes, duration);
+          }
           setTimeout(() => setIsPlaying(false), 1800);
         } catch (err) { setIsPlaying(false); }
-      }, [polySynth, isPlaying]);
+      }, [polySynth, midiInstrument, isPlaying, useMidi]);
 
       const playSequence = useCallback(async (notes, interval = 0.5) => {
-        if (!synth || isPlaying) return;
+        if (isPlaying) return;
+        setIsPlaying(true);
         try {
-          await Tone.start();
-          setIsPlaying(true);
-          const now = Tone.now();
-          notes.forEach((note, i) => { synth.triggerAttackRelease(note, '4n', now + i * interval); });
+          if (useMidi && midiInstrument) {
+            const ac = getAudioContext();
+            if (ac.state === 'suspended') await ac.resume();
+            const now = ac.currentTime;
+            notes.forEach((note, i) => midiInstrument.play(note, now + i * interval, { duration: 0.4 }));
+          } else if (synth) {
+            await Tone.start();
+            const now = Tone.now();
+            notes.forEach((note, i) => synth.triggerAttackRelease(note, '4n', now + i * interval));
+          }
           setTimeout(() => setIsPlaying(false), notes.length * interval * 1000 + 500);
         } catch (err) { setIsPlaying(false); }
-      }, [synth, isPlaying]);
+      }, [synth, midiInstrument, isPlaying, useMidi]);
 
       const playChordSequence = useCallback(async (chordNotes, interval = 0.8) => {
-        if (!polySynth || isPlaying) return;
+        if (isPlaying) return;
+        setIsPlaying(true);
         try {
-          await Tone.start();
-          setIsPlaying(true);
-          const now = Tone.now();
-          chordNotes.forEach((chord, i) => { polySynth.triggerAttackRelease(chord, '2n', now + i * interval); });
+          if (useMidi && midiInstrument) {
+            const ac = getAudioContext();
+            if (ac.state === 'suspended') await ac.resume();
+            const now = ac.currentTime;
+            chordNotes.forEach((chord, i) => {
+              chord.forEach(note => midiInstrument.play(note, now + i * interval, { duration: 0.7 }));
+            });
+          } else if (polySynth) {
+            await Tone.start();
+            const now = Tone.now();
+            chordNotes.forEach((chord, i) => polySynth.triggerAttackRelease(chord, '2n', now + i * interval));
+          }
           setTimeout(() => setIsPlaying(false), chordNotes.length * interval * 1000 + 800);
         } catch (err) { setIsPlaying(false); }
-      }, [polySynth, isPlaying]);
+      }, [polySynth, midiInstrument, isPlaying, useMidi]);
 
       return { playNote, playNotes, playSequence, playChordSequence, isPlaying, isLoading };
     }
@@ -492,10 +551,11 @@
     const SettingsContext = createContext();
 
     function SettingsProvider({ children }) {
-      const [settings, setSettings] = useLocalStorage('keyperfect_settings_v3', {
+      const [settings, setSettings] = useLocalStorage('keyperfect_settings_v4', {
         instrument: 'piano',
         autoPlayOnStart: true,
         showOctaveInChoices: false,
+        useMidi: false,
       });
 
       const updateSettings = useCallback((updates) => {
@@ -773,7 +833,7 @@
       const { recordAnswer } = useStats();
       const { addToast } = useToast();
       const { playSound } = useSoundEffects();
-      const audio = useAudio(settings.instrument);
+      const audio = useAudio(settings.instrument, settings.useMidi);
       const diffSettings = difficultySettings[difficulty];
 
       const [gameState, setGameState] = useState('playing');
@@ -968,7 +1028,7 @@
     // Learn View with Swipe
     function LearnView() {
       const { settings } = useSettings();
-      const audio = useAudio(settings.instrument);
+      const audio = useAudio(settings.instrument, settings.useMidi);
       const [currentPage, setCurrentPage] = useState('scales');
 
       const ScalesPage = () => (
@@ -1104,6 +1164,13 @@
               </select>
             </div>
             <div style={styles.settingRow}>
+              <div>
+                <span style={styles.settingLabel}>Use MIDI sounds</span>
+                <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>Realistic sampled instruments</div>
+              </div>
+              <Toggle checked={settings.useMidi} onChange={(val) => updateSettings({ useMidi: val })} />
+            </div>
+            <div style={styles.settingRow}>
               <span style={styles.settingLabel}>Auto-play on new round</span>
               <Toggle checked={settings.autoPlayOnStart} onChange={(val) => updateSettings({ autoPlayOnStart: val })} />
             </div>
@@ -1121,7 +1188,7 @@
             <p style={{ color: '#94a3b8', fontSize: '0.9rem', lineHeight: 1.6 }}>
               KeyPerfect is an ear training app to help musicians recognize notes, intervals, chords, scales, and progressions.
             </p>
-            <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '12px' }}>Version 2.4 (Mobile)</p>
+            <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '12px' }}>Version 2.5 (Mobile)</p>
           </div>
         </div>
       );
