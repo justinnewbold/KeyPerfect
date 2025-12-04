@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <title>KeyPerfect - Music Ear Training</title>
   <script src="https://unpkg.com/tone@14.8.49/build/Tone.js"></script>
   <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -16,15 +16,68 @@
       background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
       min-height: 100vh;
       color: white;
+      overflow-x: hidden;
     }
     #root { min-height: 100vh; }
     select option { background: #1a1a2e; color: white; }
+
+    /* Button press animations */
+    .btn-press {
+      transition: transform 0.1s ease, box-shadow 0.1s ease, opacity 0.1s ease;
+    }
+    .btn-press:hover {
+      transform: scale(1.02);
+    }
+    .btn-press:active {
+      transform: scale(0.96);
+    }
+
+    /* Skeleton loading animation */
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    .skeleton {
+      background: linear-gradient(90deg, rgba(255,255,255,0.1) 25%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0.1) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 8px;
+    }
+
+    /* Toast animation */
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes slideOut {
+      from { transform: translateX(0); opacity: 1; }
+      to { transform: translateX(100%); opacity: 0; }
+    }
+    .toast-enter { animation: slideIn 0.3s ease forwards; }
+    .toast-exit { animation: slideOut 0.3s ease forwards; }
+
+    /* Swipe container */
+    .swipe-container {
+      overflow: hidden;
+      touch-action: pan-y;
+    }
+
+    /* Accordion animation */
+    .accordion-content {
+      overflow: hidden;
+      transition: max-height 0.3s ease, opacity 0.3s ease;
+    }
+
+    /* Bottom nav safe area */
+    @supports (padding-bottom: env(safe-area-inset-bottom)) {
+      .bottom-nav { padding-bottom: env(safe-area-inset-bottom); }
+    }
   </style>
 </head>
 <body>
   <div id="root"></div>
   <script type="text/babel">
-    const { useState, useEffect, useCallback, useMemo, createContext, useContext } = React;
+    const { useState, useEffect, useCallback, useMemo, createContext, useContext, useRef } = React;
 
     // ============================================
     // CONSTANTS & CONFIGURATION
@@ -87,26 +140,11 @@
     };
 
     const INSTRUMENTS = {
-      piano: {
-        name: 'Piano',
-        config: { oscillator: { type: 'triangle' }, envelope: { attack: 0.02, decay: 0.3, sustain: 0.4, release: 1.5 } }
-      },
-      synth: {
-        name: 'Synth',
-        config: { oscillator: { type: 'sawtooth' }, envelope: { attack: 0.01, decay: 0.2, sustain: 0.3, release: 0.8 } }
-      },
-      organ: {
-        name: 'Organ',
-        config: { oscillator: { type: 'sine' }, envelope: { attack: 0.05, decay: 0.1, sustain: 0.8, release: 0.3 } }
-      },
-      strings: {
-        name: 'Strings',
-        config: { oscillator: { type: 'fatsawtooth', spread: 20, count: 3 }, envelope: { attack: 0.3, decay: 0.1, sustain: 0.7, release: 1.0 } }
-      },
-      bell: {
-        name: 'Bell',
-        config: { oscillator: { type: 'sine' }, envelope: { attack: 0.001, decay: 0.5, sustain: 0.1, release: 2.0 } }
-      },
+      piano: { name: 'Piano', config: { oscillator: { type: 'triangle' }, envelope: { attack: 0.02, decay: 0.3, sustain: 0.4, release: 1.5 } } },
+      synth: { name: 'Synth', config: { oscillator: { type: 'sawtooth' }, envelope: { attack: 0.01, decay: 0.2, sustain: 0.3, release: 0.8 } } },
+      organ: { name: 'Organ', config: { oscillator: { type: 'sine' }, envelope: { attack: 0.05, decay: 0.1, sustain: 0.8, release: 0.3 } } },
+      strings: { name: 'Strings', config: { oscillator: { type: 'fatsawtooth', spread: 20, count: 3 }, envelope: { attack: 0.3, decay: 0.1, sustain: 0.7, release: 1.0 } } },
+      bell: { name: 'Bell', config: { oscillator: { type: 'sine' }, envelope: { attack: 0.001, decay: 0.5, sustain: 0.1, release: 2.0 } } },
     };
 
     const GAME_MODES = {
@@ -147,6 +185,56 @@
       hard: { progressions: Object.keys(PROGRESSIONS), choices: 5, label: 'Hard', description: 'All progressions' },
     };
 
+    const NAV_ITEMS = [
+      { id: 'play', label: 'Play', icon: '🎮' },
+      { id: 'learn', label: 'Learn', icon: '📚' },
+      { id: 'stats', label: 'Stats', icon: '📊' },
+      { id: 'settings', label: 'Settings', icon: '⚙️' },
+    ];
+
+    // ============================================
+    // TOAST CONTEXT
+    // ============================================
+
+    const ToastContext = createContext();
+
+    function ToastProvider({ children }) {
+      const [toasts, setToasts] = useState([]);
+
+      const addToast = useCallback((message, type = 'info', duration = 3000) => {
+        const id = Date.now();
+        setToasts(prev => [...prev, { id, message, type, exiting: false }]);
+        setTimeout(() => {
+          setToasts(prev => prev.map(t => t.id === id ? { ...t, exiting: true } : t));
+          setTimeout(() => {
+            setToasts(prev => prev.filter(t => t.id !== id));
+          }, 300);
+        }, duration);
+      }, []);
+
+      return (
+        <ToastContext.Provider value={{ addToast }}>
+          {children}
+          <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 1000, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {toasts.map(toast => (
+              <div key={toast.id} className={toast.exiting ? 'toast-exit' : 'toast-enter'}
+                style={{
+                  padding: '12px 20px', borderRadius: 12, fontWeight: 600, fontSize: '0.9rem',
+                  backgroundColor: toast.type === 'success' ? 'rgba(34, 197, 94, 0.95)' : toast.type === 'error' ? 'rgba(239, 68, 68, 0.95)' : 'rgba(59, 130, 246, 0.95)',
+                  color: 'white', boxShadow: '0 4px 20px rgba(0,0,0,0.3)', maxWidth: 280
+                }}>
+                {toast.message}
+              </div>
+            ))}
+          </div>
+        </ToastContext.Provider>
+      );
+    }
+
+    function useToast() {
+      return useContext(ToastContext);
+    }
+
     // ============================================
     // LOCAL STORAGE HOOKS
     // ============================================
@@ -157,7 +245,6 @@
           const item = window.localStorage.getItem(key);
           return item ? JSON.parse(item) : initialValue;
         } catch (error) {
-          console.error(`Error reading localStorage key "${key}":`, error);
           return initialValue;
         }
       });
@@ -167,12 +254,60 @@
           const valueToStore = value instanceof Function ? value(storedValue) : value;
           setStoredValue(valueToStore);
           window.localStorage.setItem(key, JSON.stringify(valueToStore));
-        } catch (error) {
-          console.error(`Error setting localStorage key "${key}":`, error);
-        }
+        } catch (error) {}
       }, [key, storedValue]);
 
       return [storedValue, setValue];
+    }
+
+    // ============================================
+    // HAPTIC FEEDBACK
+    // ============================================
+
+    function triggerHaptic(type = 'light') {
+      if ('vibrate' in navigator) {
+        const patterns = { light: 10, medium: 25, heavy: 50, success: [10, 50, 10], error: [50, 30, 50] };
+        navigator.vibrate(patterns[type] || 10);
+      }
+    }
+
+    // ============================================
+    // SOUND EFFECTS
+    // ============================================
+
+    function useSoundEffects() {
+      const [enabled, setEnabled] = useLocalStorage('keyperfect_sfx', true);
+      const audioCtx = useRef(null);
+
+      const playSound = useCallback((type) => {
+        if (!enabled) return;
+        try {
+          if (!audioCtx.current) audioCtx.current = new (window.AudioContext || window.webkitAudioContext)();
+          const ctx = audioCtx.current;
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+
+          if (type === 'success') {
+            osc.frequency.setValueAtTime(523.25, ctx.currentTime); // C5
+            osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.1); // E5
+            gain.gain.setValueAtTime(0.3, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.3);
+          } else if (type === 'error') {
+            osc.frequency.setValueAtTime(200, ctx.currentTime);
+            osc.type = 'sawtooth';
+            gain.gain.setValueAtTime(0.2, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.2);
+          }
+        } catch (e) {}
+      }, [enabled]);
+
+      return { playSound, sfxEnabled: enabled, setSfxEnabled: setEnabled };
     }
 
     // ============================================
@@ -183,17 +318,17 @@
       const [synth, setSynth] = useState(null);
       const [polySynth, setPolySynth] = useState(null);
       const [isPlaying, setIsPlaying] = useState(false);
+      const [isLoading, setIsLoading] = useState(true);
 
       useEffect(() => {
+        setIsLoading(true);
         const config = INSTRUMENTS[instrument]?.config || INSTRUMENTS.piano.config;
         const newSynth = new Tone.Synth(config).toDestination();
         const newPolySynth = new Tone.PolySynth(Tone.Synth, config).toDestination();
         setSynth(newSynth);
         setPolySynth(newPolySynth);
-        return () => {
-          newSynth.dispose();
-          newPolySynth.dispose();
-        };
+        setTimeout(() => setIsLoading(false), 300);
+        return () => { newSynth.dispose(); newPolySynth.dispose(); };
       }, [instrument]);
 
       const playNote = useCallback(async (note, octave = 4, duration = '2n') => {
@@ -203,10 +338,7 @@
           setIsPlaying(true);
           synth.triggerAttackRelease(`${note}${octave}`, duration);
           setTimeout(() => setIsPlaying(false), 1500);
-        } catch (err) {
-          console.error('Audio error:', err);
-          setIsPlaying(false);
-        }
+        } catch (err) { setIsPlaying(false); }
       }, [synth, isPlaying]);
 
       const playNotes = useCallback(async (notes, duration = '2n') => {
@@ -216,10 +348,7 @@
           setIsPlaying(true);
           polySynth.triggerAttackRelease(notes, duration);
           setTimeout(() => setIsPlaying(false), 1800);
-        } catch (err) {
-          console.error('Audio error:', err);
-          setIsPlaying(false);
-        }
+        } catch (err) { setIsPlaying(false); }
       }, [polySynth, isPlaying]);
 
       const playSequence = useCallback(async (notes, interval = 0.5) => {
@@ -228,14 +357,9 @@
           await Tone.start();
           setIsPlaying(true);
           const now = Tone.now();
-          notes.forEach((note, i) => {
-            synth.triggerAttackRelease(note, '4n', now + i * interval);
-          });
+          notes.forEach((note, i) => { synth.triggerAttackRelease(note, '4n', now + i * interval); });
           setTimeout(() => setIsPlaying(false), notes.length * interval * 1000 + 500);
-        } catch (err) {
-          console.error('Audio error:', err);
-          setIsPlaying(false);
-        }
+        } catch (err) { setIsPlaying(false); }
       }, [synth, isPlaying]);
 
       const playChordSequence = useCallback(async (chordNotes, interval = 0.8) => {
@@ -244,17 +368,12 @@
           await Tone.start();
           setIsPlaying(true);
           const now = Tone.now();
-          chordNotes.forEach((chord, i) => {
-            polySynth.triggerAttackRelease(chord, '2n', now + i * interval);
-          });
+          chordNotes.forEach((chord, i) => { polySynth.triggerAttackRelease(chord, '2n', now + i * interval); });
           setTimeout(() => setIsPlaying(false), chordNotes.length * interval * 1000 + 800);
-        } catch (err) {
-          console.error('Audio error:', err);
-          setIsPlaying(false);
-        }
+        } catch (err) { setIsPlaying(false); }
       }, [polySynth, isPlaying]);
 
-      return { playNote, playNotes, playSequence, playChordSequence, isPlaying };
+      return { playNote, playNotes, playSequence, playChordSequence, isPlaying, isLoading };
     }
 
     // ============================================
@@ -279,26 +398,12 @@
           modeStats.totalAnswered += 1;
           if (correct) modeStats.totalCorrect += 1;
           if (streak > modeStats.bestStreak) modeStats.bestStreak = streak;
-
-          if (!modeStats.byDifficulty[difficulty]) {
-            modeStats.byDifficulty[difficulty] = { correct: 0, total: 0 };
-          }
+          if (!modeStats.byDifficulty[difficulty]) modeStats.byDifficulty[difficulty] = { correct: 0, total: 0 };
           modeStats.byDifficulty[difficulty].total += 1;
           if (correct) modeStats.byDifficulty[difficulty].correct += 1;
-
-          const newHistory = [...prev.history, {
-            mode, difficulty, correct, timestamp: Date.now()
-          }].slice(-100);
-
+          const newHistory = [...prev.history, { mode, difficulty, correct, timestamp: Date.now() }].slice(-100);
           return { ...prev, [mode]: modeStats, history: newHistory };
         });
-      }, [setStats]);
-
-      const recordGameComplete = useCallback((mode) => {
-        setStats(prev => ({
-          ...prev,
-          [mode]: { ...prev[mode], gamesPlayed: prev[mode].gamesPlayed + 1 }
-        }));
       }, [setStats]);
 
       const resetStats = useCallback(() => {
@@ -313,15 +418,13 @@
       }, [setStats]);
 
       return (
-        <StatsContext.Provider value={{ stats, recordAnswer, recordGameComplete, resetStats }}>
+        <StatsContext.Provider value={{ stats, recordAnswer, resetStats }}>
           {children}
         </StatsContext.Provider>
       );
     }
 
-    function useStats() {
-      return useContext(StatsContext);
-    }
+    function useStats() { return useContext(StatsContext); }
 
     // ============================================
     // SETTINGS CONTEXT
@@ -347,9 +450,7 @@
       );
     }
 
-    function useSettings() {
-      return useContext(SettingsContext);
-    }
+    function useSettings() { return useContext(SettingsContext); }
 
     // ============================================
     // UTILITY FUNCTIONS
@@ -364,13 +465,7 @@
       return arr;
     }
 
-    function getNoteIndex(note) {
-      return NOTES.indexOf(note);
-    }
-
-    function getNoteFromIndex(index) {
-      return NOTES[((index % 12) + 12) % 12];
-    }
+    function getNoteIndex(note) { return NOTES.indexOf(note); }
 
     function buildChord(rootNote, chordType, octave = 4) {
       const rootIndex = getNoteIndex(rootNote);
@@ -407,14 +502,7 @@
       const totalCorrect = Object.keys(GAME_MODES).reduce((sum, key) => sum + stats[key].totalCorrect, 0);
       const accuracy = totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0;
       const bestStreak = Math.max(...Object.keys(GAME_MODES).map(key => stats[key].bestStreak));
-
-      return `🎵 KeyPerfect Stats 🎵
-━━━━━━━━━━━━━━━
-📊 ${totalAnswered} questions answered
-✅ ${accuracy}% accuracy
-🔥 ${bestStreak} best streak
-
-Train your ear at KeyPerfect!`;
+      return `🎵 KeyPerfect Stats 🎵\n━━━━━━━━━━━━━━━\n📊 ${totalAnswered} questions answered\n✅ ${accuracy}% accuracy\n🔥 ${bestStreak} best streak\n\nTrain your ear at KeyPerfect!`;
     }
 
     // ============================================
@@ -422,20 +510,24 @@ Train your ear at KeyPerfect!`;
     // ============================================
 
     const styles = {
-      container: { minHeight: '100vh', display: 'flex', flexDirection: 'column', padding: '20px', maxWidth: '600px', margin: '0 auto' },
-      header: { textAlign: 'center', marginBottom: '20px' },
-      title: { fontSize: '1.75rem', fontWeight: '700', marginBottom: '4px', background: 'linear-gradient(135deg, #a855f7, #ec4899)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', cursor: 'pointer' },
-      subtitle: { color: '#94a3b8', fontSize: '0.9rem' },
-      card: { backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: '20px', padding: '24px', backdropFilter: 'blur(10px)', width: '100%' },
-      cardTitle: { fontSize: '1.15rem', fontWeight: '600', marginBottom: '16px', textAlign: 'center' },
-      modeGrid: { display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: '10px', marginBottom: '20px' },
-      modeBtn: { padding: '14px', borderRadius: '12px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'rgba(255, 255, 255, 0.05)', color: 'white', cursor: 'pointer', transition: 'all 0.2s', textAlign: 'left' },
+      container: { minHeight: '100vh', display: 'flex', flexDirection: 'column', padding: '16px', paddingBottom: '90px', maxWidth: '600px', margin: '0 auto' },
+      header: { textAlign: 'center', marginBottom: '12px' },
+      title: { fontSize: '1.5rem', fontWeight: '700', marginBottom: '2px', background: 'linear-gradient(135deg, #a855f7, #ec4899)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', cursor: 'pointer' },
+      subtitle: { color: '#94a3b8', fontSize: '0.8rem' },
+      breadcrumbs: { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', fontSize: '0.85rem', color: '#94a3b8' },
+      breadcrumbLink: { color: '#a855f7', cursor: 'pointer', background: 'none', border: 'none', fontSize: '0.85rem', padding: 0 },
+      breadcrumbSep: { color: '#475569' },
+      breadcrumbCurrent: { color: 'white' },
+      card: { backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: '20px', padding: '20px', backdropFilter: 'blur(10px)', width: '100%' },
+      cardTitle: { fontSize: '1.1rem', fontWeight: '600', marginBottom: '16px', textAlign: 'center' },
+      modeGrid: { display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: '10px', marginBottom: '16px' },
+      modeBtn: { padding: '14px', borderRadius: '12px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'rgba(255, 255, 255, 0.05)', color: 'white', cursor: 'pointer', textAlign: 'left' },
       modeBtnActive: { borderColor: '#a855f7', backgroundColor: 'rgba(168, 85, 247, 0.2)' },
       modeIcon: { fontSize: '1.25rem', marginBottom: '4px' },
       modeName: { fontSize: '0.95rem', fontWeight: '600', marginBottom: '2px' },
       modeDesc: { fontSize: '0.75rem', color: '#94a3b8' },
-      difficultyOptions: { display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' },
-      difficultyBtn: { padding: '12px 16px', borderRadius: '10px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'transparent', color: 'white', fontSize: '0.95rem', cursor: 'pointer', transition: 'all 0.2s', textAlign: 'left' },
+      difficultyOptions: { display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' },
+      difficultyBtn: { padding: '12px 16px', borderRadius: '10px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'transparent', color: 'white', fontSize: '0.95rem', cursor: 'pointer', textAlign: 'left' },
       difficultyBtnActive: { borderColor: '#a855f7', backgroundColor: 'rgba(168, 85, 247, 0.2)' },
       difficultyLabel: { fontWeight: '600' },
       difficultyDesc: { fontSize: '0.8rem', color: '#94a3b8', marginTop: '2px' },
@@ -444,21 +536,20 @@ Train your ear at KeyPerfect!`;
       scoreStat: { display: 'flex', flexDirection: 'column', alignItems: 'center' },
       scoreLabel: { fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' },
       scoreValue: { fontSize: '1.1rem', fontWeight: '700' },
-      playSection: { textAlign: 'center', padding: '16px' },
-      playBtn: { display: 'inline-flex', alignItems: 'center', gap: '10px', padding: '16px 32px', borderRadius: '50px', border: 'none', background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', color: 'white', fontSize: '1.1rem', fontWeight: '600', cursor: 'pointer', boxShadow: '0 10px 40px rgba(139, 92, 246, 0.3)', transition: 'transform 0.2s' },
-      playBtnDisabled: { opacity: 0.7, cursor: 'not-allowed' },
-      playHint: { marginTop: '12px', color: '#94a3b8', fontSize: '0.9rem' },
-      choicesGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' },
-      choiceBtn: { padding: '18px 14px', borderRadius: '12px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'rgba(255, 255, 255, 0.1)', color: 'white', fontSize: '1rem', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s' },
+      floatingPlayBtn: { position: 'fixed', bottom: '100px', right: '20px', width: '64px', height: '64px', borderRadius: '50%', border: 'none', background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', color: 'white', fontSize: '1.5rem', cursor: 'pointer', boxShadow: '0 8px 30px rgba(139, 92, 246, 0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      playHint: { marginTop: '8px', color: '#94a3b8', fontSize: '0.85rem', textAlign: 'center' },
+      choicesGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginTop: '16px' },
+      choiceBtn: { padding: '18px 14px', borderRadius: '12px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'rgba(255, 255, 255, 0.1)', color: 'white', fontSize: '1rem', fontWeight: '600', cursor: 'pointer' },
       choiceBtnCorrect: { borderColor: '#22c55e', backgroundColor: 'rgba(34, 197, 94, 0.3)' },
       choiceBtnWrong: { borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.3)' },
       actionButtons: { display: 'flex', gap: '10px', marginTop: '16px' },
       nextBtn: { flex: 1, padding: '14px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg, #22c55e, #16a34a)', color: 'white', fontSize: '1rem', fontWeight: '600', cursor: 'pointer' },
       resetBtn: { flex: 1, padding: '14px', borderRadius: '10px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'transparent', color: 'white', fontSize: '0.95rem', fontWeight: '500', cursor: 'pointer' },
-      resultBox: { textAlign: 'center', padding: '12px', borderRadius: '10px', border: '2px solid', fontSize: '1rem', fontWeight: '600', marginBottom: '12px' },
-      navBar: { display: 'flex', justifyContent: 'center', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' },
-      navBtn: { padding: '8px 14px', borderRadius: '8px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'transparent', color: 'white', fontSize: '0.8rem', cursor: 'pointer', transition: 'all 0.2s' },
-      navBtnActive: { borderColor: '#a855f7', backgroundColor: 'rgba(168, 85, 247, 0.2)' },
+      resultBox: { textAlign: 'center', padding: '12px', borderRadius: '10px', border: '2px solid', fontSize: '1rem', fontWeight: '600' },
+      bottomNav: { position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(22, 33, 62, 0.98)', backdropFilter: 'blur(20px)', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-around', padding: '8px 0 12px', zIndex: 999 },
+      bottomNavItem: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', background: 'none', border: 'none', color: '#64748b', fontSize: '0.7rem', cursor: 'pointer', padding: '8px 16px', borderRadius: '12px', minWidth: '64px' },
+      bottomNavItemActive: { color: '#a855f7' },
+      bottomNavIcon: { fontSize: '1.4rem' },
       statsCard: { backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: '12px', padding: '16px', marginBottom: '12px' },
       statsTitle: { fontSize: '1rem', fontWeight: '600', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' },
       statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' },
@@ -472,112 +563,162 @@ Train your ear at KeyPerfect!`;
       toggleKnob: { width: '22px', height: '22px', borderRadius: '50%', backgroundColor: 'white', position: 'absolute', top: '2px', transition: 'left 0.2s' },
       dangerBtn: { padding: '12px', borderRadius: '8px', border: '2px solid #ef4444', backgroundColor: 'transparent', color: '#ef4444', fontSize: '0.9rem', cursor: 'pointer', marginTop: '16px', width: '100%' },
       shareBtn: { padding: '12px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', color: 'white', fontSize: '0.9rem', cursor: 'pointer', marginTop: '12px', width: '100%', fontWeight: '600' },
-      footer: { textAlign: 'center', padding: '16px', color: '#64748b', fontSize: '0.8rem', marginTop: 'auto' },
-      refCard: { backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: '12px', padding: '16px', marginBottom: '12px' },
-      refTitle: { fontSize: '1.1rem', fontWeight: '600', marginBottom: '4px' },
-      refSubtitle: { fontSize: '0.8rem', color: '#94a3b8', marginBottom: '12px' },
+      accordion: { backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: '12px', marginBottom: '8px', overflow: 'hidden' },
+      accordionHeader: { padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', background: 'none', border: 'none', width: '100%', color: 'white', textAlign: 'left' },
+      accordionTitle: { fontSize: '1rem', fontWeight: '600' },
+      accordionArrow: { fontSize: '1rem', transition: 'transform 0.3s' },
+      accordionBody: { padding: '0 16px 16px' },
       refNotes: { fontSize: '0.9rem', color: '#a855f7', fontFamily: 'monospace', marginBottom: '8px' },
-      refDesc: { fontSize: '0.8rem', color: '#94a3b8' },
-      playSmallBtn: { padding: '8px 16px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', color: 'white', fontSize: '0.8rem', cursor: 'pointer', marginTop: '8px' },
-      backBtn: { padding: '10px 20px', borderRadius: '8px', border: '2px solid rgba(255, 255, 255, 0.2)', backgroundColor: 'transparent', color: 'white', fontSize: '0.9rem', cursor: 'pointer', marginBottom: '16px' },
+      refDesc: { fontSize: '0.8rem', color: '#94a3b8', marginBottom: '8px' },
+      playSmallBtn: { padding: '8px 16px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', color: 'white', fontSize: '0.8rem', cursor: 'pointer' },
+      swipeIndicator: { display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '16px' },
+      swipeDot: { width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.3)' },
+      swipeDotActive: { backgroundColor: '#a855f7' },
+      skeleton: { height: '60px', marginBottom: '8px' },
     };
 
     // ============================================
     // COMPONENTS
     // ============================================
 
-    function Navigation({ currentView, setView }) {
-      const views = [
-        { id: 'play', label: 'Play' },
-        { id: 'learn', label: 'Learn' },
-        { id: 'stats', label: 'Stats' },
-        { id: 'settings', label: 'Settings' },
-      ];
+    // Skeleton Loader
+    function Skeleton({ height = 60, style = {} }) {
+      return <div className="skeleton" style={{ height, ...style }} />;
+    }
+
+    // Bottom Navigation
+    function BottomNav({ currentView, setView }) {
       return (
-        <div style={styles.navBar}>
-          {views.map(v => (
-            <button
-              key={v.id}
-              onClick={() => setView(v.id)}
-              style={{ ...styles.navBtn, ...(currentView === v.id ? styles.navBtnActive : {}) }}
-            >
-              {v.label}
+        <nav style={styles.bottomNav} className="bottom-nav">
+          {NAV_ITEMS.map(item => (
+            <button key={item.id} onClick={() => { setView(item.id); triggerHaptic('light'); }}
+              className="btn-press"
+              style={{ ...styles.bottomNavItem, ...(currentView === item.id ? styles.bottomNavItemActive : {}) }}>
+              <span style={styles.bottomNavIcon}>{item.icon}</span>
+              <span>{item.label}</span>
             </button>
+          ))}
+        </nav>
+      );
+    }
+
+    // Breadcrumbs
+    function Breadcrumbs({ items }) {
+      return (
+        <div style={styles.breadcrumbs}>
+          {items.map((item, i) => (
+            <React.Fragment key={i}>
+              {i > 0 && <span style={styles.breadcrumbSep}>/</span>}
+              {item.onClick ? (
+                <button style={styles.breadcrumbLink} onClick={item.onClick} className="btn-press">{item.label}</button>
+              ) : (
+                <span style={styles.breadcrumbCurrent}>{item.label}</span>
+              )}
+            </React.Fragment>
           ))}
         </div>
       );
     }
 
-    function ModeSelection({ selectedMode, onSelect }) {
+    // Floating Play Button
+    function FloatingPlayButton({ onClick, isPlaying, isLoading }) {
+      if (isLoading) return (
+        <button style={{ ...styles.floatingPlayBtn, opacity: 0.5 }} disabled>
+          <span>⏳</span>
+        </button>
+      );
       return (
-        <div style={styles.modeGrid}>
-          {Object.entries(GAME_MODES).map(([key, mode]) => (
-            <button
-              key={key}
-              onClick={() => onSelect(key)}
-              style={{ ...styles.modeBtn, ...(selectedMode === key ? styles.modeBtnActive : {}) }}
-            >
-              <div style={styles.modeIcon}>{mode.icon}</div>
-              <div style={styles.modeName}>{mode.name}</div>
-              <div style={styles.modeDesc}>{mode.description}</div>
-            </button>
-          ))}
+        <button onClick={() => { onClick(); triggerHaptic('medium'); }} disabled={isPlaying}
+          className="btn-press"
+          style={{ ...styles.floatingPlayBtn, opacity: isPlaying ? 0.7 : 1 }}>
+          <span>{isPlaying ? '🔊' : '▶️'}</span>
+        </button>
+      );
+    }
+
+    // Accordion
+    function Accordion({ title, children, defaultOpen = false, onPlay, isPlaying }) {
+      const [isOpen, setIsOpen] = useState(defaultOpen);
+      return (
+        <div style={styles.accordion}>
+          <button style={styles.accordionHeader} onClick={() => setIsOpen(!isOpen)} className="btn-press">
+            <span style={styles.accordionTitle}>{title}</span>
+            <span style={{ ...styles.accordionArrow, transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
+          </button>
+          <div className="accordion-content" style={{ maxHeight: isOpen ? '500px' : '0', opacity: isOpen ? 1 : 0 }}>
+            <div style={styles.accordionBody}>
+              {children}
+              {onPlay && (
+                <button onClick={(e) => { e.stopPropagation(); onPlay(); triggerHaptic('light'); }}
+                  disabled={isPlaying} className="btn-press" style={styles.playSmallBtn}>
+                  {isPlaying ? 'Playing...' : '▶ Play'}
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       );
     }
 
-    function DifficultySelection({ mode, selectedDifficulty, onSelect }) {
-      const difficulties = mode === 'notes' ? NOTE_DIFFICULTIES
-        : mode === 'intervals' ? INTERVAL_DIFFICULTIES
-        : mode === 'chords' ? CHORD_DIFFICULTIES
-        : mode === 'scales' ? SCALE_DIFFICULTIES
-        : PROGRESSION_DIFFICULTIES;
+    // Swipe Container for Learn pages
+    function SwipeContainer({ pages, currentPage, setCurrentPage }) {
+      const containerRef = useRef(null);
+      const startX = useRef(0);
+      const currentX = useRef(0);
+
+      const handleTouchStart = (e) => { startX.current = e.touches[0].clientX; };
+      const handleTouchMove = (e) => { currentX.current = e.touches[0].clientX; };
+      const handleTouchEnd = () => {
+        const diff = startX.current - currentX.current;
+        const pageKeys = Object.keys(pages);
+        const currentIndex = pageKeys.indexOf(currentPage);
+        if (diff > 50 && currentIndex < pageKeys.length - 1) {
+          setCurrentPage(pageKeys[currentIndex + 1]);
+          triggerHaptic('light');
+        } else if (diff < -50 && currentIndex > 0) {
+          setCurrentPage(pageKeys[currentIndex - 1]);
+          triggerHaptic('light');
+        }
+      };
 
       return (
-        <div style={styles.difficultyOptions}>
-          {Object.entries(difficulties).map(([key, diff]) => (
-            <button
-              key={key}
-              onClick={() => onSelect(key)}
-              style={{ ...styles.difficultyBtn, ...(selectedDifficulty === key ? styles.difficultyBtnActive : {}) }}
-            >
-              <div style={styles.difficultyLabel}>{diff.label}</div>
-              <div style={styles.difficultyDesc}>{diff.description}</div>
-            </button>
-          ))}
+        <div>
+          <div style={styles.swipeIndicator}>
+            {Object.keys(pages).map(key => (
+              <div key={key} style={{ ...styles.swipeDot, ...(currentPage === key ? styles.swipeDotActive : {}) }}
+                onClick={() => setCurrentPage(key)} />
+            ))}
+          </div>
+          <div ref={containerRef} className="swipe-container"
+            onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
+            {pages[currentPage]}
+          </div>
         </div>
       );
     }
 
+    // Score Board
     function ScoreBoard({ score, total, streak, bestStreak }) {
       return (
         <div style={styles.scoreBoard}>
-          <div style={styles.scoreStat}>
-            <span style={styles.scoreLabel}>Score</span>
-            <span style={styles.scoreValue}>{score}/{total}</span>
-          </div>
-          <div style={styles.scoreStat}>
-            <span style={styles.scoreLabel}>Streak</span>
-            <span style={styles.scoreValue}>{streak}</span>
-          </div>
-          <div style={styles.scoreStat}>
-            <span style={styles.scoreLabel}>Best</span>
-            <span style={styles.scoreValue}>{bestStreak}</span>
-          </div>
+          <div style={styles.scoreStat}><span style={styles.scoreLabel}>Score</span><span style={styles.scoreValue}>{score}/{total}</span></div>
+          <div style={styles.scoreStat}><span style={styles.scoreLabel}>Streak</span><span style={styles.scoreValue}>{streak}</span></div>
+          <div style={styles.scoreStat}><span style={styles.scoreLabel}>Best</span><span style={styles.scoreValue}>{bestStreak}</span></div>
         </div>
       );
     }
 
-    // Note Game Component
-    function NoteGame({ difficulty, onBack }) {
+    // Generic Game Component
+    function GameComponent({ mode, difficulty, onBack, difficultySettings, buildQuestion, getChoiceLabel, getCorrectAnswer }) {
       const { settings } = useSettings();
       const { recordAnswer } = useStats();
-      const { playNote, isPlaying } = useAudio(settings.instrument);
-      const diffSettings = NOTE_DIFFICULTIES[difficulty];
+      const { addToast } = useToast();
+      const { playSound } = useSoundEffects();
+      const audio = useAudio(settings.instrument);
+      const diffSettings = difficultySettings[difficulty];
 
       const [gameState, setGameState] = useState('playing');
-      const [currentNote, setCurrentNote] = useState(null);
-      const [currentOctave, setCurrentOctave] = useState(4);
+      const [currentQuestion, setCurrentQuestion] = useState(null);
       const [choices, setChoices] = useState([]);
       const [score, setScore] = useState(0);
       const [streak, setStreak] = useState(0);
@@ -587,629 +728,293 @@ Train your ear at KeyPerfect!`;
       const [selectedAnswer, setSelectedAnswer] = useState(null);
 
       const generateRound = useCallback(() => {
-        const randomNote = diffSettings.notes[Math.floor(Math.random() * diffSettings.notes.length)];
-        const randomOctave = diffSettings.octaves[Math.floor(Math.random() * diffSettings.octaves.length)];
-        const availableNotes = diffSettings.notes.filter(n => n !== randomNote);
-        const wrongChoices = shuffle(availableNotes).slice(0, diffSettings.choices - 1);
-        const newChoices = shuffle([...wrongChoices, randomNote]);
-
-        setCurrentNote(randomNote);
-        setCurrentOctave(randomOctave);
-        setChoices(newChoices);
+        const question = buildQuestion(diffSettings, audio);
+        setCurrentQuestion(question);
+        setChoices(question.choices);
         setLastResult(null);
         setSelectedAnswer(null);
         setGameState('playing');
-
-        if (settings.autoPlayOnStart) {
-          setTimeout(() => playNote(randomNote, randomOctave), 300);
+        if (settings.autoPlayOnStart && question.play) {
+          setTimeout(() => question.play(), 300);
         }
-      }, [diffSettings, settings.autoPlayOnStart, playNote]);
+      }, [diffSettings, settings.autoPlayOnStart, audio, buildQuestion]);
 
-      useEffect(() => { generateRound(); }, []);
+      useEffect(() => { if (!audio.isLoading) generateRound(); }, [audio.isLoading]);
 
       const handleGuess = (guess) => {
         if (gameState !== 'playing') return;
-        const correct = guess === currentNote;
+        const correctAnswer = getCorrectAnswer(currentQuestion);
+        const correct = guess === correctAnswer;
         setSelectedAnswer(guess);
         setTotalPlayed(prev => prev + 1);
+
         let newStreak = streak;
         if (correct) {
+          playSound('success');
+          triggerHaptic('success');
           setScore(prev => prev + 1);
           newStreak = streak + 1;
           setStreak(newStreak);
           if (newStreak > bestStreak) setBestStreak(newStreak);
-          setLastResult({ correct: true, message: 'Correct!' });
+          setLastResult({ correct: true, message: '✓ Correct!' });
+          if (newStreak === 5) addToast('🔥 5 streak! Keep going!', 'success');
+          if (newStreak === 10) addToast('🔥🔥 10 streak! Amazing!', 'success');
+          if (newStreak === 25) addToast('🔥🔥🔥 25 streak! Legendary!', 'success');
         } else {
+          playSound('error');
+          triggerHaptic('error');
           setStreak(0);
           newStreak = 0;
-          setLastResult({ correct: false, message: `Wrong! It was ${currentNote}` });
+          setLastResult({ correct: false, message: `✗ Wrong! It was ${getChoiceLabel(correctAnswer)}` });
         }
-        recordAnswer('notes', difficulty, correct, newStreak);
+        recordAnswer(mode, difficulty, correct, newStreak);
         setGameState('result');
       };
 
+      const handleReplay = () => {
+        if (currentQuestion?.play) {
+          triggerHaptic('light');
+          currentQuestion.play();
+        }
+      };
+
+      const modeInfo = GAME_MODES[mode];
+
+      if (audio.isLoading) {
+        return (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <Breadcrumbs items={[{ label: 'Play', onClick: onBack }, { label: modeInfo.name }]} />
+            <Skeleton height={60} />
+            <Skeleton height={100} />
+            <Skeleton height={200} />
+          </div>
+        );
+      }
+
       return (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <Breadcrumbs items={[{ label: 'Play', onClick: onBack }, { label: modeInfo.name }]} />
           <ScoreBoard score={score} total={totalPlayed} streak={streak} bestStreak={bestStreak} />
-          <div style={styles.playSection}>
-            <button onClick={() => currentNote && playNote(currentNote, currentOctave)} disabled={isPlaying}
-              style={{ ...styles.playBtn, ...(isPlaying ? styles.playBtnDisabled : {}) }}>
-              <span style={{ fontSize: '1.3rem' }}>{isPlaying ? '🔊' : '▶️'}</span>
-              <span>{isPlaying ? 'Playing...' : 'Play Note'}</span>
-            </button>
-            <p style={styles.playHint}>Listen and identify the note!</p>
-          </div>
+
+          <p style={styles.playHint}>Tap the play button to hear again</p>
+
           {lastResult && (
             <div style={{ ...styles.resultBox, backgroundColor: lastResult.correct ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)', borderColor: lastResult.correct ? '#22c55e' : '#ef4444' }}>
               {lastResult.message}
             </div>
           )}
+
           <div style={styles.choicesGrid}>
-            {choices.map((note) => (
-              <button key={note} onClick={() => handleGuess(note)} disabled={gameState === 'result'}
-                style={{ ...styles.choiceBtn, ...(gameState === 'result' && note === currentNote ? styles.choiceBtnCorrect : {}), ...(gameState === 'result' && note === selectedAnswer && note !== currentNote ? styles.choiceBtnWrong : {}), ...(gameState === 'result' ? { cursor: 'default' } : {}) }}>
-                {note}
-              </button>
-            ))}
+            {choices.map((choice, i) => {
+              const correctAnswer = currentQuestion ? getCorrectAnswer(currentQuestion) : null;
+              const isCorrect = gameState === 'result' && choice === correctAnswer;
+              const isWrong = gameState === 'result' && choice === selectedAnswer && choice !== correctAnswer;
+              return (
+                <button key={i} onClick={() => handleGuess(choice)} disabled={gameState === 'result'}
+                  className="btn-press"
+                  style={{ ...styles.choiceBtn, fontSize: '0.9rem', ...(isCorrect ? styles.choiceBtnCorrect : {}), ...(isWrong ? styles.choiceBtnWrong : {}), ...(gameState === 'result' ? { cursor: 'default' } : {}) }}>
+                  {getChoiceLabel(choice)}
+                </button>
+              );
+            })}
           </div>
+
           <div style={styles.actionButtons}>
-            {gameState === 'result' && <button onClick={generateRound} style={styles.nextBtn}>Next →</button>}
-            <button onClick={onBack} style={styles.resetBtn}>Exit</button>
+            {gameState === 'result' && <button onClick={generateRound} className="btn-press" style={styles.nextBtn}>Next →</button>}
+            <button onClick={onBack} className="btn-press" style={styles.resetBtn}>Exit</button>
           </div>
+
+          <FloatingPlayButton onClick={handleReplay} isPlaying={audio.isPlaying} isLoading={audio.isLoading} />
         </div>
       );
     }
 
-    // Interval Game Component
+    // Note Game
+    function NoteGame({ difficulty, onBack }) {
+      const buildQuestion = (diffSettings, audio) => {
+        const note = diffSettings.notes[Math.floor(Math.random() * diffSettings.notes.length)];
+        const octave = diffSettings.octaves[Math.floor(Math.random() * diffSettings.octaves.length)];
+        const available = diffSettings.notes.filter(n => n !== note);
+        const wrong = shuffle(available).slice(0, diffSettings.choices - 1);
+        const choices = shuffle([...wrong, note]);
+        return { note, octave, choices, play: () => audio.playNote(note, octave) };
+      };
+      return <GameComponent mode="notes" difficulty={difficulty} onBack={onBack} difficultySettings={NOTE_DIFFICULTIES}
+        buildQuestion={buildQuestion} getChoiceLabel={c => c} getCorrectAnswer={q => q.note} />;
+    }
+
+    // Interval Game
     function IntervalGame({ difficulty, onBack }) {
-      const { settings } = useSettings();
-      const { recordAnswer } = useStats();
-      const { playSequence, isPlaying } = useAudio(settings.instrument);
-      const diffSettings = INTERVAL_DIFFICULTIES[difficulty];
-
-      const [gameState, setGameState] = useState('playing');
-      const [currentInterval, setCurrentInterval] = useState(null);
-      const [currentNotes, setCurrentNotes] = useState([]);
-      const [choices, setChoices] = useState([]);
-      const [score, setScore] = useState(0);
-      const [streak, setStreak] = useState(0);
-      const [bestStreak, setBestStreak] = useState(0);
-      const [totalPlayed, setTotalPlayed] = useState(0);
-      const [lastResult, setLastResult] = useState(null);
-      const [selectedAnswer, setSelectedAnswer] = useState(null);
-
-      const generateRound = useCallback(() => {
+      const buildQuestion = (diffSettings, audio) => {
         const interval = diffSettings.intervals[Math.floor(Math.random() * diffSettings.intervals.length)];
         const baseNote = NOTES[Math.floor(Math.random() * NOTES.length)];
-        const baseOctave = 4;
         const baseIndex = getNoteIndex(baseNote);
-        const secondNoteIndex = (baseIndex + interval) % 12;
+        const secondIndex = (baseIndex + interval) % 12;
         const secondOctave = baseIndex + interval >= 12 ? 5 : 4;
-        const secondNote = NOTES[secondNoteIndex];
-        const notes = [`${baseNote}${baseOctave}`, `${secondNote}${secondOctave}`];
-        const availableIntervals = diffSettings.intervals.filter(i => i !== interval);
-        const wrongChoices = shuffle(availableIntervals).slice(0, diffSettings.choices - 1);
-        const newChoices = shuffle([...wrongChoices, interval]);
-
-        setCurrentInterval(interval);
-        setCurrentNotes(notes);
-        setChoices(newChoices);
-        setLastResult(null);
-        setSelectedAnswer(null);
-        setGameState('playing');
-        if (settings.autoPlayOnStart) setTimeout(() => playSequence(notes), 300);
-      }, [diffSettings, settings.autoPlayOnStart, playSequence]);
-
-      useEffect(() => { generateRound(); }, []);
-
-      const handleGuess = (guess) => {
-        if (gameState !== 'playing') return;
-        const correct = guess === currentInterval;
-        setSelectedAnswer(guess);
-        setTotalPlayed(prev => prev + 1);
-        let newStreak = streak;
-        if (correct) {
-          setScore(prev => prev + 1);
-          newStreak = streak + 1;
-          setStreak(newStreak);
-          if (newStreak > bestStreak) setBestStreak(newStreak);
-          setLastResult({ correct: true, message: 'Correct!' });
-        } else {
-          setStreak(0);
-          newStreak = 0;
-          setLastResult({ correct: false, message: `Wrong! It was ${INTERVALS[currentInterval].name}` });
-        }
-        recordAnswer('intervals', difficulty, correct, newStreak);
-        setGameState('result');
+        const notes = [`${baseNote}4`, `${NOTES[secondIndex]}${secondOctave}`];
+        const available = diffSettings.intervals.filter(i => i !== interval);
+        const wrong = shuffle(available).slice(0, diffSettings.choices - 1);
+        const choices = shuffle([...wrong, interval]);
+        return { interval, notes, choices, play: () => audio.playSequence(notes) };
       };
-
-      return (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <ScoreBoard score={score} total={totalPlayed} streak={streak} bestStreak={bestStreak} />
-          <div style={styles.playSection}>
-            <button onClick={() => currentNotes.length && playSequence(currentNotes)} disabled={isPlaying}
-              style={{ ...styles.playBtn, ...(isPlaying ? styles.playBtnDisabled : {}) }}>
-              <span style={{ fontSize: '1.3rem' }}>{isPlaying ? '🔊' : '▶️'}</span>
-              <span>{isPlaying ? 'Playing...' : 'Play Interval'}</span>
-            </button>
-            <p style={styles.playHint}>Listen to both notes!</p>
-          </div>
-          {lastResult && (
-            <div style={{ ...styles.resultBox, backgroundColor: lastResult.correct ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)', borderColor: lastResult.correct ? '#22c55e' : '#ef4444' }}>
-              {lastResult.message}
-            </div>
-          )}
-          <div style={styles.choicesGrid}>
-            {choices.map((interval) => (
-              <button key={interval} onClick={() => handleGuess(interval)} disabled={gameState === 'result'}
-                style={{ ...styles.choiceBtn, fontSize: '0.9rem', ...(gameState === 'result' && interval === currentInterval ? styles.choiceBtnCorrect : {}), ...(gameState === 'result' && interval === selectedAnswer && interval !== currentInterval ? styles.choiceBtnWrong : {}), ...(gameState === 'result' ? { cursor: 'default' } : {}) }}>
-                {INTERVALS[interval].name}
-              </button>
-            ))}
-          </div>
-          <div style={styles.actionButtons}>
-            {gameState === 'result' && <button onClick={generateRound} style={styles.nextBtn}>Next →</button>}
-            <button onClick={onBack} style={styles.resetBtn}>Exit</button>
-          </div>
-        </div>
-      );
+      return <GameComponent mode="intervals" difficulty={difficulty} onBack={onBack} difficultySettings={INTERVAL_DIFFICULTIES}
+        buildQuestion={buildQuestion} getChoiceLabel={c => INTERVALS[c].name} getCorrectAnswer={q => q.interval} />;
     }
 
-    // Chord Game Component
+    // Chord Game
     function ChordGame({ difficulty, onBack }) {
-      const { settings } = useSettings();
-      const { recordAnswer } = useStats();
-      const { playNotes, isPlaying } = useAudio(settings.instrument);
-      const diffSettings = CHORD_DIFFICULTIES[difficulty];
-
-      const [gameState, setGameState] = useState('playing');
-      const [currentChord, setCurrentChord] = useState(null);
-      const [currentNotes, setCurrentNotes] = useState([]);
-      const [choices, setChoices] = useState([]);
-      const [score, setScore] = useState(0);
-      const [streak, setStreak] = useState(0);
-      const [bestStreak, setBestStreak] = useState(0);
-      const [totalPlayed, setTotalPlayed] = useState(0);
-      const [lastResult, setLastResult] = useState(null);
-      const [selectedAnswer, setSelectedAnswer] = useState(null);
-
-      const generateRound = useCallback(() => {
+      const buildQuestion = (diffSettings, audio) => {
         const chordType = diffSettings.chords[Math.floor(Math.random() * diffSettings.chords.length)];
         const rootNote = NOTES[Math.floor(Math.random() * NOTES.length)];
         const notes = buildChord(rootNote, chordType, 4);
-        const availableChords = diffSettings.chords.filter(c => c !== chordType);
-        const wrongChoices = shuffle(availableChords).slice(0, diffSettings.choices - 1);
-        const newChoices = shuffle([...wrongChoices, chordType]);
-
-        setCurrentChord(chordType);
-        setCurrentNotes(notes);
-        setChoices(newChoices);
-        setLastResult(null);
-        setSelectedAnswer(null);
-        setGameState('playing');
-        if (settings.autoPlayOnStart) setTimeout(() => playNotes(notes), 300);
-      }, [diffSettings, settings.autoPlayOnStart, playNotes]);
-
-      useEffect(() => { generateRound(); }, []);
-
-      const handleGuess = (guess) => {
-        if (gameState !== 'playing') return;
-        const correct = guess === currentChord;
-        setSelectedAnswer(guess);
-        setTotalPlayed(prev => prev + 1);
-        let newStreak = streak;
-        if (correct) {
-          setScore(prev => prev + 1);
-          newStreak = streak + 1;
-          setStreak(newStreak);
-          if (newStreak > bestStreak) setBestStreak(newStreak);
-          setLastResult({ correct: true, message: 'Correct!' });
-        } else {
-          setStreak(0);
-          newStreak = 0;
-          setLastResult({ correct: false, message: `Wrong! It was ${CHORD_TYPES[currentChord].name}` });
-        }
-        recordAnswer('chords', difficulty, correct, newStreak);
-        setGameState('result');
+        const available = diffSettings.chords.filter(c => c !== chordType);
+        const wrong = shuffle(available).slice(0, diffSettings.choices - 1);
+        const choices = shuffle([...wrong, chordType]);
+        return { chordType, notes, choices, play: () => audio.playNotes(notes) };
       };
-
-      return (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <ScoreBoard score={score} total={totalPlayed} streak={streak} bestStreak={bestStreak} />
-          <div style={styles.playSection}>
-            <button onClick={() => currentNotes.length && playNotes(currentNotes)} disabled={isPlaying}
-              style={{ ...styles.playBtn, ...(isPlaying ? styles.playBtnDisabled : {}) }}>
-              <span style={{ fontSize: '1.3rem' }}>{isPlaying ? '🔊' : '▶️'}</span>
-              <span>{isPlaying ? 'Playing...' : 'Play Chord'}</span>
-            </button>
-            <p style={styles.playHint}>Identify the chord type!</p>
-          </div>
-          {lastResult && (
-            <div style={{ ...styles.resultBox, backgroundColor: lastResult.correct ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)', borderColor: lastResult.correct ? '#22c55e' : '#ef4444' }}>
-              {lastResult.message}
-            </div>
-          )}
-          <div style={styles.choicesGrid}>
-            {choices.map((chordType) => (
-              <button key={chordType} onClick={() => handleGuess(chordType)} disabled={gameState === 'result'}
-                style={{ ...styles.choiceBtn, fontSize: '0.9rem', ...(gameState === 'result' && chordType === currentChord ? styles.choiceBtnCorrect : {}), ...(gameState === 'result' && chordType === selectedAnswer && chordType !== currentChord ? styles.choiceBtnWrong : {}), ...(gameState === 'result' ? { cursor: 'default' } : {}) }}>
-                {CHORD_TYPES[chordType].name}
-              </button>
-            ))}
-          </div>
-          <div style={styles.actionButtons}>
-            {gameState === 'result' && <button onClick={generateRound} style={styles.nextBtn}>Next →</button>}
-            <button onClick={onBack} style={styles.resetBtn}>Exit</button>
-          </div>
-        </div>
-      );
+      return <GameComponent mode="chords" difficulty={difficulty} onBack={onBack} difficultySettings={CHORD_DIFFICULTIES}
+        buildQuestion={buildQuestion} getChoiceLabel={c => CHORD_TYPES[c].name} getCorrectAnswer={q => q.chordType} />;
     }
 
-    // Scale Game Component
+    // Scale Game
     function ScaleGame({ difficulty, onBack }) {
-      const { settings } = useSettings();
-      const { recordAnswer } = useStats();
-      const { playSequence, isPlaying } = useAudio(settings.instrument);
-      const diffSettings = SCALE_DIFFICULTIES[difficulty];
-
-      const [gameState, setGameState] = useState('playing');
-      const [currentScale, setCurrentScale] = useState(null);
-      const [currentNotes, setCurrentNotes] = useState([]);
-      const [choices, setChoices] = useState([]);
-      const [score, setScore] = useState(0);
-      const [streak, setStreak] = useState(0);
-      const [bestStreak, setBestStreak] = useState(0);
-      const [totalPlayed, setTotalPlayed] = useState(0);
-      const [lastResult, setLastResult] = useState(null);
-      const [selectedAnswer, setSelectedAnswer] = useState(null);
-
-      const generateRound = useCallback(() => {
+      const buildQuestion = (diffSettings, audio) => {
         const scaleType = diffSettings.scales[Math.floor(Math.random() * diffSettings.scales.length)];
         const rootNote = NATURAL_NOTES[Math.floor(Math.random() * NATURAL_NOTES.length)];
         const notes = buildScale(rootNote, scaleType, 4);
-        const availableScales = diffSettings.scales.filter(s => s !== scaleType);
-        const wrongChoices = shuffle(availableScales).slice(0, diffSettings.choices - 1);
-        const newChoices = shuffle([...wrongChoices, scaleType]);
-
-        setCurrentScale(scaleType);
-        setCurrentNotes(notes);
-        setChoices(newChoices);
-        setLastResult(null);
-        setSelectedAnswer(null);
-        setGameState('playing');
-        if (settings.autoPlayOnStart) setTimeout(() => playSequence(notes, 0.25), 300);
-      }, [diffSettings, settings.autoPlayOnStart, playSequence]);
-
-      useEffect(() => { generateRound(); }, []);
-
-      const handleGuess = (guess) => {
-        if (gameState !== 'playing') return;
-        const correct = guess === currentScale;
-        setSelectedAnswer(guess);
-        setTotalPlayed(prev => prev + 1);
-        let newStreak = streak;
-        if (correct) {
-          setScore(prev => prev + 1);
-          newStreak = streak + 1;
-          setStreak(newStreak);
-          if (newStreak > bestStreak) setBestStreak(newStreak);
-          setLastResult({ correct: true, message: 'Correct!' });
-        } else {
-          setStreak(0);
-          newStreak = 0;
-          setLastResult({ correct: false, message: `Wrong! It was ${SCALE_TYPES[currentScale].name}` });
-        }
-        recordAnswer('scales', difficulty, correct, newStreak);
-        setGameState('result');
+        const available = diffSettings.scales.filter(s => s !== scaleType);
+        const wrong = shuffle(available).slice(0, diffSettings.choices - 1);
+        const choices = shuffle([...wrong, scaleType]);
+        return { scaleType, notes, choices, play: () => audio.playSequence(notes, 0.25) };
       };
-
-      return (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <ScoreBoard score={score} total={totalPlayed} streak={streak} bestStreak={bestStreak} />
-          <div style={styles.playSection}>
-            <button onClick={() => currentNotes.length && playSequence(currentNotes, 0.25)} disabled={isPlaying}
-              style={{ ...styles.playBtn, ...(isPlaying ? styles.playBtnDisabled : {}) }}>
-              <span style={{ fontSize: '1.3rem' }}>{isPlaying ? '🔊' : '▶️'}</span>
-              <span>{isPlaying ? 'Playing...' : 'Play Scale'}</span>
-            </button>
-            <p style={styles.playHint}>Listen to the scale pattern!</p>
-          </div>
-          {lastResult && (
-            <div style={{ ...styles.resultBox, backgroundColor: lastResult.correct ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)', borderColor: lastResult.correct ? '#22c55e' : '#ef4444' }}>
-              {lastResult.message}
-            </div>
-          )}
-          <div style={styles.choicesGrid}>
-            {choices.map((scaleType) => (
-              <button key={scaleType} onClick={() => handleGuess(scaleType)} disabled={gameState === 'result'}
-                style={{ ...styles.choiceBtn, fontSize: '0.85rem', ...(gameState === 'result' && scaleType === currentScale ? styles.choiceBtnCorrect : {}), ...(gameState === 'result' && scaleType === selectedAnswer && scaleType !== currentScale ? styles.choiceBtnWrong : {}), ...(gameState === 'result' ? { cursor: 'default' } : {}) }}>
-                {SCALE_TYPES[scaleType].name}
-              </button>
-            ))}
-          </div>
-          <div style={styles.actionButtons}>
-            {gameState === 'result' && <button onClick={generateRound} style={styles.nextBtn}>Next →</button>}
-            <button onClick={onBack} style={styles.resetBtn}>Exit</button>
-          </div>
-        </div>
-      );
+      return <GameComponent mode="scales" difficulty={difficulty} onBack={onBack} difficultySettings={SCALE_DIFFICULTIES}
+        buildQuestion={buildQuestion} getChoiceLabel={c => SCALE_TYPES[c].name} getCorrectAnswer={q => q.scaleType} />;
     }
 
-    // Progression Game Component
+    // Progression Game
     function ProgressionGame({ difficulty, onBack }) {
-      const { settings } = useSettings();
-      const { recordAnswer } = useStats();
-      const { playChordSequence, isPlaying } = useAudio(settings.instrument);
-      const diffSettings = PROGRESSION_DIFFICULTIES[difficulty];
-
-      const [gameState, setGameState] = useState('playing');
-      const [currentProgression, setCurrentProgression] = useState(null);
-      const [currentChords, setCurrentChords] = useState([]);
-      const [choices, setChoices] = useState([]);
-      const [score, setScore] = useState(0);
-      const [streak, setStreak] = useState(0);
-      const [bestStreak, setBestStreak] = useState(0);
-      const [totalPlayed, setTotalPlayed] = useState(0);
-      const [lastResult, setLastResult] = useState(null);
-      const [selectedAnswer, setSelectedAnswer] = useState(null);
-
-      const generateRound = useCallback(() => {
+      const buildQuestion = (diffSettings, audio) => {
         const progressionKey = diffSettings.progressions[Math.floor(Math.random() * diffSettings.progressions.length)];
         const rootNote = NATURAL_NOTES[Math.floor(Math.random() * NATURAL_NOTES.length)];
         const chords = buildProgression(rootNote, progressionKey, 3);
-        const availableProgressions = diffSettings.progressions.filter(p => p !== progressionKey);
-        const wrongChoices = shuffle(availableProgressions).slice(0, diffSettings.choices - 1);
-        const newChoices = shuffle([...wrongChoices, progressionKey]);
-
-        setCurrentProgression(progressionKey);
-        setCurrentChords(chords);
-        setChoices(newChoices);
-        setLastResult(null);
-        setSelectedAnswer(null);
-        setGameState('playing');
-        if (settings.autoPlayOnStart) setTimeout(() => playChordSequence(chords), 300);
-      }, [diffSettings, settings.autoPlayOnStart, playChordSequence]);
-
-      useEffect(() => { generateRound(); }, []);
-
-      const handleGuess = (guess) => {
-        if (gameState !== 'playing') return;
-        const correct = guess === currentProgression;
-        setSelectedAnswer(guess);
-        setTotalPlayed(prev => prev + 1);
-        let newStreak = streak;
-        if (correct) {
-          setScore(prev => prev + 1);
-          newStreak = streak + 1;
-          setStreak(newStreak);
-          if (newStreak > bestStreak) setBestStreak(newStreak);
-          setLastResult({ correct: true, message: 'Correct!' });
-        } else {
-          setStreak(0);
-          newStreak = 0;
-          setLastResult({ correct: false, message: `Wrong! It was ${PROGRESSIONS[currentProgression].name}` });
-        }
-        recordAnswer('progressions', difficulty, correct, newStreak);
-        setGameState('result');
+        const available = diffSettings.progressions.filter(p => p !== progressionKey);
+        const wrong = shuffle(available).slice(0, diffSettings.choices - 1);
+        const choices = shuffle([...wrong, progressionKey]);
+        return { progressionKey, chords, choices, play: () => audio.playChordSequence(chords) };
       };
-
-      return (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <ScoreBoard score={score} total={totalPlayed} streak={streak} bestStreak={bestStreak} />
-          <div style={styles.playSection}>
-            <button onClick={() => currentChords.length && playChordSequence(currentChords)} disabled={isPlaying}
-              style={{ ...styles.playBtn, ...(isPlaying ? styles.playBtnDisabled : {}) }}>
-              <span style={{ fontSize: '1.3rem' }}>{isPlaying ? '🔊' : '▶️'}</span>
-              <span>{isPlaying ? 'Playing...' : 'Play Progression'}</span>
-            </button>
-            <p style={styles.playHint}>Listen to the chord sequence!</p>
-          </div>
-          {lastResult && (
-            <div style={{ ...styles.resultBox, backgroundColor: lastResult.correct ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)', borderColor: lastResult.correct ? '#22c55e' : '#ef4444' }}>
-              {lastResult.message}
-            </div>
-          )}
-          <div style={styles.choicesGrid}>
-            {choices.map((progKey) => (
-              <button key={progKey} onClick={() => handleGuess(progKey)} disabled={gameState === 'result'}
-                style={{ ...styles.choiceBtn, fontSize: '0.85rem', ...(gameState === 'result' && progKey === currentProgression ? styles.choiceBtnCorrect : {}), ...(gameState === 'result' && progKey === selectedAnswer && progKey !== currentProgression ? styles.choiceBtnWrong : {}), ...(gameState === 'result' ? { cursor: 'default' } : {}) }}>
-                {PROGRESSIONS[progKey].name}
-              </button>
-            ))}
-          </div>
-          <div style={styles.actionButtons}>
-            {gameState === 'result' && <button onClick={generateRound} style={styles.nextBtn}>Next →</button>}
-            <button onClick={onBack} style={styles.resetBtn}>Exit</button>
-          </div>
-        </div>
-      );
+      return <GameComponent mode="progressions" difficulty={difficulty} onBack={onBack} difficultySettings={PROGRESSION_DIFFICULTIES}
+        buildQuestion={buildQuestion} getChoiceLabel={c => PROGRESSIONS[c].name} getCorrectAnswer={q => q.progressionKey} />;
     }
 
-    // Learn Navigation
-    function LearnNavigation({ currentPage, setPage }) {
-      const pages = [
-        { id: 'scales', label: 'Scales' },
-        { id: 'chords', label: 'Chords' },
-        { id: 'progressions', label: 'Progressions' },
-      ];
-      return (
-        <div style={{ ...styles.navBar, marginBottom: '20px' }}>
-          {pages.map(p => (
-            <button key={p.id} onClick={() => setPage(p.id)}
-              style={{ ...styles.navBtn, ...(currentPage === p.id ? styles.navBtnActive : {}) }}>
-              {p.label}
-            </button>
-          ))}
-        </div>
-      );
-    }
-
-    // Scales Reference Page
-    function ScalesReference() {
+    // Learn View with Swipe
+    function LearnView() {
       const { settings } = useSettings();
-      const { playSequence, isPlaying } = useAudio(settings.instrument);
+      const audio = useAudio(settings.instrument);
+      const [currentPage, setCurrentPage] = useState('scales');
 
-      return (
-        <div style={{ flex: 1 }}>
-          <h2 style={{ ...styles.cardTitle, marginBottom: '20px' }}>Scales Reference</h2>
+      const ScalesPage = () => (
+        <div>
+          <h2 style={{ ...styles.cardTitle, marginBottom: '16px' }}>Scales</h2>
           {Object.entries(SCALE_TYPES).map(([key, scale]) => {
             const notes = buildScale('C', key, 4);
             const noteNames = scale.intervals.map(i => NOTES[(i % 12)]);
             return (
-              <div key={key} style={styles.refCard}>
-                <div style={styles.refTitle}>{scale.name}</div>
+              <Accordion key={key} title={scale.name} onPlay={() => audio.playSequence(notes, 0.25)} isPlaying={audio.isPlaying}>
                 <div style={styles.refNotes}>{noteNames.join(' - ')}</div>
                 <div style={styles.refDesc}>{scale.description}</div>
-                <button onClick={() => playSequence(notes, 0.25)} disabled={isPlaying} style={styles.playSmallBtn}>
-                  {isPlaying ? 'Playing...' : '▶ Play in C'}
-                </button>
-              </div>
+              </Accordion>
             );
           })}
         </div>
       );
-    }
 
-    // Chords Reference Page
-    function ChordsReference() {
-      const { settings } = useSettings();
-      const { playNotes, isPlaying } = useAudio(settings.instrument);
-
-      return (
-        <div style={{ flex: 1 }}>
-          <h2 style={{ ...styles.cardTitle, marginBottom: '20px' }}>Chords Reference</h2>
+      const ChordsPage = () => (
+        <div>
+          <h2 style={{ ...styles.cardTitle, marginBottom: '16px' }}>Chords</h2>
           {Object.entries(CHORD_TYPES).map(([key, chord]) => {
             const notes = buildChord('C', key, 4);
             const noteNames = chord.intervals.map(i => NOTES[(i % 12)]);
             return (
-              <div key={key} style={styles.refCard}>
-                <div style={styles.refTitle}>C{chord.symbol} - {chord.name}</div>
+              <Accordion key={key} title={`C${chord.symbol} - ${chord.name}`} onPlay={() => audio.playNotes(notes)} isPlaying={audio.isPlaying}>
                 <div style={styles.refNotes}>{noteNames.join(' - ')}</div>
                 <div style={styles.refDesc}>Intervals: {chord.intervals.join(', ')} semitones</div>
-                <button onClick={() => playNotes(notes)} disabled={isPlaying} style={styles.playSmallBtn}>
-                  {isPlaying ? 'Playing...' : '▶ Play Chord'}
-                </button>
-              </div>
+              </Accordion>
             );
           })}
         </div>
       );
-    }
 
-    // Progressions Reference Page
-    function ProgressionsReference() {
-      const { settings } = useSettings();
-      const { playChordSequence, isPlaying } = useAudio(settings.instrument);
-
-      return (
-        <div style={{ flex: 1 }}>
-          <h2 style={{ ...styles.cardTitle, marginBottom: '20px' }}>Progressions Reference</h2>
+      const ProgressionsPage = () => (
+        <div>
+          <h2 style={{ ...styles.cardTitle, marginBottom: '16px' }}>Progressions</h2>
           {Object.entries(PROGRESSIONS).map(([key, prog]) => {
             const chords = buildProgression('C', key, 3);
             return (
-              <div key={key} style={styles.refCard}>
-                <div style={styles.refTitle}>{prog.name}</div>
+              <Accordion key={key} title={prog.name} onPlay={() => audio.playChordSequence(chords)} isPlaying={audio.isPlaying}>
                 <div style={styles.refDesc}>{prog.description}</div>
-                <button onClick={() => playChordSequence(chords)} disabled={isPlaying} style={styles.playSmallBtn}>
-                  {isPlaying ? 'Playing...' : '▶ Play in C'}
-                </button>
-              </div>
+              </Accordion>
             );
           })}
         </div>
       );
-    }
 
-    // Learn View
-    function LearnView() {
-      const [page, setPage] = useState('scales');
+      const pages = { scales: <ScalesPage />, chords: <ChordsPage />, progressions: <ProgressionsPage /> };
+
       return (
         <div style={{ flex: 1 }}>
-          <LearnNavigation currentPage={page} setPage={setPage} />
-          {page === 'scales' && <ScalesReference />}
-          {page === 'chords' && <ChordsReference />}
-          {page === 'progressions' && <ProgressionsReference />}
+          <Breadcrumbs items={[{ label: 'Learn' }]} />
+          <p style={{ textAlign: 'center', color: '#64748b', fontSize: '0.8rem', marginBottom: '12px' }}>Swipe left/right to navigate</p>
+          <SwipeContainer pages={pages} currentPage={currentPage} setCurrentPage={setCurrentPage} />
         </div>
       );
     }
 
-    // Statistics View
+    // Stats View
     function StatsView() {
       const { stats, resetStats } = useStats();
+      const { addToast } = useToast();
       const [shareMessage, setShareMessage] = useState('');
 
-      const getAccuracy = (correct, total) => {
-        if (total === 0) return '0%';
-        return `${Math.round((correct / total) * 100)}%`;
-      };
-
+      const getAccuracy = (correct, total) => total === 0 ? '0%' : `${Math.round((correct / total) * 100)}%`;
       const totalAnswered = Object.keys(GAME_MODES).reduce((sum, key) => sum + stats[key].totalAnswered, 0);
       const totalCorrect = Object.keys(GAME_MODES).reduce((sum, key) => sum + stats[key].totalCorrect, 0);
 
       const handleShare = async () => {
         const text = getShareText(stats);
+        triggerHaptic('light');
         try {
           if (navigator.share) {
             await navigator.share({ title: 'KeyPerfect Stats', text });
           } else if (navigator.clipboard) {
             await navigator.clipboard.writeText(text);
-            setShareMessage('Copied to clipboard!');
-            setTimeout(() => setShareMessage(''), 2000);
+            addToast('Copied to clipboard!', 'success');
           }
-        } catch (err) {
-          console.error('Share failed:', err);
-        }
+        } catch (err) {}
       };
 
       return (
         <div style={{ flex: 1 }}>
+          <Breadcrumbs items={[{ label: 'Stats' }]} />
           <div style={styles.statsCard}>
             <div style={styles.statsTitle}>Overall Stats</div>
             <div style={styles.statsGrid}>
-              <div style={styles.statItem}>
-                <div style={styles.statValue}>{totalAnswered}</div>
-                <div style={styles.statLabel}>Questions</div>
-              </div>
-              <div style={styles.statItem}>
-                <div style={styles.statValue}>{getAccuracy(totalCorrect, totalAnswered)}</div>
-                <div style={styles.statLabel}>Accuracy</div>
-              </div>
+              <div style={styles.statItem}><div style={styles.statValue}>{totalAnswered}</div><div style={styles.statLabel}>Questions</div></div>
+              <div style={styles.statItem}><div style={styles.statValue}>{getAccuracy(totalCorrect, totalAnswered)}</div><div style={styles.statLabel}>Accuracy</div></div>
             </div>
           </div>
-
           {Object.entries(GAME_MODES).map(([key, mode]) => (
             <div key={key} style={styles.statsCard}>
-              <div style={styles.statsTitle}>
-                <span>{mode.icon}</span>
-                <span>{mode.name}</span>
-              </div>
+              <div style={styles.statsTitle}><span>{mode.icon}</span><span>{mode.name}</span></div>
               <div style={styles.statsGrid}>
-                <div style={styles.statItem}>
-                  <div style={styles.statValue}>{stats[key].totalAnswered}</div>
-                  <div style={styles.statLabel}>Answered</div>
-                </div>
-                <div style={styles.statItem}>
-                  <div style={styles.statValue}>{getAccuracy(stats[key].totalCorrect, stats[key].totalAnswered)}</div>
-                  <div style={styles.statLabel}>Accuracy</div>
-                </div>
-                <div style={styles.statItem}>
-                  <div style={styles.statValue}>{stats[key].bestStreak}</div>
-                  <div style={styles.statLabel}>Best Streak</div>
-                </div>
-                <div style={styles.statItem}>
-                  <div style={styles.statValue}>{stats[key].totalCorrect}</div>
-                  <div style={styles.statLabel}>Correct</div>
-                </div>
+                <div style={styles.statItem}><div style={styles.statValue}>{stats[key].totalAnswered}</div><div style={styles.statLabel}>Answered</div></div>
+                <div style={styles.statItem}><div style={styles.statValue}>{getAccuracy(stats[key].totalCorrect, stats[key].totalAnswered)}</div><div style={styles.statLabel}>Accuracy</div></div>
+                <div style={styles.statItem}><div style={styles.statValue}>{stats[key].bestStreak}</div><div style={styles.statLabel}>Best Streak</div></div>
+                <div style={styles.statItem}><div style={styles.statValue}>{stats[key].totalCorrect}</div><div style={styles.statLabel}>Correct</div></div>
               </div>
             </div>
           ))}
-
-          <button onClick={handleShare} style={styles.shareBtn}>
-            📤 Share Results
-          </button>
-          {shareMessage && <p style={{ textAlign: 'center', color: '#22c55e', marginTop: '8px', fontSize: '0.9rem' }}>{shareMessage}</p>}
-
-          <button onClick={() => { if (confirm('Reset all statistics?')) resetStats(); }} style={styles.dangerBtn}>
+          <button onClick={handleShare} className="btn-press" style={styles.shareBtn}>📤 Share Results</button>
+          <button onClick={() => { if (confirm('Reset all statistics?')) { resetStats(); addToast('Stats reset', 'info'); } }} className="btn-press" style={styles.dangerBtn}>
             Reset All Statistics
           </button>
         </div>
@@ -1219,9 +1024,10 @@ Train your ear at KeyPerfect!`;
     // Settings View
     function SettingsView() {
       const { settings, updateSettings } = useSettings();
+      const { sfxEnabled, setSfxEnabled } = useSoundEffects();
 
       const Toggle = ({ checked, onChange }) => (
-        <button onClick={() => onChange(!checked)}
+        <button onClick={() => { onChange(!checked); triggerHaptic('light'); }} className="btn-press"
           style={{ ...styles.toggle, backgroundColor: checked ? '#a855f7' : 'rgba(255, 255, 255, 0.2)' }}>
           <div style={{ ...styles.toggleKnob, left: checked ? '24px' : '2px' }} />
         </button>
@@ -1229,32 +1035,34 @@ Train your ear at KeyPerfect!`;
 
       return (
         <div style={{ flex: 1 }}>
+          <Breadcrumbs items={[{ label: 'Settings' }]} />
           <div style={styles.card}>
             <h3 style={styles.cardTitle}>Settings</h3>
             <div style={styles.settingRow}>
               <span style={styles.settingLabel}>Instrument</span>
               <select value={settings.instrument} onChange={(e) => updateSettings({ instrument: e.target.value })} style={styles.select}>
-                {Object.entries(INSTRUMENTS).map(([key, inst]) => (
-                  <option key={key} value={key}>{inst.name}</option>
-                ))}
+                {Object.entries(INSTRUMENTS).map(([key, inst]) => (<option key={key} value={key}>{inst.name}</option>))}
               </select>
             </div>
             <div style={styles.settingRow}>
               <span style={styles.settingLabel}>Auto-play on new round</span>
               <Toggle checked={settings.autoPlayOnStart} onChange={(val) => updateSettings({ autoPlayOnStart: val })} />
             </div>
+            <div style={styles.settingRow}>
+              <span style={styles.settingLabel}>Sound effects</span>
+              <Toggle checked={sfxEnabled} onChange={setSfxEnabled} />
+            </div>
             <div style={{ ...styles.settingRow, borderBottom: 'none' }}>
               <span style={styles.settingLabel}>Show octave in choices</span>
               <Toggle checked={settings.showOctaveInChoices} onChange={(val) => updateSettings({ showOctaveInChoices: val })} />
             </div>
           </div>
-
           <div style={{ ...styles.card, marginTop: '16px' }}>
             <h3 style={styles.cardTitle}>About</h3>
             <p style={{ color: '#94a3b8', fontSize: '0.9rem', lineHeight: 1.6 }}>
               KeyPerfect is an ear training app to help musicians recognize notes, intervals, chords, scales, and progressions.
             </p>
-            <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '12px' }}>Version 2.1</p>
+            <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '12px' }}>Version 2.2</p>
           </div>
         </div>
       );
@@ -1265,14 +1073,38 @@ Train your ear at KeyPerfect!`;
       const [selectedMode, setSelectedMode] = useState('notes');
       const [selectedDifficulty, setSelectedDifficulty] = useState('easy');
 
+      const getDifficulties = () => {
+        const map = { notes: NOTE_DIFFICULTIES, intervals: INTERVAL_DIFFICULTIES, chords: CHORD_DIFFICULTIES, scales: SCALE_DIFFICULTIES, progressions: PROGRESSION_DIFFICULTIES };
+        return map[selectedMode];
+      };
+
       return (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ flex: 1 }}>
+          <Breadcrumbs items={[{ label: 'Play' }]} />
           <div style={styles.card}>
             <h2 style={styles.cardTitle}>Select Game Mode</h2>
-            <ModeSelection selectedMode={selectedMode} onSelect={setSelectedMode} />
+            <div style={styles.modeGrid}>
+              {Object.entries(GAME_MODES).map(([key, mode]) => (
+                <button key={key} onClick={() => { setSelectedMode(key); triggerHaptic('light'); }}
+                  className="btn-press" style={{ ...styles.modeBtn, ...(selectedMode === key ? styles.modeBtnActive : {}) }}>
+                  <div style={styles.modeIcon}>{mode.icon}</div>
+                  <div style={styles.modeName}>{mode.name}</div>
+                  <div style={styles.modeDesc}>{mode.description}</div>
+                </button>
+              ))}
+            </div>
             <h3 style={{ ...styles.cardTitle, marginTop: '8px' }}>Select Difficulty</h3>
-            <DifficultySelection mode={selectedMode} selectedDifficulty={selectedDifficulty} onSelect={setSelectedDifficulty} />
-            <button onClick={() => onStartGame(selectedMode, selectedDifficulty)} style={styles.startBtn}>
+            <div style={styles.difficultyOptions}>
+              {Object.entries(getDifficulties()).map(([key, diff]) => (
+                <button key={key} onClick={() => { setSelectedDifficulty(key); triggerHaptic('light'); }}
+                  className="btn-press" style={{ ...styles.difficultyBtn, ...(selectedDifficulty === key ? styles.difficultyBtnActive : {}) }}>
+                  <div style={styles.difficultyLabel}>{diff.label}</div>
+                  <div style={styles.difficultyDesc}>{diff.description}</div>
+                </button>
+              ))}
+            </div>
+            <button onClick={() => { onStartGame(selectedMode, selectedDifficulty); triggerHaptic('medium'); }}
+              className="btn-press" style={styles.startBtn}>
               Start Game
             </button>
           </div>
@@ -1289,31 +1121,15 @@ Train your ear at KeyPerfect!`;
       const [gameMode, setGameMode] = useState(null);
       const [gameDifficulty, setGameDifficulty] = useState(null);
 
-      const handleStartGame = (mode, difficulty) => {
-        setGameMode(mode);
-        setGameDifficulty(difficulty);
-      };
-
-      const handleBackToMenu = () => {
-        setGameMode(null);
-        setGameDifficulty(null);
-      };
-
-      const handleTitleClick = () => {
-        setView('play');
-        handleBackToMenu();
-      };
+      const handleStartGame = (mode, difficulty) => { setGameMode(mode); setGameDifficulty(difficulty); };
+      const handleBackToMenu = () => { setGameMode(null); setGameDifficulty(null); };
+      const handleTitleClick = () => { setView('play'); handleBackToMenu(); };
 
       const renderGameView = () => {
         if (!gameMode) return <MainMenu onStartGame={handleStartGame} />;
-        switch (gameMode) {
-          case 'notes': return <NoteGame difficulty={gameDifficulty} onBack={handleBackToMenu} />;
-          case 'intervals': return <IntervalGame difficulty={gameDifficulty} onBack={handleBackToMenu} />;
-          case 'chords': return <ChordGame difficulty={gameDifficulty} onBack={handleBackToMenu} />;
-          case 'scales': return <ScaleGame difficulty={gameDifficulty} onBack={handleBackToMenu} />;
-          case 'progressions': return <ProgressionGame difficulty={gameDifficulty} onBack={handleBackToMenu} />;
-          default: return <MainMenu onStartGame={handleStartGame} />;
-        }
+        const games = { notes: NoteGame, intervals: IntervalGame, chords: ChordGame, scales: ScaleGame, progressions: ProgressionGame };
+        const GameComp = games[gameMode];
+        return <GameComp difficulty={gameDifficulty} onBack={handleBackToMenu} />;
       };
 
       return (
@@ -1323,16 +1139,12 @@ Train your ear at KeyPerfect!`;
             <p style={styles.subtitle}>Train your musical ear</p>
           </header>
 
-          {!gameMode && <Navigation currentView={view} setView={setView} />}
-
           {view === 'play' && renderGameView()}
           {view === 'learn' && !gameMode && <LearnView />}
           {view === 'stats' && !gameMode && <StatsView />}
           {view === 'settings' && !gameMode && <SettingsView />}
 
-          <footer style={styles.footer}>
-            <p>Built with love for music</p>
-          </footer>
+          {!gameMode && <BottomNav currentView={view} setView={setView} />}
         </div>
       );
     }
@@ -1344,7 +1156,9 @@ Train your ear at KeyPerfect!`;
     ReactDOM.render(
       <SettingsProvider>
         <StatsProvider>
-          <App />
+          <ToastProvider>
+            <App />
+          </ToastProvider>
         </StatsProvider>
       </SettingsProvider>,
       document.getElementById('root')
