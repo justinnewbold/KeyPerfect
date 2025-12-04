@@ -340,6 +340,23 @@
     .bonus-float {
       animation: bonusFloat 1s ease-out forwards;
     }
+
+    /* Speed run animations */
+    @keyframes speedRunPulse {
+      0%, 100% { box-shadow: 0 0 10px rgba(236, 72, 153, 0.5); }
+      50% { box-shadow: 0 0 30px rgba(236, 72, 153, 0.8), 0 0 60px rgba(236, 72, 153, 0.4); }
+    }
+    .speed-run-active {
+      animation: speedRunPulse 1s ease-in-out infinite;
+    }
+    @keyframes scorePopIn {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.3); }
+      100% { transform: scale(1); }
+    }
+    .score-pop {
+      animation: scorePopIn 0.3s ease-out;
+    }
   </style>
 </head>
 <body>
@@ -1309,6 +1326,111 @@
       );
     }
 
+    // Mini Piano Visualization Component
+    function MiniPiano({ notes = [], highlightColor = '#a855f7', showLabels = false }) {
+      // Parse notes into a set for quick lookup (e.g., "C4", "E4", "G4")
+      const activeNotes = useMemo(() => {
+        const active = new Set();
+        notes.forEach(note => {
+          if (typeof note === 'string') {
+            // Extract just the note name without octave (e.g., "C4" -> "C")
+            const noteName = note.replace(/\d+/g, '');
+            active.add(noteName);
+          }
+        });
+        return active;
+      }, [notes]);
+
+      // Piano key configuration
+      const whiteKeys = [
+        { note: 'C', offset: 0 },
+        { note: 'D', offset: 1 },
+        { note: 'E', offset: 2 },
+        { note: 'F', offset: 3 },
+        { note: 'G', offset: 4 },
+        { note: 'A', offset: 5 },
+        { note: 'B', offset: 6 },
+      ];
+      const blackKeys = [
+        { note: 'C#', offset: 0.65 },
+        { note: 'D#', offset: 1.65 },
+        { note: 'F#', offset: 3.65 },
+        { note: 'G#', offset: 4.65 },
+        { note: 'A#', offset: 5.65 },
+      ];
+
+      const keyWidth = 28;
+      const keyHeight = 70;
+      const blackKeyWidth = 18;
+      const blackKeyHeight = 42;
+
+      return (
+        <div style={{
+          display: 'inline-flex',
+          position: 'relative',
+          height: keyHeight + (showLabels ? 20 : 0),
+          background: 'rgba(0,0,0,0.3)',
+          borderRadius: '8px',
+          padding: '6px',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
+        }}>
+          {/* White keys */}
+          {whiteKeys.map((key, i) => {
+            const isActive = activeNotes.has(key.note);
+            return (
+              <div key={key.note} style={{
+                width: keyWidth,
+                height: keyHeight,
+                background: isActive
+                  ? `linear-gradient(180deg, ${highlightColor}, ${highlightColor}dd)`
+                  : 'linear-gradient(180deg, #ffffff, #e0e0e0)',
+                borderRadius: '0 0 4px 4px',
+                marginRight: i < whiteKeys.length - 1 ? '2px' : 0,
+                boxShadow: isActive
+                  ? `0 0 15px ${highlightColor}, inset 0 -2px 8px rgba(0,0,0,0.1)`
+                  : 'inset 0 -2px 8px rgba(0,0,0,0.1)',
+                display: 'flex',
+                alignItems: 'flex-end',
+                justifyContent: 'center',
+                paddingBottom: '4px',
+                transition: 'all 0.15s ease'
+              }}>
+                {showLabels && (
+                  <span style={{
+                    fontSize: '0.6rem',
+                    fontWeight: '600',
+                    color: isActive ? 'white' : '#666'
+                  }}>{key.note}</span>
+                )}
+              </div>
+            );
+          })}
+          {/* Black keys */}
+          {blackKeys.map(key => {
+            const isActive = activeNotes.has(key.note);
+            return (
+              <div key={key.note} style={{
+                position: 'absolute',
+                left: 6 + key.offset * (keyWidth + 2),
+                top: 6,
+                width: blackKeyWidth,
+                height: blackKeyHeight,
+                background: isActive
+                  ? `linear-gradient(180deg, ${highlightColor}, ${highlightColor}cc)`
+                  : 'linear-gradient(180deg, #333, #111)',
+                borderRadius: '0 0 3px 3px',
+                boxShadow: isActive
+                  ? `0 0 15px ${highlightColor}`
+                  : '0 2px 4px rgba(0,0,0,0.3)',
+                zIndex: 1,
+                transition: 'all 0.15s ease'
+              }} />
+            );
+          })}
+        </div>
+      );
+    }
+
     // Waveform Visualization Component
     function Waveform({ isPlaying, barCount = 5 }) {
       return (
@@ -1476,6 +1598,29 @@
       }, [setDailyStats]);
 
       return { dailyStats, hasPlayedToday, seed, startDaily, completeDaily, todayStr };
+    }
+
+    // Speed Run Hook
+    function useSpeedRun() {
+      const [speedRunStats, setSpeedRunStats] = useLocalStorage('keyperfect_speedrun', {
+        highScore: 0,
+        lastScore: 0,
+        totalRuns: 0,
+        bestAccuracy: 0,
+      });
+
+      const saveRun = useCallback((score, correct, total) => {
+        const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
+        setSpeedRunStats(prev => ({
+          highScore: Math.max(prev.highScore, score),
+          lastScore: score,
+          totalRuns: prev.totalRuns + 1,
+          bestAccuracy: Math.max(prev.bestAccuracy, accuracy),
+        }));
+        return score > speedRunStats.highScore;
+      }, [speedRunStats.highScore, setSpeedRunStats]);
+
+      return { speedRunStats, saveRun };
     }
 
     // Sound Preview Component
@@ -2360,6 +2505,62 @@
               </div>
             );
           })}
+          {/* History Review Section */}
+          {stats.history && stats.history.length > 0 && (
+            <div style={styles.statsCard}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <div style={styles.statsTitle}>Recent Activity</div>
+                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Last {Math.min(stats.history.length, 20)} answers</span>
+              </div>
+              <div style={{ maxHeight: '300px', overflowY: 'auto', paddingRight: '4px' }}>
+                {stats.history.slice(-20).reverse().map((entry, i) => {
+                  const mode = GAME_MODES[entry.mode];
+                  const timeAgo = (() => {
+                    const diff = Date.now() - entry.timestamp;
+                    if (diff < 60000) return 'just now';
+                    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+                    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+                    return `${Math.floor(diff / 86400000)}d ago`;
+                  })();
+                  const itemLabel = entry.item !== null ? (() => {
+                    if (entry.mode === 'intervals') return INTERVALS[entry.item]?.name || entry.item;
+                    if (entry.mode === 'chords') return CHORD_TYPES[entry.item]?.name || entry.item;
+                    if (entry.mode === 'scales') return SCALE_TYPES[entry.item]?.name || entry.item;
+                    if (entry.mode === 'progressions') return PROGRESSIONS[entry.item]?.name || entry.item;
+                    return entry.item;
+                  })() : null;
+                  return (
+                    <div key={i} style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      padding: '10px 12px', marginBottom: '6px',
+                      background: entry.correct ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                      borderRadius: '10px', borderLeft: `3px solid ${entry.correct ? '#22c55e' : '#ef4444'}`
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ fontSize: '1rem' }}>{mode?.icon || '🎵'}</span>
+                        <div>
+                          <div style={{ fontWeight: '500', fontSize: '0.85rem' }}>{mode?.name || entry.mode}</div>
+                          {itemLabel && <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{itemLabel}</div>}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '0.7rem', color: '#64748b' }}>{timeAgo}</span>
+                        <span style={{
+                          width: '20px', height: '20px', borderRadius: '50%',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: '0.7rem', fontWeight: '700',
+                          background: entry.correct ? '#22c55e' : '#ef4444', color: 'white'
+                        }}>
+                          {entry.correct ? '✓' : '✗'}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <button onClick={handleShare} className="btn-press" style={styles.shareBtn}>📤 Share Results</button>
           <button onClick={() => { if (confirm('Reset all statistics?')) { resetStats(); addToast('Stats reset', 'info'); } }} className="btn-press" style={styles.dangerBtn}>
             Reset All Statistics
@@ -2436,15 +2637,37 @@
               <Toggle checked={settings.timedMode} onChange={(val) => updateSettings({ timedMode: val })} />
             </div>
             {settings.timedMode && (
-              <div style={styles.settingRow}>
-                <span style={styles.settingLabel}>Timer Duration</span>
-                <select value={settings.timerDuration} onChange={(e) => updateSettings({ timerDuration: parseInt(e.target.value) })} style={{ ...styles.select, minWidth: '100px' }}>
-                  <option value={5}>5 sec</option>
-                  <option value={10}>10 sec</option>
-                  <option value={15}>15 sec</option>
-                  <option value={20}>20 sec</option>
-                  <option value={30}>30 sec</option>
-                </select>
+              <div style={{ ...styles.settingRow, flexDirection: 'column', alignItems: 'stretch', gap: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={styles.settingLabel}>Timer Duration</span>
+                  <span style={{ fontSize: '1.1rem', fontWeight: '700', color: '#fbbf24' }}>{settings.timerDuration}s</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>3s</span>
+                  <input
+                    type="range"
+                    min={3}
+                    max={30}
+                    step={1}
+                    value={settings.timerDuration}
+                    onChange={(e) => updateSettings({ timerDuration: parseInt(e.target.value) })}
+                    style={{ flex: 1, background: `linear-gradient(to right, #fbbf24 ${((settings.timerDuration - 3) / 27) * 100}%, rgba(255,255,255,0.2) ${((settings.timerDuration - 3) / 27) * 100}%)` }}
+                  />
+                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>30s</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
+                  {[5, 10, 15, 20].map(t => (
+                    <button key={t} onClick={() => { updateSettings({ timerDuration: t }); triggerHaptic('light'); }}
+                      className="btn-press" style={{
+                        padding: '6px 12px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '600',
+                        border: settings.timerDuration === t ? '2px solid #fbbf24' : '1px solid rgba(255,255,255,0.2)',
+                        background: settings.timerDuration === t ? 'rgba(251, 191, 36, 0.2)' : 'rgba(255,255,255,0.05)',
+                        color: settings.timerDuration === t ? '#fbbf24' : '#94a3b8'
+                      }}>
+                      {t}s
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
             <div style={{ ...styles.settingRow, borderBottom: 'none' }}>
@@ -2529,18 +2752,19 @@
             <p style={{ color: '#94a3b8', fontSize: '0.9rem', lineHeight: 1.6 }}>
               KeyPerfect is an ear training app to help musicians recognize notes, intervals, chords, scales, and progressions.
             </p>
-            <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '12px' }}>Version 6.0</p>
+            <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '12px' }}>Version 7.0</p>
           </div>
         </div>
       );
     }
 
     // Main Menu
-    function MainMenu({ onStartGame, onStartDaily }) {
+    function MainMenu({ onStartGame, onStartDaily, onStartSpeedRun }) {
       const [selectedMode, setSelectedMode] = useState('notes');
       const [selectedDifficulty, setSelectedDifficulty] = useState('easy');
       const { settings } = useSettings();
       const { dailyStats, hasPlayedToday } = useDailyChallenge();
+      const { speedRunStats } = useSpeedRun();
 
       const getDifficulties = () => {
         const map = { notes: NOTE_DIFFICULTIES, intervals: INTERVAL_DIFFICULTIES, chords: CHORD_DIFFICULTIES, scales: SCALE_DIFFICULTIES, progressions: PROGRESSION_DIFFICULTIES };
@@ -2587,6 +2811,34 @@
                   opacity: hasPlayedToday ? 0.6 : 1
                 }}>
                 {hasPlayedToday ? '✓ Done' : 'Play'}
+              </button>
+            </div>
+          </div>
+
+          {/* Speed Run Card */}
+          <div style={{
+            ...styles.card,
+            background: 'linear-gradient(135deg, rgba(236, 72, 153, 0.15), rgba(249, 115, 22, 0.1))',
+            border: '1px solid rgba(236, 72, 153, 0.3)',
+            marginBottom: '16px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <span style={{ fontSize: '1.5rem' }}>⚡</span>
+                  <span style={{ fontSize: '1.1rem', fontWeight: '700', background: 'linear-gradient(135deg, #ec4899, #f97316)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Speed Run</span>
+                </div>
+                <div style={{ fontSize: '0.85rem', color: '#94a3b8' }}>
+                  60 seconds · High Score: <span style={{ color: '#fbbf24', fontWeight: '600' }}>{speedRunStats.highScore}</span>
+                </div>
+              </div>
+              <button onClick={() => { onStartSpeedRun(); triggerHaptic('medium'); }}
+                className="btn-press" style={{
+                  padding: '12px 20px', borderRadius: '12px', border: 'none',
+                  background: 'linear-gradient(135deg, #ec4899, #f97316)',
+                  color: 'white', fontWeight: '700', fontSize: '0.9rem', cursor: 'pointer'
+                }}>
+                Play
               </button>
             </div>
           </div>
@@ -2883,6 +3135,307 @@
       );
     }
 
+    // Speed Run Component - 60 second challenge
+    function SpeedRun({ onBack }) {
+      const { settings } = useSettings();
+      const { addToast } = useToast();
+      const { playSound } = useSoundEffects();
+      const audio = useAudio(settings.instrument, settings.useMidi, settings.volume);
+      const { speedRunStats, saveRun } = useSpeedRun();
+
+      const DURATION = 60; // 60 seconds
+      const [timeLeft, setTimeLeft] = useState(DURATION);
+      const [score, setScore] = useState(0);
+      const [correct, setCorrect] = useState(0);
+      const [total, setTotal] = useState(0);
+      const [gameState, setGameState] = useState('ready'); // ready, playing, finished
+      const [currentQuestion, setCurrentQuestion] = useState(null);
+      const [selectedAnswer, setSelectedAnswer] = useState(null);
+      const [scorePop, setScorePop] = useState(0);
+      const [isNewHighScore, setIsNewHighScore] = useState(false);
+
+      // Generate a random question
+      const generateQuestion = useCallback(() => {
+        const modes = ['notes', 'intervals', 'chords', 'scales'];
+        const mode = modes[Math.floor(Math.random() * modes.length)];
+        let question = null;
+
+        if (mode === 'notes') {
+          const note = NOTES[Math.floor(Math.random() * NOTES.length)];
+          const octave = 4;
+          const available = NOTES.filter(n => n !== note);
+          const wrong = shuffle(available).slice(0, 3);
+          const choices = shuffle([...wrong, note]);
+          question = { mode, note, octave, choices, answer: note, play: () => audio.playNote(note, octave) };
+        } else if (mode === 'intervals') {
+          const intervals = [2, 3, 4, 5, 7, 12];
+          const interval = intervals[Math.floor(Math.random() * intervals.length)];
+          const baseNote = NOTES[Math.floor(Math.random() * NOTES.length)];
+          const baseIndex = getNoteIndex(baseNote);
+          const secondIndex = (baseIndex + interval) % 12;
+          const secondOctave = baseIndex + interval >= 12 ? 5 : 4;
+          const notes = [`${baseNote}4`, `${NOTES[secondIndex]}${secondOctave}`];
+          const available = intervals.filter(i => i !== interval);
+          const wrong = shuffle(available).slice(0, 3);
+          const choices = shuffle([...wrong, interval]);
+          question = { mode, interval, notes, choices, answer: interval, play: () => audio.playSequence(notes) };
+        } else if (mode === 'chords') {
+          const chords = ['major', 'minor', 'diminished', 'augmented'];
+          const chordType = chords[Math.floor(Math.random() * chords.length)];
+          const rootNote = NOTES[Math.floor(Math.random() * NOTES.length)];
+          const notes = buildChord(rootNote, chordType, 4);
+          const available = chords.filter(c => c !== chordType);
+          const wrong = shuffle(available).slice(0, 3);
+          const choices = shuffle([...wrong, chordType]);
+          question = { mode, chordType, notes, choices, answer: chordType, play: () => audio.playNotes(notes) };
+        } else if (mode === 'scales') {
+          const scales = ['major', 'natural_minor', 'pentatonic_major', 'blues'];
+          const scaleType = scales[Math.floor(Math.random() * scales.length)];
+          const rootNote = NATURAL_NOTES[Math.floor(Math.random() * NATURAL_NOTES.length)];
+          const notes = buildScale(rootNote, scaleType, 4);
+          const available = scales.filter(s => s !== scaleType);
+          const wrong = shuffle(available).slice(0, 3);
+          const choices = shuffle([...wrong, scaleType]);
+          question = { mode, scaleType, notes, choices, answer: scaleType, play: () => audio.playSequence(notes, 0.2) };
+        }
+
+        setCurrentQuestion(question);
+        setSelectedAnswer(null);
+        if (question && settings.autoPlayOnStart) {
+          setTimeout(() => question.play(), 200);
+        }
+      }, [audio, settings.autoPlayOnStart]);
+
+      // Timer
+      useEffect(() => {
+        if (gameState !== 'playing') return;
+        if (timeLeft <= 0) {
+          setGameState('finished');
+          const newHigh = saveRun(score, correct, total);
+          setIsNewHighScore(newHigh);
+          if (newHigh) {
+            addToast('🏆 NEW HIGH SCORE!', 'success');
+          }
+          return;
+        }
+        const timer = setTimeout(() => setTimeLeft(t => t - 1), 1000);
+        return () => clearTimeout(timer);
+      }, [timeLeft, gameState, score, correct, total, saveRun, addToast]);
+
+      // Start game
+      const startGame = () => {
+        setGameState('playing');
+        setTimeLeft(DURATION);
+        setScore(0);
+        setCorrect(0);
+        setTotal(0);
+        setIsNewHighScore(false);
+        generateQuestion();
+      };
+
+      // Get choice label
+      const getChoiceLabel = (choice) => {
+        if (!currentQuestion) return '';
+        if (currentQuestion.mode === 'notes') return choice;
+        if (currentQuestion.mode === 'intervals') return INTERVALS[choice]?.name || choice;
+        if (currentQuestion.mode === 'chords') return CHORD_TYPES[choice]?.name || choice;
+        if (currentQuestion.mode === 'scales') return SCALE_TYPES[choice]?.name || choice;
+        return choice;
+      };
+
+      // Handle guess
+      const handleGuess = (guess) => {
+        if (gameState !== 'playing') return;
+        const isCorrect = guess === currentQuestion.answer;
+        setSelectedAnswer(guess);
+        setTotal(t => t + 1);
+
+        if (isCorrect) {
+          playSound('success');
+          triggerHaptic('success');
+          const points = timeLeft > 45 ? 3 : timeLeft > 20 ? 2 : 1; // More points for quick answers
+          setScore(s => s + points);
+          setCorrect(c => c + 1);
+          setScorePop(Date.now());
+        } else {
+          playSound('error');
+          triggerHaptic('error');
+        }
+
+        // Quick transition to next question
+        setTimeout(() => generateQuestion(), isCorrect ? 300 : 600);
+      };
+
+      // Replay
+      const handleReplay = () => {
+        if (currentQuestion?.play) {
+          triggerHaptic('light');
+          currentQuestion.play();
+        }
+      };
+
+      // Keyboard shortcuts
+      useEffect(() => {
+        const handleKeyDown = (e) => {
+          if (e.target.tagName === 'INPUT') return;
+          if ((e.code === 'Space' || e.key === 'r') && currentQuestion?.play && gameState === 'playing') {
+            e.preventDefault();
+            currentQuestion.play();
+          }
+          if (gameState === 'playing' && currentQuestion?.choices) {
+            const num = parseInt(e.key);
+            if (num >= 1 && num <= currentQuestion.choices.length) {
+              e.preventDefault();
+              handleGuess(currentQuestion.choices[num - 1]);
+            }
+          }
+          if (gameState === 'ready' && (e.key === 'Enter' || e.code === 'Space')) {
+            e.preventDefault();
+            startGame();
+          }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+      }, [gameState, currentQuestion]);
+
+      if (audio.isLoading) {
+        return (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }} className="page-enter">
+            <Breadcrumbs items={[{ label: 'Play', onClick: onBack }, { label: 'Speed Run' }]} />
+            <Skeleton height={100} />
+            <Skeleton height={200} />
+          </div>
+        );
+      }
+
+      // Ready state
+      if (gameState === 'ready') {
+        return (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }} className="page-enter">
+            <Breadcrumbs items={[{ label: 'Play', onClick: onBack }, { label: 'Speed Run' }]} />
+            <div style={{ ...styles.card, textAlign: 'center', padding: '32px 20px' }}>
+              <div style={{ fontSize: '3rem', marginBottom: '16px' }}>⚡</div>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '8px', background: 'linear-gradient(135deg, #ec4899, #f97316)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Speed Run</h2>
+              <p style={{ color: '#94a3b8', marginBottom: '24px' }}>Answer as many questions as possible in 60 seconds!</p>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '24px', marginBottom: '24px' }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.8rem', fontWeight: '700', color: '#fbbf24' }}>{speedRunStats.highScore}</div>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase' }}>High Score</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.8rem', fontWeight: '700', color: '#a855f7' }}>{speedRunStats.totalRuns}</div>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase' }}>Total Runs</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.8rem', fontWeight: '700', color: '#22c55e' }}>{speedRunStats.bestAccuracy}%</div>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase' }}>Best Accuracy</div>
+                </div>
+              </div>
+              <button onClick={startGame} className="btn-press floating-btn" style={{
+                padding: '16px 48px', fontSize: '1.1rem', fontWeight: '700', borderRadius: '16px', border: 'none',
+                background: 'linear-gradient(135deg, #ec4899, #f97316)', color: 'white', cursor: 'pointer'
+              }}>
+                START
+              </button>
+            </div>
+            <button onClick={onBack} className="btn-press" style={styles.resetBtn}>Back to Menu</button>
+          </div>
+        );
+      }
+
+      // Finished state
+      if (gameState === 'finished') {
+        const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
+        return (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }} className="page-enter">
+            <Breadcrumbs items={[{ label: 'Play', onClick: onBack }, { label: 'Speed Run' }]} />
+            <Confetti trigger={isNewHighScore ? Date.now() : 0} />
+            <div style={{ ...styles.card, textAlign: 'center', padding: '32px 20px' }}>
+              <div style={{ fontSize: '3rem', marginBottom: '16px' }}>{isNewHighScore ? '🏆' : '⚡'}</div>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '8px', color: isNewHighScore ? '#fbbf24' : 'white' }}>
+                {isNewHighScore ? 'NEW HIGH SCORE!' : 'Time\'s Up!'}
+              </h2>
+              <div style={{ fontSize: '4rem', fontWeight: '800', marginBottom: '16px', background: 'linear-gradient(135deg, #ec4899, #f97316)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{score}</div>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '24px', marginBottom: '24px' }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#22c55e' }}>{correct}/{total}</div>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Correct</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#a855f7' }}>{accuracy}%</div>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Accuracy</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#fbbf24' }}>{speedRunStats.highScore}</div>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b' }}>High Score</div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                <button onClick={startGame} className="btn-press" style={{
+                  padding: '14px 32px', fontSize: '1rem', fontWeight: '700', borderRadius: '12px', border: 'none',
+                  background: 'linear-gradient(135deg, #ec4899, #f97316)', color: 'white', cursor: 'pointer'
+                }}>
+                  Play Again
+                </button>
+                <button onClick={onBack} className="btn-press" style={styles.resetBtn}>Exit</button>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      // Playing state
+      return (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }} className="page-enter">
+          <Breadcrumbs items={[{ label: 'Play', onClick: onBack }, { label: 'Speed Run' }]} />
+
+          {/* Timer and Score Bar */}
+          <div className="speed-run-active" style={{
+            ...styles.card,
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            background: 'linear-gradient(135deg, rgba(236, 72, 153, 0.2), rgba(249, 115, 22, 0.15))',
+            border: '1px solid rgba(236, 72, 153, 0.4)'
+          }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '2rem', fontWeight: '800', color: timeLeft <= 10 ? '#ef4444' : '#ec4899' }} className={timeLeft <= 10 ? 'timer-warning' : ''}>
+                {timeLeft}s
+              </div>
+              <div style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' }}>Time</div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div key={scorePop} className={scorePop ? 'score-pop' : ''} style={{ fontSize: '2.5rem', fontWeight: '800', background: 'linear-gradient(135deg, #ec4899, #f97316)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                {score}
+              </div>
+              <div style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' }}>Score</div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#22c55e' }}>{correct}/{total}</div>
+              <div style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' }}>Correct</div>
+            </div>
+          </div>
+
+          {/* Mode indicator */}
+          <div style={{ textAlign: 'center', fontSize: '0.85rem', color: '#94a3b8' }}>
+            {currentQuestion && GAME_MODES[currentQuestion.mode]?.icon} {currentQuestion && GAME_MODES[currentQuestion.mode]?.name}
+          </div>
+
+          {/* Choices */}
+          <div style={styles.choicesGrid}>
+            {currentQuestion?.choices.map((choice, i) => (
+              <button key={i} onClick={() => handleGuess(choice)}
+                className="btn-press"
+                style={{ ...styles.choiceBtn, fontSize: '0.9rem', position: 'relative' }}>
+                <span style={{ position: 'absolute', top: '4px', left: '8px', fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)', fontWeight: '500' }}>{i + 1}</span>
+                {getChoiceLabel(choice)}
+              </button>
+            ))}
+          </div>
+
+          <FloatingPlayButton onClick={handleReplay} isPlaying={audio.isPlaying} isLoading={audio.isLoading} />
+        </div>
+      );
+    }
+
     // ============================================
     // MAIN APP
     // ============================================
@@ -2891,16 +3444,18 @@
       const [view, setView] = useState('play');
       const [gameMode, setGameMode] = useState(null);
       const [gameDifficulty, setGameDifficulty] = useState(null);
-      const [dailyMode, setDailyMode] = useState(false);
+      const [specialMode, setSpecialMode] = useState(null); // 'daily' | 'speedrun' | null
 
-      const handleStartGame = (mode, difficulty) => { setGameMode(mode); setGameDifficulty(difficulty); setDailyMode(false); };
-      const handleStartDaily = () => { setGameMode('daily'); setDailyMode(true); };
-      const handleBackToMenu = () => { setGameMode(null); setGameDifficulty(null); setDailyMode(false); };
+      const handleStartGame = (mode, difficulty) => { setGameMode(mode); setGameDifficulty(difficulty); setSpecialMode(null); };
+      const handleStartDaily = () => { setGameMode('daily'); setSpecialMode('daily'); };
+      const handleStartSpeedRun = () => { setGameMode('speedrun'); setSpecialMode('speedrun'); };
+      const handleBackToMenu = () => { setGameMode(null); setGameDifficulty(null); setSpecialMode(null); };
       const handleTitleClick = () => { setView('play'); handleBackToMenu(); };
 
       const renderGameView = () => {
-        if (!gameMode) return <MainMenu onStartGame={handleStartGame} onStartDaily={handleStartDaily} />;
-        if (dailyMode) return <DailyChallenge onBack={handleBackToMenu} />;
+        if (!gameMode) return <MainMenu onStartGame={handleStartGame} onStartDaily={handleStartDaily} onStartSpeedRun={handleStartSpeedRun} />;
+        if (specialMode === 'daily') return <DailyChallenge onBack={handleBackToMenu} />;
+        if (specialMode === 'speedrun') return <SpeedRun onBack={handleBackToMenu} />;
         const games = { notes: NoteGame, intervals: IntervalGame, chords: ChordGame, scales: ScaleGame, progressions: ProgressionGame };
         const GameComp = games[gameMode];
         return <GameComp difficulty={gameDifficulty} onBack={handleBackToMenu} />;
