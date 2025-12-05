@@ -357,6 +357,35 @@
     .score-pop {
       animation: scorePopIn 0.3s ease-out;
     }
+
+    /* Survival mode animations */
+    @keyframes heartBeat {
+      0%, 100% { transform: scale(1); }
+      15% { transform: scale(1.3); }
+      30% { transform: scale(1); }
+      45% { transform: scale(1.2); }
+    }
+    .heart-beat {
+      animation: heartBeat 1s ease-in-out;
+    }
+    @keyframes loseLife {
+      0% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.5); opacity: 0.5; }
+      100% { transform: scale(0); opacity: 0; }
+    }
+    .lose-life {
+      animation: loseLife 0.5s ease-out forwards;
+    }
+
+    /* Quest completion animation */
+    @keyframes questComplete {
+      0% { transform: scale(1); background: rgba(251, 191, 36, 0.2); }
+      50% { transform: scale(1.02); background: rgba(251, 191, 36, 0.4); }
+      100% { transform: scale(1); background: rgba(34, 197, 94, 0.3); }
+    }
+    .quest-complete {
+      animation: questComplete 0.5s ease-out forwards;
+    }
   </style>
 </head>
 <body>
@@ -431,6 +460,26 @@
       sus2: { name: 'Suspended 2nd', intervals: [0, 2, 7], symbol: 'sus2' },
       sus4: { name: 'Suspended 4th', intervals: [0, 5, 7], symbol: 'sus4' },
     };
+
+    const CHORD_INVERSIONS = {
+      root: { name: 'Root Position', description: 'Root note is the bass', offset: 0 },
+      first: { name: '1st Inversion', description: '3rd is the bass note', offset: 1 },
+      second: { name: '2nd Inversion', description: '5th is the bass note', offset: 2 },
+    };
+
+    // Daily quest templates
+    const QUEST_TEMPLATES = [
+      { id: 'streak_5', description: 'Get a 5 streak in any mode', target: 5, type: 'streak', icon: '🔥' },
+      { id: 'streak_10', description: 'Get a 10 streak in any mode', target: 10, type: 'streak', icon: '🔥' },
+      { id: 'correct_10', description: 'Answer 10 questions correctly', target: 10, type: 'correct', icon: '✓' },
+      { id: 'correct_25', description: 'Answer 25 questions correctly', target: 25, type: 'correct', icon: '✓' },
+      { id: 'play_intervals', description: 'Play 5 interval questions', target: 5, type: 'mode_intervals', icon: '↔️' },
+      { id: 'play_chords', description: 'Play 5 chord questions', target: 5, type: 'mode_chords', icon: '🎹' },
+      { id: 'play_scales', description: 'Play 5 scale questions', target: 5, type: 'mode_scales', icon: '🎼' },
+      { id: 'perfect_round', description: 'Get 5 correct in a row', target: 5, type: 'streak', icon: '💯' },
+      { id: 'speed_run', description: 'Complete a Speed Run', target: 1, type: 'speedrun', icon: '⚡' },
+      { id: 'daily_challenge', description: 'Complete the Daily Challenge', target: 1, type: 'daily', icon: '📅' },
+    ];
 
     const SCALE_TYPES = {
       major: { name: 'Major', intervals: [0, 2, 4, 5, 7, 9, 11, 12], description: 'Happy, bright sound' },
@@ -1623,6 +1672,160 @@
       return { speedRunStats, saveRun };
     }
 
+    // Survival Mode Hook
+    function useSurvival() {
+      const [survivalStats, setSurvivalStats] = useLocalStorage('keyperfect_survival', {
+        bestScore: 0,
+        totalGames: 0,
+        bestStreak: 0,
+      });
+
+      const saveSurvival = useCallback((score, streak) => {
+        const isNewBest = score > survivalStats.bestScore;
+        setSurvivalStats(prev => ({
+          bestScore: Math.max(prev.bestScore, score),
+          totalGames: prev.totalGames + 1,
+          bestStreak: Math.max(prev.bestStreak, streak),
+        }));
+        return isNewBest;
+      }, [survivalStats.bestScore, setSurvivalStats]);
+
+      return { survivalStats, saveSurvival };
+    }
+
+    // Daily Quests Hook
+    function useDailyQuests() {
+      const [questData, setQuestData] = useLocalStorage('keyperfect_quests', {
+        lastGeneratedDate: null,
+        quests: [],
+        completedToday: 0,
+        totalCompleted: 0,
+      });
+
+      const todayStr = new Date().toISOString().split('T')[0];
+
+      // Generate new quests if it's a new day
+      const generateQuests = useCallback(() => {
+        if (questData.lastGeneratedDate === todayStr) return questData.quests;
+
+        // Pick 3 random quests using seeded random for consistency
+        const seed = getDailySeed();
+        const shuffled = seededShuffle(QUEST_TEMPLATES, seed);
+        const newQuests = shuffled.slice(0, 3).map(q => ({
+          ...q,
+          progress: 0,
+          completed: false,
+        }));
+
+        setQuestData(prev => ({
+          ...prev,
+          lastGeneratedDate: todayStr,
+          quests: newQuests,
+          completedToday: 0,
+        }));
+
+        return newQuests;
+      }, [todayStr, questData.lastGeneratedDate, setQuestData]);
+
+      // Update quest progress
+      const updateQuestProgress = useCallback((type, value = 1) => {
+        setQuestData(prev => {
+          const updatedQuests = prev.quests.map(quest => {
+            if (quest.completed) return quest;
+
+            let shouldUpdate = false;
+            if (quest.type === type) shouldUpdate = true;
+            if (type === 'correct' && quest.type === 'correct') shouldUpdate = true;
+            if (type.startsWith('mode_') && quest.type === type) shouldUpdate = true;
+            if (quest.type === 'streak' && type === 'streak') shouldUpdate = true;
+
+            if (shouldUpdate) {
+              const newProgress = quest.type === 'streak' ? Math.max(quest.progress, value) : quest.progress + value;
+              const completed = newProgress >= quest.target;
+              return { ...quest, progress: newProgress, completed };
+            }
+            return quest;
+          });
+
+          const newCompletedCount = updatedQuests.filter(q => q.completed).length;
+          const prevCompletedCount = prev.quests.filter(q => q.completed).length;
+
+          return {
+            ...prev,
+            quests: updatedQuests,
+            completedToday: newCompletedCount,
+            totalCompleted: prev.totalCompleted + (newCompletedCount - prevCompletedCount),
+          };
+        });
+      }, [setQuestData]);
+
+      // Get current quests (generate if needed)
+      const quests = questData.lastGeneratedDate === todayStr ? questData.quests : generateQuests();
+
+      return { quests, questData, updateQuestProgress, generateQuests };
+    }
+
+    // Practice Heatmap Hook
+    function usePracticeHeatmap() {
+      const [heatmapData, setHeatmapData] = useLocalStorage('keyperfect_heatmap', {
+        days: {}, // { '2024-01-15': { count: 10, correct: 8 }, ... }
+        currentStreak: 0,
+        longestStreak: 0,
+      });
+
+      const todayStr = new Date().toISOString().split('T')[0];
+
+      const recordPractice = useCallback((correct = false) => {
+        setHeatmapData(prev => {
+          const today = prev.days[todayStr] || { count: 0, correct: 0 };
+          const newDays = {
+            ...prev.days,
+            [todayStr]: {
+              count: today.count + 1,
+              correct: today.correct + (correct ? 1 : 0),
+            },
+          };
+
+          // Calculate streak
+          let streak = 1;
+          const date = new Date();
+          date.setDate(date.getDate() - 1);
+          while (newDays[date.toISOString().split('T')[0]]) {
+            streak++;
+            date.setDate(date.getDate() - 1);
+          }
+
+          return {
+            days: newDays,
+            currentStreak: streak,
+            longestStreak: Math.max(prev.longestStreak, streak),
+          };
+        });
+      }, [todayStr, setHeatmapData]);
+
+      const getLast12Weeks = useCallback(() => {
+        const weeks = [];
+        const today = new Date();
+        for (let w = 11; w >= 0; w--) {
+          const week = [];
+          for (let d = 0; d < 7; d++) {
+            const date = new Date(today);
+            date.setDate(date.getDate() - (w * 7 + (6 - d)));
+            const dateStr = date.toISOString().split('T')[0];
+            week.push({
+              date: dateStr,
+              count: heatmapData.days[dateStr]?.count || 0,
+              correct: heatmapData.days[dateStr]?.correct || 0,
+            });
+          }
+          weeks.push(week);
+        }
+        return weeks;
+      }, [heatmapData.days]);
+
+      return { heatmapData, recordPractice, getLast12Weeks, todayStr };
+    }
+
     // Sound Preview Component
     function SoundPreview({ instrument, useMidi, volume }) {
       const audio = useAudio(instrument, useMidi, volume);
@@ -2561,6 +2764,9 @@
             </div>
           )}
 
+          {/* Practice Heatmap */}
+          <PracticeHeatmap />
+
           <button onClick={handleShare} className="btn-press" style={styles.shareBtn}>📤 Share Results</button>
           <button onClick={() => { if (confirm('Reset all statistics?')) { resetStats(); addToast('Stats reset', 'info'); } }} className="btn-press" style={styles.dangerBtn}>
             Reset All Statistics
@@ -2752,19 +2958,20 @@
             <p style={{ color: '#94a3b8', fontSize: '0.9rem', lineHeight: 1.6 }}>
               KeyPerfect is an ear training app to help musicians recognize notes, intervals, chords, scales, and progressions.
             </p>
-            <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '12px' }}>Version 7.0</p>
+            <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '12px' }}>Version 8.0</p>
           </div>
         </div>
       );
     }
 
     // Main Menu
-    function MainMenu({ onStartGame, onStartDaily, onStartSpeedRun }) {
+    function MainMenu({ onStartGame, onStartDaily, onStartSpeedRun, onStartSurvival, onStartInversions }) {
       const [selectedMode, setSelectedMode] = useState('notes');
       const [selectedDifficulty, setSelectedDifficulty] = useState('easy');
       const { settings } = useSettings();
       const { dailyStats, hasPlayedToday } = useDailyChallenge();
       const { speedRunStats } = useSpeedRun();
+      const { survivalStats } = useSurvival();
 
       const getDifficulties = () => {
         const map = { notes: NOTE_DIFFICULTIES, intervals: INTERVAL_DIFFICULTIES, chords: CHORD_DIFFICULTIES, scales: SCALE_DIFFICULTIES, progressions: PROGRESSION_DIFFICULTIES };
@@ -2842,6 +3049,65 @@
               </button>
             </div>
           </div>
+
+          {/* Survival Mode Card */}
+          <div style={{
+            ...styles.card,
+            background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(220, 38, 38, 0.1))',
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+            marginBottom: '16px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <span style={{ fontSize: '1.5rem' }}>❤️</span>
+                  <span style={{ fontSize: '1.1rem', fontWeight: '700', color: '#ef4444' }}>Survival Mode</span>
+                </div>
+                <div style={{ fontSize: '0.85rem', color: '#94a3b8' }}>
+                  3 lives · Best: <span style={{ color: '#ef4444', fontWeight: '600' }}>{survivalStats.bestScore}</span>
+                </div>
+              </div>
+              <button onClick={() => { onStartSurvival(); triggerHaptic('medium'); }}
+                className="btn-press" style={{
+                  padding: '12px 20px', borderRadius: '12px', border: 'none',
+                  background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                  color: 'white', fontWeight: '700', fontSize: '0.9rem', cursor: 'pointer'
+                }}>
+                Play
+              </button>
+            </div>
+          </div>
+
+          {/* Chord Inversions Card */}
+          <div style={{
+            ...styles.card,
+            background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(16, 185, 129, 0.1))',
+            border: '1px solid rgba(34, 197, 94, 0.3)',
+            marginBottom: '16px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <span style={{ fontSize: '1.5rem' }}>🔄</span>
+                  <span style={{ fontSize: '1.1rem', fontWeight: '700', color: '#22c55e' }}>Chord Inversions</span>
+                </div>
+                <div style={{ fontSize: '0.85rem', color: '#94a3b8' }}>
+                  Root · 1st · 2nd inversions
+                </div>
+              </div>
+              <button onClick={() => { onStartInversions(); triggerHaptic('medium'); }}
+                className="btn-press" style={{
+                  padding: '12px 20px', borderRadius: '12px', border: 'none',
+                  background: 'linear-gradient(135deg, #22c55e, #10b981)',
+                  color: 'white', fontWeight: '700', fontSize: '0.9rem', cursor: 'pointer'
+                }}>
+                Play
+              </button>
+            </div>
+          </div>
+
+          {/* Daily Quests */}
+          <DailyQuestsCard />
 
           <div style={styles.card}>
             <h2 style={styles.cardTitle}>Select Game Mode</h2>
@@ -3436,6 +3702,517 @@
       );
     }
 
+    // Survival Mode Component - 3 lives, go as far as you can
+    function SurvivalMode({ onBack }) {
+      const { settings } = useSettings();
+      const { addToast } = useToast();
+      const { playSound } = useSoundEffects();
+      const audio = useAudio(settings.instrument, settings.useMidi, settings.volume);
+      const { survivalStats, saveSurvival } = useSurvival();
+
+      const [lives, setLives] = useState(3);
+      const [score, setScore] = useState(0);
+      const [streak, setStreak] = useState(0);
+      const [bestStreak, setBestStreak] = useState(0);
+      const [gameState, setGameState] = useState('ready');
+      const [currentQuestion, setCurrentQuestion] = useState(null);
+      const [lostLifeKey, setLostLifeKey] = useState(0);
+      const [isNewBest, setIsNewBest] = useState(false);
+
+      const generateQuestion = useCallback(() => {
+        const modes = ['notes', 'intervals', 'chords', 'scales'];
+        const mode = modes[Math.floor(Math.random() * modes.length)];
+        let question = null;
+
+        if (mode === 'notes') {
+          const note = NOTES[Math.floor(Math.random() * NOTES.length)];
+          const octave = 4;
+          const available = NOTES.filter(n => n !== note);
+          const wrong = shuffle(available).slice(0, 3);
+          const choices = shuffle([...wrong, note]);
+          question = { mode, note, octave, choices, answer: note, play: () => audio.playNote(note, octave) };
+        } else if (mode === 'intervals') {
+          const intervals = [2, 3, 4, 5, 7, 12];
+          const interval = intervals[Math.floor(Math.random() * intervals.length)];
+          const baseNote = NOTES[Math.floor(Math.random() * NOTES.length)];
+          const baseIndex = getNoteIndex(baseNote);
+          const secondIndex = (baseIndex + interval) % 12;
+          const secondOctave = baseIndex + interval >= 12 ? 5 : 4;
+          const notes = [`${baseNote}4`, `${NOTES[secondIndex]}${secondOctave}`];
+          const available = intervals.filter(i => i !== interval);
+          const wrong = shuffle(available).slice(0, 3);
+          const choices = shuffle([...wrong, interval]);
+          question = { mode, interval, notes, choices, answer: interval, play: () => audio.playSequence(notes) };
+        } else if (mode === 'chords') {
+          const chords = ['major', 'minor', 'diminished', 'augmented'];
+          const chordType = chords[Math.floor(Math.random() * chords.length)];
+          const rootNote = NOTES[Math.floor(Math.random() * NOTES.length)];
+          const notes = buildChord(rootNote, chordType, 4);
+          const available = chords.filter(c => c !== chordType);
+          const wrong = shuffle(available).slice(0, 3);
+          const choices = shuffle([...wrong, chordType]);
+          question = { mode, chordType, notes, choices, answer: chordType, play: () => audio.playNotes(notes) };
+        } else if (mode === 'scales') {
+          const scales = ['major', 'natural_minor', 'pentatonic_major', 'blues'];
+          const scaleType = scales[Math.floor(Math.random() * scales.length)];
+          const rootNote = NATURAL_NOTES[Math.floor(Math.random() * NATURAL_NOTES.length)];
+          const notes = buildScale(rootNote, scaleType, 4);
+          const available = scales.filter(s => s !== scaleType);
+          const wrong = shuffle(available).slice(0, 3);
+          const choices = shuffle([...wrong, scaleType]);
+          question = { mode, scaleType, notes, choices, answer: scaleType, play: () => audio.playSequence(notes, 0.2) };
+        }
+
+        setCurrentQuestion(question);
+        if (question && settings.autoPlayOnStart) {
+          setTimeout(() => question.play(), 200);
+        }
+      }, [audio, settings.autoPlayOnStart]);
+
+      const startGame = () => {
+        setGameState('playing');
+        setLives(3);
+        setScore(0);
+        setStreak(0);
+        setBestStreak(0);
+        setIsNewBest(false);
+        generateQuestion();
+      };
+
+      const getChoiceLabel = (choice) => {
+        if (!currentQuestion) return '';
+        if (currentQuestion.mode === 'notes') return choice;
+        if (currentQuestion.mode === 'intervals') return INTERVALS[choice]?.name || choice;
+        if (currentQuestion.mode === 'chords') return CHORD_TYPES[choice]?.name || choice;
+        if (currentQuestion.mode === 'scales') return SCALE_TYPES[choice]?.name || choice;
+        return choice;
+      };
+
+      const handleGuess = (guess) => {
+        if (gameState !== 'playing') return;
+        const isCorrect = guess === currentQuestion.answer;
+
+        if (isCorrect) {
+          playSound('success');
+          triggerHaptic('success');
+          setScore(s => s + 1);
+          const newStreak = streak + 1;
+          setStreak(newStreak);
+          if (newStreak > bestStreak) setBestStreak(newStreak);
+          setTimeout(() => generateQuestion(), 300);
+        } else {
+          playSound('error');
+          triggerHaptic('error');
+          setStreak(0);
+          setLostLifeKey(Date.now());
+          const newLives = lives - 1;
+          setLives(newLives);
+
+          if (newLives <= 0) {
+            setGameState('finished');
+            const newBest = saveSurvival(score, bestStreak);
+            setIsNewBest(newBest);
+            if (newBest) addToast('🏆 NEW BEST SCORE!', 'success');
+          } else {
+            addToast(`💔 ${newLives} ${newLives === 1 ? 'life' : 'lives'} remaining`, 'error');
+            setTimeout(() => generateQuestion(), 600);
+          }
+        }
+      };
+
+      const handleReplay = () => {
+        if (currentQuestion?.play) {
+          triggerHaptic('light');
+          currentQuestion.play();
+        }
+      };
+
+      if (audio.isLoading) {
+        return (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }} className="page-enter">
+            <Breadcrumbs items={[{ label: 'Play', onClick: onBack }, { label: 'Survival' }]} />
+            <Skeleton height={100} />
+            <Skeleton height={200} />
+          </div>
+        );
+      }
+
+      if (gameState === 'ready') {
+        return (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }} className="page-enter">
+            <Breadcrumbs items={[{ label: 'Play', onClick: onBack }, { label: 'Survival' }]} />
+            <div style={{ ...styles.card, textAlign: 'center', padding: '32px 20px' }}>
+              <div style={{ fontSize: '3rem', marginBottom: '16px' }}>❤️❤️❤️</div>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '8px', color: '#ef4444' }}>Survival Mode</h2>
+              <p style={{ color: '#94a3b8', marginBottom: '24px' }}>3 lives. One wrong answer = lose a life. How far can you go?</p>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '24px', marginBottom: '24px' }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.8rem', fontWeight: '700', color: '#fbbf24' }}>{survivalStats.bestScore}</div>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase' }}>Best Score</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.8rem', fontWeight: '700', color: '#a855f7' }}>{survivalStats.totalGames}</div>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase' }}>Games</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.8rem', fontWeight: '700', color: '#f97316' }}>{survivalStats.bestStreak}</div>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase' }}>Best Streak</div>
+                </div>
+              </div>
+              <button onClick={startGame} className="btn-press floating-btn" style={{
+                padding: '16px 48px', fontSize: '1.1rem', fontWeight: '700', borderRadius: '16px', border: 'none',
+                background: 'linear-gradient(135deg, #ef4444, #dc2626)', color: 'white', cursor: 'pointer'
+              }}>
+                START
+              </button>
+            </div>
+            <button onClick={onBack} className="btn-press" style={styles.resetBtn}>Back to Menu</button>
+          </div>
+        );
+      }
+
+      if (gameState === 'finished') {
+        return (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }} className="page-enter">
+            <Breadcrumbs items={[{ label: 'Play', onClick: onBack }, { label: 'Survival' }]} />
+            <Confetti trigger={isNewBest ? Date.now() : 0} />
+            <div style={{ ...styles.card, textAlign: 'center', padding: '32px 20px' }}>
+              <div style={{ fontSize: '3rem', marginBottom: '16px' }}>{isNewBest ? '🏆' : '💀'}</div>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '8px', color: isNewBest ? '#fbbf24' : 'white' }}>
+                {isNewBest ? 'NEW BEST!' : 'Game Over'}
+              </h2>
+              <div style={{ fontSize: '4rem', fontWeight: '800', marginBottom: '16px', color: '#ef4444' }}>{score}</div>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '24px', marginBottom: '24px' }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#f97316' }}>{bestStreak}</div>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Best Streak</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#fbbf24' }}>{survivalStats.bestScore}</div>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b' }}>All-Time Best</div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                <button onClick={startGame} className="btn-press" style={{
+                  padding: '14px 32px', fontSize: '1rem', fontWeight: '700', borderRadius: '12px', border: 'none',
+                  background: 'linear-gradient(135deg, #ef4444, #dc2626)', color: 'white', cursor: 'pointer'
+                }}>
+                  Try Again
+                </button>
+                <button onClick={onBack} className="btn-press" style={styles.resetBtn}>Exit</button>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }} className="page-enter">
+          <Breadcrumbs items={[{ label: 'Play', onClick: onBack }, { label: 'Survival' }]} />
+
+          <div style={{
+            ...styles.card,
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.15))',
+            border: '1px solid rgba(239, 68, 68, 0.4)'
+          }}>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {[...Array(3)].map((_, i) => (
+                <span key={i} className={i === lives && lostLifeKey ? 'lose-life' : i < lives ? 'heart-beat' : ''}
+                  style={{ fontSize: '1.8rem', opacity: i < lives ? 1 : 0.2, transition: 'opacity 0.3s' }}>
+                  ❤️
+                </span>
+              ))}
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '2rem', fontWeight: '800', color: '#ef4444' }}>{score}</div>
+              <div style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' }}>Score</div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#f97316' }}>{streak}</div>
+              <div style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' }}>Streak</div>
+            </div>
+          </div>
+
+          <div style={{ textAlign: 'center', fontSize: '0.85rem', color: '#94a3b8' }}>
+            {currentQuestion && GAME_MODES[currentQuestion.mode]?.icon} {currentQuestion && GAME_MODES[currentQuestion.mode]?.name}
+          </div>
+
+          <div style={styles.choicesGrid}>
+            {currentQuestion?.choices.map((choice, i) => (
+              <button key={i} onClick={() => handleGuess(choice)}
+                className="btn-press"
+                style={{ ...styles.choiceBtn, fontSize: '0.9rem', position: 'relative' }}>
+                <span style={{ position: 'absolute', top: '4px', left: '8px', fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)', fontWeight: '500' }}>{i + 1}</span>
+                {getChoiceLabel(choice)}
+              </button>
+            ))}
+          </div>
+
+          <FloatingPlayButton onClick={handleReplay} isPlaying={audio.isPlaying} isLoading={audio.isLoading} />
+        </div>
+      );
+    }
+
+    // Chord Inversions Game
+    function ChordInversionsGame({ onBack }) {
+      const { settings } = useSettings();
+      const { recordAnswer } = useStats();
+      const { addToast } = useToast();
+      const { playSound } = useSoundEffects();
+      const audio = useAudio(settings.instrument, settings.useMidi, settings.volume);
+
+      const [score, setScore] = useState(0);
+      const [streak, setStreak] = useState(0);
+      const [bestStreak, setBestStreak] = useState(0);
+      const [total, setTotal] = useState(0);
+      const [gameState, setGameState] = useState('playing');
+      const [currentQuestion, setCurrentQuestion] = useState(null);
+      const [lastResult, setLastResult] = useState(null);
+
+      const buildInvertedChord = (root, chordType, inversion, octave = 4) => {
+        const chord = CHORD_TYPES[chordType];
+        if (!chord) return [];
+        const rootIndex = getNoteIndex(root);
+        let notes = chord.intervals.map(interval => {
+          const noteIndex = (rootIndex + interval) % 12;
+          return `${NOTES[noteIndex]}${octave}`;
+        });
+        // Apply inversion
+        for (let i = 0; i < inversion; i++) {
+          const note = notes.shift();
+          const noteName = note.replace(/\d+/g, '');
+          const noteOctave = parseInt(note.match(/\d+/)[0]) + 1;
+          notes.push(`${noteName}${noteOctave}`);
+        }
+        return notes;
+      };
+
+      const generateQuestion = useCallback(() => {
+        const chordTypes = ['major', 'minor'];
+        const inversions = ['root', 'first', 'second'];
+        const chordType = chordTypes[Math.floor(Math.random() * chordTypes.length)];
+        const inversion = inversions[Math.floor(Math.random() * inversions.length)];
+        const rootNote = NOTES[Math.floor(Math.random() * NOTES.length)];
+        const inversionIndex = inversions.indexOf(inversion);
+        const notes = buildInvertedChord(rootNote, chordType, inversionIndex, 4);
+        const choices = shuffle(inversions);
+
+        const question = {
+          chordType,
+          rootNote,
+          inversion,
+          notes,
+          choices,
+          answer: inversion,
+          play: () => audio.playNotes(notes),
+        };
+
+        setCurrentQuestion(question);
+        setLastResult(null);
+        setGameState('playing');
+        if (settings.autoPlayOnStart) {
+          setTimeout(() => question.play(), 300);
+        }
+      }, [audio, settings.autoPlayOnStart]);
+
+      useEffect(() => {
+        if (!audio.isLoading) generateQuestion();
+      }, [audio.isLoading]);
+
+      const handleGuess = (guess) => {
+        if (gameState !== 'playing') return;
+        const correct = guess === currentQuestion.answer;
+        setTotal(t => t + 1);
+
+        if (correct) {
+          playSound('success');
+          triggerHaptic('success');
+          setScore(s => s + 1);
+          const newStreak = streak + 1;
+          setStreak(newStreak);
+          if (newStreak > bestStreak) setBestStreak(newStreak);
+          setLastResult({ correct: true, message: '✓ Correct!' });
+        } else {
+          playSound('error');
+          triggerHaptic('error');
+          setStreak(0);
+          setLastResult({ correct: false, message: `✗ It was ${CHORD_INVERSIONS[currentQuestion.answer].name}` });
+        }
+        recordAnswer('chords', 'medium', correct, correct ? streak + 1 : 0, `inv_${currentQuestion.answer}`);
+        setGameState('result');
+      };
+
+      const handleReplay = () => {
+        if (currentQuestion?.play) {
+          triggerHaptic('light');
+          currentQuestion.play();
+        }
+      };
+
+      if (audio.isLoading) {
+        return (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }} className="page-enter">
+            <Breadcrumbs items={[{ label: 'Play', onClick: onBack }, { label: 'Inversions' }]} />
+            <Skeleton height={60} />
+            <Skeleton height={100} />
+          </div>
+        );
+      }
+
+      return (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }} className="page-enter">
+          <Breadcrumbs items={[{ label: 'Play', onClick: onBack }, { label: 'Chord Inversions' }]} />
+
+          <ScoreBoard score={score} streak={streak} total={total} bestStreak={bestStreak} />
+
+          <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.9rem' }}>
+            What inversion is this <span style={{ color: '#a855f7', fontWeight: '600' }}>{currentQuestion?.rootNote} {CHORD_TYPES[currentQuestion?.chordType]?.name}</span> chord?
+          </div>
+
+          {lastResult && (
+            <div style={{ ...styles.resultBox, backgroundColor: lastResult.correct ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)', borderColor: lastResult.correct ? '#22c55e' : '#ef4444' }}>
+              <div style={{ fontSize: '1.2rem' }}>{lastResult.message}</div>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {currentQuestion?.choices.map((choice, i) => {
+              const inv = CHORD_INVERSIONS[choice];
+              const isCorrect = gameState === 'result' && choice === currentQuestion.answer;
+              const isWrong = gameState === 'result' && choice !== currentQuestion.answer;
+              return (
+                <button key={i} onClick={() => handleGuess(choice)} disabled={gameState === 'result'}
+                  className={`btn-press ${isCorrect ? 'glow-green' : ''}`}
+                  style={{
+                    ...styles.choiceBtn, padding: '16px', textAlign: 'left',
+                    ...(isCorrect ? styles.choiceBtnCorrect : {}),
+                    ...(gameState === 'result' && isWrong ? { opacity: 0.5 } : {})
+                  }}>
+                  <div style={{ fontWeight: '600' }}>{inv.name}</div>
+                  <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '4px' }}>{inv.description}</div>
+                </button>
+              );
+            })}
+          </div>
+
+          <div style={styles.actionButtons}>
+            {gameState === 'result' && <button onClick={generateQuestion} className="btn-press" style={styles.nextBtn}>Next →</button>}
+            <button onClick={onBack} className="btn-press" style={styles.resetBtn}>Exit</button>
+          </div>
+
+          <FloatingPlayButton onClick={handleReplay} isPlaying={audio.isPlaying} isLoading={audio.isLoading} />
+        </div>
+      );
+    }
+
+    // Practice Heatmap Component
+    function PracticeHeatmap() {
+      const { heatmapData, getLast12Weeks } = usePracticeHeatmap();
+      const weeks = getLast12Weeks();
+
+      const getColor = (count) => {
+        if (count === 0) return 'rgba(255,255,255,0.05)';
+        if (count < 5) return 'rgba(34, 197, 94, 0.3)';
+        if (count < 15) return 'rgba(34, 197, 94, 0.5)';
+        if (count < 30) return 'rgba(34, 197, 94, 0.7)';
+        return 'rgba(34, 197, 94, 0.9)';
+      };
+
+      return (
+        <div style={{ ...styles.statsCard }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <div style={styles.statsTitle}>Practice Activity</div>
+            <div style={{ display: 'flex', gap: '16px', fontSize: '0.8rem' }}>
+              <span style={{ color: '#22c55e' }}>🔥 {heatmapData.currentStreak} day streak</span>
+              <span style={{ color: '#64748b' }}>Best: {heatmapData.longestStreak}</span>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '3px', overflowX: 'auto', paddingBottom: '8px' }}>
+            {weeks.map((week, wi) => (
+              <div key={wi} style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                {week.map((day, di) => (
+                  <div key={di} title={`${day.date}: ${day.count} questions`}
+                    style={{
+                      width: '12px', height: '12px', borderRadius: '2px',
+                      background: getColor(day.count),
+                      cursor: 'default'
+                    }} />
+                ))}
+              </div>
+            ))}
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', fontSize: '0.7rem', color: '#64748b' }}>
+            <span>12 weeks ago</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span>Less</span>
+              {[0, 5, 15, 30, 50].map(n => (
+                <div key={n} style={{ width: '10px', height: '10px', borderRadius: '2px', background: getColor(n) }} />
+              ))}
+              <span>More</span>
+            </div>
+            <span>Today</span>
+          </div>
+        </div>
+      );
+    }
+
+    // Daily Quests Component
+    function DailyQuestsCard() {
+      const { quests, questData } = useDailyQuests();
+      const completedCount = quests.filter(q => q.completed).length;
+
+      return (
+        <div style={{ ...styles.card, marginBottom: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '1.2rem' }}>📋</span>
+              <span style={{ fontWeight: '700' }}>Daily Quests</span>
+            </div>
+            <span style={{ fontSize: '0.85rem', color: completedCount === 3 ? '#22c55e' : '#94a3b8' }}>
+              {completedCount}/3 Complete
+            </span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {quests.map((quest, i) => (
+              <div key={i} className={quest.completed ? 'quest-complete' : ''}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '12px', borderRadius: '10px',
+                  background: quest.completed ? 'rgba(34, 197, 94, 0.2)' : 'rgba(251, 191, 36, 0.1)',
+                  border: `1px solid ${quest.completed ? 'rgba(34, 197, 94, 0.3)' : 'rgba(251, 191, 36, 0.2)'}`
+                }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '1.2rem' }}>{quest.icon}</span>
+                  <div>
+                    <div style={{ fontWeight: '500', fontSize: '0.9rem', color: quest.completed ? '#22c55e' : 'white' }}>
+                      {quest.description}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                      Progress: {Math.min(quest.progress, quest.target)}/{quest.target}
+                    </div>
+                  </div>
+                </div>
+                {quest.completed ? (
+                  <span style={{ fontSize: '1.2rem' }}>✅</span>
+                ) : (
+                  <div style={{
+                    width: '40px', height: '40px', borderRadius: '50%',
+                    background: `conic-gradient(#fbbf24 ${(quest.progress / quest.target) * 360}deg, rgba(255,255,255,0.1) 0deg)`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                  }}>
+                    <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#1a1a2e', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: '600' }}>
+                      {Math.round((quest.progress / quest.target) * 100)}%
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
     // ============================================
     // MAIN APP
     // ============================================
@@ -3444,18 +4221,22 @@
       const [view, setView] = useState('play');
       const [gameMode, setGameMode] = useState(null);
       const [gameDifficulty, setGameDifficulty] = useState(null);
-      const [specialMode, setSpecialMode] = useState(null); // 'daily' | 'speedrun' | null
+      const [specialMode, setSpecialMode] = useState(null); // 'daily' | 'speedrun' | 'survival' | 'inversions' | null
 
       const handleStartGame = (mode, difficulty) => { setGameMode(mode); setGameDifficulty(difficulty); setSpecialMode(null); };
       const handleStartDaily = () => { setGameMode('daily'); setSpecialMode('daily'); };
       const handleStartSpeedRun = () => { setGameMode('speedrun'); setSpecialMode('speedrun'); };
+      const handleStartSurvival = () => { setGameMode('survival'); setSpecialMode('survival'); };
+      const handleStartInversions = () => { setGameMode('inversions'); setSpecialMode('inversions'); };
       const handleBackToMenu = () => { setGameMode(null); setGameDifficulty(null); setSpecialMode(null); };
       const handleTitleClick = () => { setView('play'); handleBackToMenu(); };
 
       const renderGameView = () => {
-        if (!gameMode) return <MainMenu onStartGame={handleStartGame} onStartDaily={handleStartDaily} onStartSpeedRun={handleStartSpeedRun} />;
+        if (!gameMode) return <MainMenu onStartGame={handleStartGame} onStartDaily={handleStartDaily} onStartSpeedRun={handleStartSpeedRun} onStartSurvival={handleStartSurvival} onStartInversions={handleStartInversions} />;
         if (specialMode === 'daily') return <DailyChallenge onBack={handleBackToMenu} />;
         if (specialMode === 'speedrun') return <SpeedRun onBack={handleBackToMenu} />;
+        if (specialMode === 'survival') return <SurvivalMode onBack={handleBackToMenu} />;
+        if (specialMode === 'inversions') return <ChordInversionsGame onBack={handleBackToMenu} />;
         const games = { notes: NoteGame, intervals: IntervalGame, chords: ChordGame, scales: ScaleGame, progressions: ProgressionGame };
         const GameComp = games[gameMode];
         return <GameComp difficulty={gameDifficulty} onBack={handleBackToMenu} />;
