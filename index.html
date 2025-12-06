@@ -5789,7 +5789,18 @@ Play at keyperfect.app`;
 
       return (
         <div style={styles.container}>
-          <header style={styles.header}>
+          <header style={{ ...styles.header, position: 'relative' }}>
+            {(gameMode || learnMode) && (
+              <button onClick={handleTitleClick} className="btn-press"
+                style={{
+                  position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)',
+                  background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '10px',
+                  padding: '10px 14px', color: 'white', fontSize: '1.2rem', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: '6px'
+                }}>
+                <span>🏠</span>
+              </button>
+            )}
             <h1 style={styles.title} onClick={handleTitleClick}>KeyPerfect</h1>
             <p style={styles.subtitle}>Train your musical ear</p>
           </header>
