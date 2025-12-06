@@ -523,6 +523,124 @@
       pad: { name: 'Ambient Pad', midi: 'pad_2_warm', config: { oscillator: { type: 'fatsine', spread: 30, count: 3 }, envelope: { attack: 0.5, decay: 0.3, sustain: 0.8, release: 2.0 } } },
     };
 
+    // Seventh chord types for dedicated training
+    const SEVENTH_CHORD_TYPES = {
+      major7: { name: 'Major 7th', intervals: [0, 4, 7, 11], symbol: 'maj7', description: 'Dreamy, jazzy sound' },
+      minor7: { name: 'Minor 7th', intervals: [0, 3, 7, 10], symbol: 'm7', description: 'Smooth, mellow sound' },
+      dominant7: { name: 'Dominant 7th', intervals: [0, 4, 7, 10], symbol: '7', description: 'Bluesy, tense sound' },
+      diminished7: { name: 'Diminished 7th', intervals: [0, 3, 6, 9], symbol: 'dim7', description: 'Mysterious, tense sound' },
+      halfDim7: { name: 'Half-Diminished 7th', intervals: [0, 3, 6, 10], symbol: 'm7b5', description: 'Jazz minor ii chord' },
+      minorMaj7: { name: 'Minor Major 7th', intervals: [0, 3, 7, 11], symbol: 'mMaj7', description: 'Dramatic, film noir sound' },
+    };
+
+    // Time signatures for rhythm training
+    const TIME_SIGNATURES = {
+      '4/4': { name: '4/4 (Common Time)', beats: 4, subdivision: 4, pattern: [1, 0, 0.5, 0] },
+      '3/4': { name: '3/4 (Waltz)', beats: 3, subdivision: 4, pattern: [1, 0, 0] },
+      '6/8': { name: '6/8 (Compound Duple)', beats: 6, subdivision: 8, pattern: [1, 0, 0, 0.7, 0, 0] },
+      '2/4': { name: '2/4 (March)', beats: 2, subdivision: 4, pattern: [1, 0] },
+      '5/4': { name: '5/4 (Irregular)', beats: 5, subdivision: 4, pattern: [1, 0, 0.5, 0, 0] },
+      '7/8': { name: '7/8 (Asymmetric)', beats: 7, subdivision: 8, pattern: [1, 0, 0.5, 0, 0.5, 0, 0] },
+    };
+
+    // Tempo ranges for tempo training
+    const TEMPO_RANGES = [
+      { name: 'Largo', min: 40, max: 60, description: 'Very slow' },
+      { name: 'Adagio', min: 60, max: 80, description: 'Slow and stately' },
+      { name: 'Andante', min: 80, max: 100, description: 'Walking pace' },
+      { name: 'Moderato', min: 100, max: 120, description: 'Moderate speed' },
+      { name: 'Allegro', min: 120, max: 160, description: 'Fast and bright' },
+      { name: 'Presto', min: 160, max: 200, description: 'Very fast' },
+    ];
+
+    // XP levels for gamification
+    const XP_LEVELS = [
+      { level: 1, xpRequired: 0, title: 'Beginner', color: '#94a3b8' },
+      { level: 2, xpRequired: 100, title: 'Listener', color: '#22c55e' },
+      { level: 3, xpRequired: 300, title: 'Student', color: '#3b82f6' },
+      { level: 4, xpRequired: 600, title: 'Apprentice', color: '#8b5cf6' },
+      { level: 5, xpRequired: 1000, title: 'Musician', color: '#f59e0b' },
+      { level: 6, xpRequired: 1500, title: 'Artist', color: '#ec4899' },
+      { level: 7, xpRequired: 2200, title: 'Virtuoso', color: '#ef4444' },
+      { level: 8, xpRequired: 3000, title: 'Master', color: '#fbbf24' },
+      { level: 9, xpRequired: 4000, title: 'Maestro', color: '#a855f7' },
+      { level: 10, xpRequired: 5500, title: 'Legend', color: 'linear-gradient(135deg, #fbbf24, #f59e0b, #ec4899, #a855f7)' },
+    ];
+
+    // Weekly challenge templates
+    const WEEKLY_CHALLENGES = [
+      { id: 'accuracy_master', name: 'Accuracy Master', description: 'Get 85% accuracy across 100 questions', target: 100, requirement: 'accuracy', threshold: 85, reward: 200, icon: '🎯' },
+      { id: 'streak_hunter', name: 'Streak Hunter', description: 'Achieve a 20 streak', target: 20, requirement: 'streak', reward: 150, icon: '🔥' },
+      { id: 'mode_explorer', name: 'Mode Explorer', description: 'Play all 5 game modes', target: 5, requirement: 'modes', reward: 100, icon: '🗺️' },
+      { id: 'daily_devotee', name: 'Daily Devotee', description: 'Complete 5 daily challenges this week', target: 5, requirement: 'dailies', reward: 250, icon: '📅' },
+      { id: 'speed_demon', name: 'Speed Demon', description: 'Score 30+ in Speed Run', target: 30, requirement: 'speedrun_score', reward: 175, icon: '⚡' },
+      { id: 'survivor', name: 'Survivor', description: 'Score 25+ in Survival Mode', target: 25, requirement: 'survival_score', reward: 175, icon: '❤️' },
+      { id: 'interval_ace', name: 'Interval Ace', description: 'Answer 50 interval questions correctly', target: 50, requirement: 'mode_correct', mode: 'intervals', reward: 125, icon: '↔️' },
+      { id: 'chord_master', name: 'Chord Master', description: 'Answer 50 chord questions correctly', target: 50, requirement: 'mode_correct', mode: 'chords', reward: 125, icon: '🎹' },
+    ];
+
+    // Unlockable instruments (earned through XP)
+    const UNLOCKABLE_INSTRUMENTS = {
+      celesta: { name: 'Celesta', midi: 'celesta', level: 3, config: { oscillator: { type: 'sine' }, envelope: { attack: 0.01, decay: 0.4, sustain: 0.2, release: 1.5 } } },
+      xylophone: { name: 'Xylophone', midi: 'xylophone', level: 4, config: { oscillator: { type: 'triangle' }, envelope: { attack: 0.001, decay: 0.2, sustain: 0.05, release: 0.5 } } },
+      music_box: { name: 'Music Box', midi: 'music_box', level: 5, config: { oscillator: { type: 'sine' }, envelope: { attack: 0.001, decay: 0.3, sustain: 0.1, release: 1.2 } } },
+      choir: { name: 'Choir', midi: 'choir_aahs', level: 6, config: { oscillator: { type: 'fatsine', spread: 20, count: 3 }, envelope: { attack: 0.3, decay: 0.2, sustain: 0.7, release: 1.0 } } },
+      kalimba: { name: 'Kalimba', midi: 'kalimba', level: 7, config: { oscillator: { type: 'triangle' }, envelope: { attack: 0.001, decay: 0.5, sustain: 0.1, release: 1.8 } } },
+      crystal: { name: 'Crystal', midi: 'pad_6_metallic', level: 8, config: { oscillator: { type: 'sine' }, envelope: { attack: 0.2, decay: 0.4, sustain: 0.5, release: 2.5 } } },
+    };
+
+    // Theme definitions
+    const THEMES = {
+      dark: {
+        name: 'Dark',
+        background: 'linear-gradient(-45deg, #0f0c29, #302b63, #24243e, #0f0c29)',
+        cardBg: 'rgba(255, 255, 255, 0.08)',
+        text: '#ffffff',
+        textSecondary: '#94a3b8',
+        accent: '#a855f7',
+      },
+      light: {
+        name: 'Light',
+        background: 'linear-gradient(-45deg, #f0f4f8, #e2e8f0, #f8fafc, #e2e8f0)',
+        cardBg: 'rgba(0, 0, 0, 0.05)',
+        text: '#1e293b',
+        textSecondary: '#64748b',
+        accent: '#7c3aed',
+      },
+      midnight: {
+        name: 'Midnight',
+        background: 'linear-gradient(-45deg, #0a0a0f, #1a1a2e, #16213e, #0a0a0f)',
+        cardBg: 'rgba(255, 255, 255, 0.05)',
+        text: '#e2e8f0',
+        textSecondary: '#64748b',
+        accent: '#3b82f6',
+      },
+      sunset: {
+        name: 'Sunset',
+        background: 'linear-gradient(-45deg, #1a1a2e, #4a1942, #2d1b4e, #1a1a2e)',
+        cardBg: 'rgba(255, 255, 255, 0.08)',
+        text: '#fef3c7',
+        textSecondary: '#d4a574',
+        accent: '#f97316',
+      },
+    };
+
+    // Circle of fifths data
+    const CIRCLE_OF_FIFTHS = [
+      { major: 'C', minor: 'Am', sharps: 0, flats: 0, position: 0 },
+      { major: 'G', minor: 'Em', sharps: 1, flats: 0, position: 1 },
+      { major: 'D', minor: 'Bm', sharps: 2, flats: 0, position: 2 },
+      { major: 'A', minor: 'F#m', sharps: 3, flats: 0, position: 3 },
+      { major: 'E', minor: 'C#m', sharps: 4, flats: 0, position: 4 },
+      { major: 'B', minor: 'G#m', sharps: 5, flats: 0, position: 5 },
+      { major: 'F#/Gb', minor: 'D#m/Ebm', sharps: 6, flats: 6, position: 6 },
+      { major: 'Db', minor: 'Bbm', sharps: 0, flats: 5, position: 7 },
+      { major: 'Ab', minor: 'Fm', sharps: 0, flats: 4, position: 8 },
+      { major: 'Eb', minor: 'Cm', sharps: 0, flats: 3, position: 9 },
+      { major: 'Bb', minor: 'Gm', sharps: 0, flats: 2, position: 10 },
+      { major: 'F', minor: 'Dm', sharps: 0, flats: 1, position: 11 },
+    ];
+
     const GAME_MODES = {
       notes: { name: 'Note Recognition', icon: '🎵', description: 'Identify single notes' },
       intervals: { name: 'Interval Training', icon: '↔️', description: 'Recognize intervals between notes' },
@@ -1826,6 +1944,222 @@
       return { heatmapData, recordPractice, getLast12Weeks, todayStr };
     }
 
+    // XP and Leveling System Hook
+    function useXP() {
+      const [xpData, setXPData] = useLocalStorage('keyperfect_xp', {
+        totalXP: 0,
+        level: 1,
+        xpHistory: [],
+      });
+
+      const getCurrentLevel = useCallback(() => {
+        for (let i = XP_LEVELS.length - 1; i >= 0; i--) {
+          if (xpData.totalXP >= XP_LEVELS[i].xpRequired) {
+            return XP_LEVELS[i];
+          }
+        }
+        return XP_LEVELS[0];
+      }, [xpData.totalXP]);
+
+      const getNextLevel = useCallback(() => {
+        const current = getCurrentLevel();
+        const nextIdx = XP_LEVELS.findIndex(l => l.level === current.level) + 1;
+        return nextIdx < XP_LEVELS.length ? XP_LEVELS[nextIdx] : null;
+      }, [getCurrentLevel]);
+
+      const getProgress = useCallback(() => {
+        const current = getCurrentLevel();
+        const next = getNextLevel();
+        if (!next) return 100;
+        const progressXP = xpData.totalXP - current.xpRequired;
+        const neededXP = next.xpRequired - current.xpRequired;
+        return Math.round((progressXP / neededXP) * 100);
+      }, [xpData.totalXP, getCurrentLevel, getNextLevel]);
+
+      const addXP = useCallback((amount, source = 'unknown') => {
+        const oldLevel = getCurrentLevel().level;
+        setXPData(prev => {
+          const newTotal = prev.totalXP + amount;
+          const newHistory = [...prev.xpHistory.slice(-49), { amount, source, timestamp: Date.now() }];
+          return { ...prev, totalXP: newTotal, xpHistory: newHistory };
+        });
+        const newLevel = XP_LEVELS.find(l => l.xpRequired <= xpData.totalXP + amount);
+        return newLevel && newLevel.level > oldLevel ? newLevel : null;
+      }, [xpData.totalXP, getCurrentLevel, setXPData]);
+
+      return { xpData, addXP, getCurrentLevel, getNextLevel, getProgress };
+    }
+
+    // Weekly Challenge Hook
+    function useWeeklyChallenge() {
+      const getWeekNumber = () => {
+        const now = new Date();
+        const start = new Date(now.getFullYear(), 0, 1);
+        const diff = now - start;
+        const oneWeek = 1000 * 60 * 60 * 24 * 7;
+        return Math.floor(diff / oneWeek);
+      };
+
+      const [challengeData, setChallengeData] = useLocalStorage('keyperfect_weekly', {
+        weekNumber: getWeekNumber(),
+        challenges: [],
+        progress: {},
+        completed: [],
+      });
+
+      const generateChallenges = useCallback(() => {
+        const currentWeek = getWeekNumber();
+        if (challengeData.weekNumber !== currentWeek || challengeData.challenges.length === 0) {
+          const shuffled = [...WEEKLY_CHALLENGES].sort(() => Math.random() - 0.5);
+          const selected = shuffled.slice(0, 3);
+          setChallengeData({
+            weekNumber: currentWeek,
+            challenges: selected,
+            progress: {},
+            completed: [],
+          });
+          return selected;
+        }
+        return challengeData.challenges;
+      }, [challengeData, setChallengeData]);
+
+      const updateProgress = useCallback((type, value, mode = null) => {
+        setChallengeData(prev => {
+          const newProgress = { ...prev.progress };
+          prev.challenges.forEach(c => {
+            if (c.requirement === type && (!c.mode || c.mode === mode)) {
+              newProgress[c.id] = (newProgress[c.id] || 0) + value;
+            }
+          });
+          const newCompleted = prev.challenges
+            .filter(c => (newProgress[c.id] || 0) >= c.target && !prev.completed.includes(c.id))
+            .map(c => c.id);
+          return {
+            ...prev,
+            progress: newProgress,
+            completed: [...prev.completed, ...newCompleted],
+          };
+        });
+      }, [setChallengeData]);
+
+      return { challengeData, generateChallenges, updateProgress, weekNumber: getWeekNumber() };
+    }
+
+    // Theme Hook
+    function useTheme() {
+      const [theme, setTheme] = useLocalStorage('keyperfect_theme', 'dark');
+
+      const currentTheme = THEMES[theme] || THEMES.dark;
+
+      const applyTheme = useCallback((themeName) => {
+        const t = THEMES[themeName];
+        if (t) {
+          setTheme(themeName);
+          document.body.style.background = t.background;
+          document.body.style.color = t.text;
+        }
+      }, [setTheme]);
+
+      useEffect(() => {
+        applyTheme(theme);
+      }, []);
+
+      return { theme, currentTheme, setTheme: applyTheme, availableThemes: Object.keys(THEMES) };
+    }
+
+    // Spaced Repetition Hook
+    function useSpacedRepetition() {
+      const [srData, setSRData] = useLocalStorage('keyperfect_sr', {
+        items: {}, // { 'intervals:P5': { ease: 2.5, interval: 1, dueDate: timestamp, reps: 0 } }
+      });
+
+      const getItemKey = (mode, item) => `${mode}:${item}`;
+
+      const recordAnswer = useCallback((mode, item, correct) => {
+        const key = getItemKey(mode, item);
+        setSRData(prev => {
+          const existing = prev.items[key] || { ease: 2.5, interval: 1, reps: 0 };
+          let newEase = existing.ease;
+          let newInterval = existing.interval;
+          let newReps = existing.reps;
+
+          if (correct) {
+            newReps++;
+            if (newReps === 1) newInterval = 1;
+            else if (newReps === 2) newInterval = 6;
+            else newInterval = Math.round(existing.interval * newEase);
+            newEase = Math.max(1.3, newEase + 0.1);
+          } else {
+            newReps = 0;
+            newInterval = 1;
+            newEase = Math.max(1.3, newEase - 0.2);
+          }
+
+          const dueDate = Date.now() + newInterval * 24 * 60 * 60 * 1000;
+
+          return {
+            items: {
+              ...prev.items,
+              [key]: { ease: newEase, interval: newInterval, dueDate, reps: newReps },
+            },
+          };
+        });
+      }, [setSRData]);
+
+      const getDueItems = useCallback((mode = null) => {
+        const now = Date.now();
+        return Object.entries(srData.items)
+          .filter(([key, data]) => {
+            const itemMode = key.split(':')[0];
+            return data.dueDate <= now && (!mode || itemMode === mode);
+          })
+          .sort((a, b) => a[1].dueDate - b[1].dueDate)
+          .map(([key]) => {
+            const [m, item] = key.split(':');
+            return { mode: m, item };
+          });
+      }, [srData.items]);
+
+      const getWeakItems = useCallback((limit = 10) => {
+        return Object.entries(srData.items)
+          .sort((a, b) => a[1].ease - b[1].ease)
+          .slice(0, limit)
+          .map(([key, data]) => {
+            const [mode, item] = key.split(':');
+            return { mode, item, ease: data.ease };
+          });
+      }, [srData.items]);
+
+      return { srData, recordAnswer, getDueItems, getWeakItems };
+    }
+
+    // Custom Practice Sets Hook
+    function useCustomPracticeSets() {
+      const [practiceSets, setPracticeSets] = useLocalStorage('keyperfect_practice_sets', {
+        sets: [],
+      });
+
+      const createSet = useCallback((name, items) => {
+        setPracticeSets(prev => ({
+          sets: [...prev.sets, { id: Date.now(), name, items, createdAt: Date.now() }],
+        }));
+      }, [setPracticeSets]);
+
+      const deleteSet = useCallback((id) => {
+        setPracticeSets(prev => ({
+          sets: prev.sets.filter(s => s.id !== id),
+        }));
+      }, [setPracticeSets]);
+
+      const updateSet = useCallback((id, updates) => {
+        setPracticeSets(prev => ({
+          sets: prev.sets.map(s => s.id === id ? { ...s, ...updates } : s),
+        }));
+      }, [setPracticeSets]);
+
+      return { practiceSets: practiceSets.sets, createSet, deleteSet, updateSet };
+    }
+
     // Sound Preview Component
     function SoundPreview({ instrument, useMidi, volume }) {
       const audio = useAudio(instrument, useMidi, volume);
@@ -2384,7 +2718,7 @@
     }
 
     // Learn View with Swipe
-    function LearnView() {
+    function LearnView({ onCircleOfFifths, onReferenceLibrary }) {
       const { settings } = useSettings();
       const audio = useAudio(settings.instrument, settings.useMidi, settings.volume);
       const [currentPage, setCurrentPage] = useState('intervals');
@@ -2474,6 +2808,21 @@
       return (
         <div style={{ flex: 1 }} className="page-enter">
           <Breadcrumbs items={[{ label: 'Learn' }]} />
+
+          {/* Learning Tools */}
+          <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+            <button onClick={onCircleOfFifths} className="btn-press card-lift"
+              style={{ flex: 1, padding: '16px', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(99, 102, 241, 0.1))', color: 'white', textAlign: 'center' }}>
+              <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>⭕</div>
+              <div style={{ fontWeight: '600' }}>Circle of Fifths</div>
+            </button>
+            <button onClick={onReferenceLibrary} className="btn-press card-lift"
+              style={{ flex: 1, padding: '16px', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(139, 92, 246, 0.1))', color: 'white', textAlign: 'center' }}>
+              <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>📚</div>
+              <div style={{ fontWeight: '600' }}>Reference Library</div>
+            </button>
+          </div>
+
           <p style={{ textAlign: 'center', color: '#64748b', fontSize: '0.8rem', marginBottom: '12px' }}>Swipe left/right to navigate</p>
           <SwipeContainer pages={pages} currentPage={currentPage} setCurrentPage={setCurrentPage} />
         </div>
@@ -2953,21 +3302,30 @@
             </div>
           </div>
 
+          {/* Theme Settings */}
+          <div style={{ ...styles.card, marginTop: '16px' }}>
+            <h3 style={styles.cardTitle}>Appearance</h3>
+            <div style={{ marginTop: '12px' }}>
+              <ThemeSelector />
+            </div>
+          </div>
+
           <div style={{ ...styles.card, marginTop: '16px' }}>
             <h3 style={styles.cardTitle}>About</h3>
             <p style={{ color: '#94a3b8', fontSize: '0.9rem', lineHeight: 1.6 }}>
               KeyPerfect is an ear training app to help musicians recognize notes, intervals, chords, scales, and progressions.
             </p>
-            <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '12px' }}>Version 8.0</p>
+            <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '12px' }}>Version 9.0</p>
           </div>
         </div>
       );
     }
 
     // Main Menu
-    function MainMenu({ onStartGame, onStartDaily, onStartSpeedRun, onStartSurvival, onStartInversions }) {
+    function MainMenu({ onStartGame, onStartDaily, onStartSpeedRun, onStartSurvival, onStartInversions, onStartSeventhChords, onStartMelodicDictation, onStartRelativePitch, onStartTempo, onStartTimeSignature }) {
       const [selectedMode, setSelectedMode] = useState('notes');
       const [selectedDifficulty, setSelectedDifficulty] = useState('easy');
+      const [showAdvanced, setShowAdvanced] = useState(false);
       const { settings } = useSettings();
       const { dailyStats, hasPlayedToday } = useDailyChallenge();
       const { speedRunStats } = useSpeedRun();
@@ -2981,6 +3339,9 @@
       return (
         <div style={{ flex: 1 }} className="page-enter">
           <Breadcrumbs items={[{ label: 'Play' }]} />
+
+          {/* XP Display */}
+          <XPDisplayCard />
 
           {/* Daily Challenge Card */}
           <div className={hasPlayedToday ? '' : 'daily-badge'} style={{
@@ -3108,6 +3469,52 @@
 
           {/* Daily Quests */}
           <DailyQuestsCard />
+
+          {/* Weekly Challenges */}
+          <WeeklyChallengesCard />
+
+          {/* Advanced Training Modes */}
+          <div style={{ ...styles.card, marginBottom: '16px' }}>
+            <button onClick={() => setShowAdvanced(!showAdvanced)} className="btn-press"
+              style={{ background: 'none', border: 'none', color: 'white', width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: '0' }}>
+              <h2 style={{ ...styles.cardTitle, margin: 0 }}>Advanced Training</h2>
+              <span style={{ transform: showAdvanced ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.3s' }}>▼</span>
+            </button>
+            <div className="accordion-content" style={{ maxHeight: showAdvanced ? '600px' : '0', opacity: showAdvanced ? 1 : 0, marginTop: showAdvanced ? '16px' : '0' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+                <button onClick={() => { onStartSeventhChords(); triggerHaptic('medium'); }} className="btn-press card-lift"
+                  style={{ padding: '16px', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(168, 85, 247, 0.1))', color: 'white', textAlign: 'left' }}>
+                  <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>🎹</div>
+                  <div style={{ fontWeight: '600', marginBottom: '4px' }}>7th Chords</div>
+                  <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>maj7, m7, dom7, dim7</div>
+                </button>
+                <button onClick={() => { onStartMelodicDictation(); triggerHaptic('medium'); }} className="btn-press card-lift"
+                  style={{ padding: '16px', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(99, 102, 241, 0.1))', color: 'white', textAlign: 'left' }}>
+                  <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>🎶</div>
+                  <div style={{ fontWeight: '600', marginBottom: '4px' }}>Melodic Dictation</div>
+                  <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Transcribe melodies</div>
+                </button>
+                <button onClick={() => { onStartRelativePitch(); triggerHaptic('medium'); }} className="btn-press card-lift"
+                  style={{ padding: '16px', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(16, 185, 129, 0.1))', color: 'white', textAlign: 'left' }}>
+                  <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>🎯</div>
+                  <div style={{ fontWeight: '600', marginBottom: '4px' }}>Relative Pitch</div>
+                  <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Intervals from reference</div>
+                </button>
+                <button onClick={() => { onStartTempo(); triggerHaptic('medium'); }} className="btn-press card-lift"
+                  style={{ padding: '16px', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg, rgba(249, 115, 22, 0.2), rgba(251, 146, 60, 0.1))', color: 'white', textAlign: 'left' }}>
+                  <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>🥁</div>
+                  <div style={{ fontWeight: '600', marginBottom: '4px' }}>Tempo Trainer</div>
+                  <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Guess the BPM</div>
+                </button>
+                <button onClick={() => { onStartTimeSignature(); triggerHaptic('medium'); }} className="btn-press card-lift"
+                  style={{ padding: '16px', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg, rgba(236, 72, 153, 0.2), rgba(219, 39, 119, 0.1))', color: 'white', textAlign: 'left', gridColumn: 'span 2' }}>
+                  <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>🎵</div>
+                  <div style={{ fontWeight: '600', marginBottom: '4px' }}>Time Signatures</div>
+                  <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>4/4, 3/4, 6/8, and more</div>
+                </button>
+              </div>
+            </div>
+          </div>
 
           <div style={styles.card}>
             <h2 style={styles.cardTitle}>Select Game Mode</h2>
@@ -4106,6 +4513,1116 @@
       );
     }
 
+    // Seventh Chords Dedicated Training
+    function SeventhChordsGame({ onBack }) {
+      const { settings } = useSettings();
+      const { recordAnswer } = useStats();
+      const { addToast } = useToast();
+      const { playSound } = useSoundEffects();
+      const audio = useAudio(settings.instrument, settings.useMidi, settings.volume);
+      const { addXP } = useXP();
+
+      const [score, setScore] = useState(0);
+      const [streak, setStreak] = useState(0);
+      const [bestStreak, setBestStreak] = useState(0);
+      const [total, setTotal] = useState(0);
+      const [currentQuestion, setCurrentQuestion] = useState(null);
+      const [lastResult, setLastResult] = useState(null);
+      const [gameState, setGameState] = useState('playing');
+
+      const generateQuestion = useCallback(() => {
+        const chordTypes = Object.keys(SEVENTH_CHORD_TYPES);
+        const chordType = chordTypes[Math.floor(Math.random() * chordTypes.length)];
+        const rootNote = NOTES[Math.floor(Math.random() * NOTES.length)];
+        const chord = SEVENTH_CHORD_TYPES[chordType];
+        const rootIndex = getNoteIndex(rootNote);
+        const notes = chord.intervals.map(interval => {
+          const noteIndex = (rootIndex + interval) % 12;
+          const octave = rootIndex + interval >= 12 ? 5 : 4;
+          return `${NOTES[noteIndex]}${octave}`;
+        });
+        const choices = shuffle(chordTypes).slice(0, 4);
+        if (!choices.includes(chordType)) choices[0] = chordType;
+
+        const question = {
+          chordType,
+          rootNote,
+          notes,
+          choices: shuffle(choices),
+          answer: chordType,
+          play: () => audio.playNotes(notes),
+        };
+
+        setCurrentQuestion(question);
+        setLastResult(null);
+        setGameState('playing');
+        if (settings.autoPlayOnStart) setTimeout(() => question.play(), 300);
+      }, [audio, settings.autoPlayOnStart]);
+
+      useEffect(() => {
+        if (!audio.isLoading) generateQuestion();
+      }, [audio.isLoading]);
+
+      const handleGuess = (guess) => {
+        if (gameState !== 'playing') return;
+        const correct = guess === currentQuestion.answer;
+        setTotal(t => t + 1);
+
+        if (correct) {
+          playSound('success');
+          triggerHaptic('success');
+          setScore(s => s + 1);
+          const newStreak = streak + 1;
+          setStreak(newStreak);
+          if (newStreak > bestStreak) setBestStreak(newStreak);
+          setLastResult({ correct: true, message: '✓ Correct!' });
+          addXP(15, 'seventh_chords');
+        } else {
+          playSound('error');
+          triggerHaptic('error');
+          setStreak(0);
+          setLastResult({ correct: false, message: `✗ It was ${SEVENTH_CHORD_TYPES[currentQuestion.answer].name}` });
+        }
+        recordAnswer('chords', 'hard', correct, correct ? streak + 1 : 0, `7th_${currentQuestion.answer}`);
+        setGameState('result');
+      };
+
+      if (audio.isLoading) {
+        return (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }} className="page-enter">
+            <Breadcrumbs items={[{ label: 'Play', onClick: onBack }, { label: '7th Chords' }]} />
+            <div style={{ ...styles.card, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div>Loading sounds...</div>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }} className="page-enter">
+          <Breadcrumbs items={[{ label: 'Play', onClick: onBack }, { label: '7th Chords' }]} />
+
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '24px', padding: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px' }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#22c55e' }}>{score}/{total}</div>
+              <div style={{ fontSize: '0.7rem', color: '#64748b' }}>Score</div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#f97316' }}>{streak}</div>
+              <div style={{ fontSize: '0.7rem', color: '#64748b' }}>Streak</div>
+            </div>
+          </div>
+
+          {currentQuestion && (
+            <div style={styles.card}>
+              <h3 style={{ textAlign: 'center', marginBottom: '20px', color: '#e2e8f0' }}>
+                What type of 7th chord is this?
+              </h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                {currentQuestion.choices.map((choice) => (
+                  <button key={choice} onClick={() => handleGuess(choice)}
+                    disabled={gameState !== 'playing'}
+                    className="btn-press" style={{
+                      ...styles.choiceBtn,
+                      background: gameState === 'result' && choice === currentQuestion.answer
+                        ? 'linear-gradient(135deg, #22c55e, #16a34a)'
+                        : gameState === 'result' && lastResult && !lastResult.correct && choice !== currentQuestion.answer
+                        ? 'rgba(255,255,255,0.05)'
+                        : 'linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(168, 85, 247, 0.2))',
+                    }}>
+                    <div style={{ fontWeight: '700', marginBottom: '4px' }}>{SEVENTH_CHORD_TYPES[choice].name}</div>
+                    <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{SEVENTH_CHORD_TYPES[choice].symbol}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {lastResult && (
+            <div style={{
+              ...styles.feedbackCard,
+              background: lastResult.correct ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+            }}>
+              <span style={{ fontSize: '1.1rem' }}>{lastResult.message}</span>
+              {!lastResult.correct && currentQuestion && (
+                <span style={{ fontSize: '0.85rem', color: '#94a3b8', marginTop: '4px' }}>
+                  {SEVENTH_CHORD_TYPES[currentQuestion.answer].description}
+                </span>
+              )}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: '12px' }}>
+            {gameState === 'result' && (
+              <button onClick={generateQuestion} className="btn-press floating-btn" style={{ ...styles.startBtn, flex: 1 }}>
+                Next
+              </button>
+            )}
+            <button onClick={onBack} className="btn-press" style={styles.resetBtn}>Exit</button>
+          </div>
+
+          <FloatingPlayButton onClick={() => currentQuestion?.play()} isPlaying={audio.isPlaying} isLoading={audio.isLoading} />
+        </div>
+      );
+    }
+
+    // Melodic Dictation Game
+    function MelodicDictation({ onBack }) {
+      const { settings } = useSettings();
+      const audio = useAudio(settings.instrument, settings.useMidi, settings.volume);
+      const { playSound } = useSoundEffects();
+      const { addXP } = useXP();
+
+      const [score, setScore] = useState(0);
+      const [total, setTotal] = useState(0);
+      const [melody, setMelody] = useState([]);
+      const [userGuess, setUserGuess] = useState([]);
+      const [gameState, setGameState] = useState('listening');
+      const [difficulty, setDifficulty] = useState(3); // Number of notes
+
+      const generateMelody = useCallback(() => {
+        const notes = [];
+        for (let i = 0; i < difficulty; i++) {
+          const note = NATURAL_NOTES[Math.floor(Math.random() * NATURAL_NOTES.length)];
+          notes.push(note);
+        }
+        setMelody(notes);
+        setUserGuess([]);
+        setGameState('listening');
+        setTimeout(() => playMelody(notes), 500);
+      }, [difficulty]);
+
+      const playMelody = (notes) => {
+        notes.forEach((note, i) => {
+          setTimeout(() => audio.playNote(`${note}4`), i * 600);
+        });
+      };
+
+      useEffect(() => {
+        if (!audio.isLoading) generateMelody();
+      }, [audio.isLoading, difficulty]);
+
+      const handleNoteClick = (note) => {
+        if (gameState !== 'guessing') return;
+        const newGuess = [...userGuess, note];
+        setUserGuess(newGuess);
+
+        if (newGuess.length === melody.length) {
+          const correct = newGuess.every((n, i) => n === melody[i]);
+          setTotal(t => t + 1);
+          if (correct) {
+            playSound('success');
+            setScore(s => s + 1);
+            addXP(20 + difficulty * 5, 'melodic_dictation');
+          } else {
+            playSound('error');
+          }
+          setGameState(correct ? 'correct' : 'wrong');
+        }
+      };
+
+      const startGuessing = () => setGameState('guessing');
+
+      if (audio.isLoading) {
+        return (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }} className="page-enter">
+            <Breadcrumbs items={[{ label: 'Play', onClick: onBack }, { label: 'Melodic Dictation' }]} />
+            <div style={{ ...styles.card, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div>Loading sounds...</div>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }} className="page-enter">
+          <Breadcrumbs items={[{ label: 'Play', onClick: onBack }, { label: 'Melodic Dictation' }]} />
+
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '24px', padding: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px' }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#22c55e' }}>{score}/{total}</div>
+              <div style={{ fontSize: '0.7rem', color: '#64748b' }}>Score</div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#a855f7' }}>{difficulty}</div>
+              <div style={{ fontSize: '0.7rem', color: '#64748b' }}>Notes</div>
+            </div>
+          </div>
+
+          <div style={styles.card}>
+            <h3 style={{ textAlign: 'center', marginBottom: '16px' }}>
+              {gameState === 'listening' ? 'Listen carefully...' :
+               gameState === 'guessing' ? `Enter ${melody.length} notes (${userGuess.length}/${melody.length})` :
+               gameState === 'correct' ? '✓ Perfect!' : `✗ It was: ${melody.join(' → ')}`}
+            </h3>
+
+            {gameState === 'guessing' && (
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
+                {userGuess.map((note, i) => (
+                  <div key={i} style={{ padding: '8px 16px', background: 'rgba(168, 85, 247, 0.3)', borderRadius: '8px', fontWeight: '600' }}>
+                    {note}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {gameState === 'listening' && (
+              <button onClick={startGuessing} className="btn-press floating-btn" style={{ ...styles.startBtn, width: '100%' }}>
+                Ready to guess!
+              </button>
+            )}
+
+            {gameState === 'guessing' && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px' }}>
+                {NATURAL_NOTES.map(note => (
+                  <button key={note} onClick={() => handleNoteClick(note)}
+                    className="btn-press" style={{
+                      padding: '16px 8px', borderRadius: '10px', border: 'none',
+                      background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(139, 92, 246, 0.2))',
+                      color: 'white', fontWeight: '700', fontSize: '1rem'
+                    }}>
+                    {note}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {(gameState === 'correct' || gameState === 'wrong') && (
+              <button onClick={generateMelody} className="btn-press floating-btn" style={{ ...styles.startBtn, width: '100%' }}>
+                Next Melody
+              </button>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+            {[3, 4, 5, 6].map(d => (
+              <button key={d} onClick={() => setDifficulty(d)}
+                className="btn-press" style={{
+                  padding: '8px 16px', borderRadius: '8px', border: 'none',
+                  background: d === difficulty ? 'linear-gradient(135deg, #a855f7, #ec4899)' : 'rgba(255,255,255,0.1)',
+                  color: 'white', fontWeight: '600'
+                }}>
+                {d} notes
+              </button>
+            ))}
+          </div>
+
+          <button onClick={onBack} className="btn-press" style={styles.resetBtn}>Exit</button>
+          <FloatingPlayButton onClick={() => playMelody(melody)} isPlaying={audio.isPlaying} isLoading={audio.isLoading} />
+        </div>
+      );
+    }
+
+    // Relative Pitch Game
+    function RelativePitchGame({ onBack }) {
+      const { settings } = useSettings();
+      const audio = useAudio(settings.instrument, settings.useMidi, settings.volume);
+      const { playSound } = useSoundEffects();
+      const { addXP } = useXP();
+
+      const [score, setScore] = useState(0);
+      const [total, setTotal] = useState(0);
+      const [referenceNote, setReferenceNote] = useState('C');
+      const [targetInterval, setTargetInterval] = useState(null);
+      const [gameState, setGameState] = useState('playing');
+      const [lastResult, setLastResult] = useState(null);
+
+      const generateQuestion = useCallback(() => {
+        const intervals = [2, 3, 4, 5, 7, 8, 9, 12];
+        const interval = intervals[Math.floor(Math.random() * intervals.length)];
+        setTargetInterval(interval);
+        setGameState('playing');
+        setLastResult(null);
+        setTimeout(() => {
+          audio.playNote(`${referenceNote}4`);
+          setTimeout(() => {
+            const refIdx = getNoteIndex(referenceNote);
+            const targetIdx = (refIdx + interval) % 12;
+            const targetOctave = refIdx + interval >= 12 ? 5 : 4;
+            audio.playNote(`${NOTES[targetIdx]}${targetOctave}`);
+          }, 800);
+        }, 300);
+      }, [referenceNote, audio]);
+
+      useEffect(() => {
+        if (!audio.isLoading) generateQuestion();
+      }, [audio.isLoading, referenceNote]);
+
+      const handleGuess = (guessedInterval) => {
+        if (gameState !== 'playing') return;
+        const correct = guessedInterval === targetInterval;
+        setTotal(t => t + 1);
+
+        if (correct) {
+          playSound('success');
+          setScore(s => s + 1);
+          addXP(12, 'relative_pitch');
+          setLastResult({ correct: true, message: '✓ Correct!' });
+        } else {
+          playSound('error');
+          setLastResult({ correct: false, message: `✗ It was ${INTERVALS[targetInterval]?.name || targetInterval}` });
+        }
+        setGameState('result');
+      };
+
+      const intervalChoices = [2, 3, 4, 5, 7, 8, 9, 12];
+
+      if (audio.isLoading) {
+        return (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }} className="page-enter">
+            <Breadcrumbs items={[{ label: 'Play', onClick: onBack }, { label: 'Relative Pitch' }]} />
+            <div style={{ ...styles.card, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div>Loading sounds...</div>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }} className="page-enter">
+          <Breadcrumbs items={[{ label: 'Play', onClick: onBack }, { label: 'Relative Pitch' }]} />
+
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '24px', padding: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px' }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#22c55e' }}>{score}/{total}</div>
+              <div style={{ fontSize: '0.7rem', color: '#64748b' }}>Score</div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#3b82f6' }}>{referenceNote}</div>
+              <div style={{ fontSize: '0.7rem', color: '#64748b' }}>Reference</div>
+            </div>
+          </div>
+
+          <div style={styles.card}>
+            <h3 style={{ textAlign: 'center', marginBottom: '16px' }}>
+              What interval from {referenceNote}?
+            </h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
+              {intervalChoices.map(int => (
+                <button key={int} onClick={() => handleGuess(int)}
+                  disabled={gameState !== 'playing'}
+                  className="btn-press" style={{
+                    ...styles.choiceBtn,
+                    background: gameState === 'result' && int === targetInterval
+                      ? 'linear-gradient(135deg, #22c55e, #16a34a)'
+                      : 'linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(139, 92, 246, 0.2))',
+                  }}>
+                  {INTERVALS[int]?.name || int}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {lastResult && (
+            <div style={{
+              ...styles.feedbackCard,
+              background: lastResult.correct ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+            }}>
+              {lastResult.message}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
+            {['C', 'D', 'E', 'F', 'G', 'A', 'B'].map(note => (
+              <button key={note} onClick={() => setReferenceNote(note)}
+                className="btn-press" style={{
+                  padding: '8px 12px', borderRadius: '8px', border: 'none',
+                  background: note === referenceNote ? 'linear-gradient(135deg, #3b82f6, #8b5cf6)' : 'rgba(255,255,255,0.1)',
+                  color: 'white', fontWeight: '600'
+                }}>
+                {note}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px' }}>
+            {gameState === 'result' && (
+              <button onClick={generateQuestion} className="btn-press floating-btn" style={{ ...styles.startBtn, flex: 1 }}>
+                Next
+              </button>
+            )}
+            <button onClick={onBack} className="btn-press" style={styles.resetBtn}>Exit</button>
+          </div>
+
+          <FloatingPlayButton onClick={generateQuestion} isPlaying={audio.isPlaying} isLoading={audio.isLoading} />
+        </div>
+      );
+    }
+
+    // Tempo Trainer
+    function TempoTrainer({ onBack }) {
+      const { playSound } = useSoundEffects();
+      const { addXP } = useXP();
+      const [score, setScore] = useState(0);
+      const [total, setTotal] = useState(0);
+      const [currentTempo, setCurrentTempo] = useState(null);
+      const [gameState, setGameState] = useState('ready');
+      const [lastResult, setLastResult] = useState(null);
+      const [isPlaying, setIsPlaying] = useState(false);
+      const intervalRef = useRef(null);
+
+      const generateTempo = useCallback(() => {
+        const tempo = Math.floor(Math.random() * 140) + 60; // 60-200 BPM
+        setCurrentTempo(tempo);
+        setGameState('listening');
+        setLastResult(null);
+        playBeat(tempo);
+      }, []);
+
+      const playBeat = (bpm) => {
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        setIsPlaying(true);
+        const interval = 60000 / bpm;
+        let count = 0;
+        const maxBeats = 8;
+
+        const tick = () => {
+          playSound('click');
+          count++;
+          if (count >= maxBeats) {
+            clearInterval(intervalRef.current);
+            setIsPlaying(false);
+            setGameState('guessing');
+          }
+        };
+
+        tick();
+        intervalRef.current = setInterval(tick, interval);
+      };
+
+      useEffect(() => {
+        return () => {
+          if (intervalRef.current) clearInterval(intervalRef.current);
+        };
+      }, []);
+
+      const handleGuess = (guessedBpm) => {
+        if (gameState !== 'guessing') return;
+        const diff = Math.abs(guessedBpm - currentTempo);
+        const correct = diff <= 10;
+        setTotal(t => t + 1);
+
+        if (correct) {
+          playSound('success');
+          setScore(s => s + 1);
+          addXP(15, 'tempo_trainer');
+          setLastResult({ correct: true, message: `✓ Correct! It was ${currentTempo} BPM` });
+        } else {
+          playSound('error');
+          setLastResult({ correct: false, message: `✗ It was ${currentTempo} BPM (you guessed ${guessedBpm})` });
+        }
+        setGameState('result');
+      };
+
+      const tempoChoices = currentTempo ? [
+        Math.max(60, currentTempo - 30),
+        Math.max(60, currentTempo - 15),
+        currentTempo,
+        Math.min(200, currentTempo + 15),
+        Math.min(200, currentTempo + 30),
+      ].sort(() => Math.random() - 0.5).slice(0, 4) : [];
+
+      return (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }} className="page-enter">
+          <Breadcrumbs items={[{ label: 'Play', onClick: onBack }, { label: 'Tempo Trainer' }]} />
+
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '24px', padding: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px' }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#22c55e' }}>{score}/{total}</div>
+              <div style={{ fontSize: '0.7rem', color: '#64748b' }}>Score</div>
+            </div>
+          </div>
+
+          <div style={styles.card}>
+            <h3 style={{ textAlign: 'center', marginBottom: '16px' }}>
+              {gameState === 'ready' ? 'Ready to test your tempo sense?' :
+               gameState === 'listening' ? 'Listen to the beat...' :
+               gameState === 'guessing' ? 'What was the tempo?' :
+               lastResult?.correct ? '✓ Great ear!' : '✗ Keep practicing!'}
+            </h3>
+
+            {isPlaying && (
+              <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+                <div style={{ fontSize: '3rem', animation: 'pulse 0.5s ease-in-out infinite' }}>🥁</div>
+              </div>
+            )}
+
+            {gameState === 'ready' && (
+              <button onClick={generateTempo} className="btn-press floating-btn" style={{ ...styles.startBtn, width: '100%' }}>
+                Start
+              </button>
+            )}
+
+            {gameState === 'guessing' && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
+                {tempoChoices.map(bpm => (
+                  <button key={bpm} onClick={() => handleGuess(bpm)}
+                    className="btn-press" style={{
+                      ...styles.choiceBtn,
+                      background: 'linear-gradient(135deg, rgba(249, 115, 22, 0.3), rgba(236, 72, 153, 0.2))',
+                    }}>
+                    {bpm} BPM
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {gameState === 'result' && (
+              <button onClick={generateTempo} className="btn-press floating-btn" style={{ ...styles.startBtn, width: '100%' }}>
+                Next
+              </button>
+            )}
+          </div>
+
+          {lastResult && (
+            <div style={{
+              ...styles.feedbackCard,
+              background: lastResult.correct ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+            }}>
+              {lastResult.message}
+            </div>
+          )}
+
+          <button onClick={onBack} className="btn-press" style={styles.resetBtn}>Exit</button>
+        </div>
+      );
+    }
+
+    // Time Signature Quiz
+    function TimeSignatureQuiz({ onBack }) {
+      const { playSound } = useSoundEffects();
+      const { addXP } = useXP();
+      const [score, setScore] = useState(0);
+      const [total, setTotal] = useState(0);
+      const [currentSig, setCurrentSig] = useState(null);
+      const [gameState, setGameState] = useState('ready');
+      const [lastResult, setLastResult] = useState(null);
+      const [isPlaying, setIsPlaying] = useState(false);
+      const intervalRef = useRef(null);
+
+      const generateQuestion = useCallback(() => {
+        const sigs = Object.keys(TIME_SIGNATURES);
+        const sig = sigs[Math.floor(Math.random() * sigs.length)];
+        setCurrentSig(sig);
+        setGameState('listening');
+        setLastResult(null);
+        playPattern(sig);
+      }, []);
+
+      const playPattern = (sig) => {
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        setIsPlaying(true);
+        const timeSig = TIME_SIGNATURES[sig];
+        const bpm = 120;
+        const beatDuration = 60000 / bpm;
+        let beat = 0;
+        const measures = 2;
+        const totalBeats = timeSig.beats * measures;
+
+        const tick = () => {
+          const patternIdx = beat % timeSig.beats;
+          const emphasis = timeSig.pattern[patternIdx];
+          if (emphasis > 0) {
+            playSound(emphasis === 1 ? 'click' : 'tick');
+          }
+          beat++;
+          if (beat >= totalBeats) {
+            clearInterval(intervalRef.current);
+            setIsPlaying(false);
+            setGameState('guessing');
+          }
+        };
+
+        tick();
+        intervalRef.current = setInterval(tick, beatDuration);
+      };
+
+      useEffect(() => {
+        return () => {
+          if (intervalRef.current) clearInterval(intervalRef.current);
+        };
+      }, []);
+
+      const handleGuess = (guess) => {
+        if (gameState !== 'guessing') return;
+        const correct = guess === currentSig;
+        setTotal(t => t + 1);
+
+        if (correct) {
+          playSound('success');
+          setScore(s => s + 1);
+          addXP(18, 'time_signature');
+          setLastResult({ correct: true, message: '✓ Correct!' });
+        } else {
+          playSound('error');
+          setLastResult({ correct: false, message: `✗ It was ${TIME_SIGNATURES[currentSig].name}` });
+        }
+        setGameState('result');
+      };
+
+      return (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }} className="page-enter">
+          <Breadcrumbs items={[{ label: 'Play', onClick: onBack }, { label: 'Time Signatures' }]} />
+
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '24px', padding: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px' }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#22c55e' }}>{score}/{total}</div>
+              <div style={{ fontSize: '0.7rem', color: '#64748b' }}>Score</div>
+            </div>
+          </div>
+
+          <div style={styles.card}>
+            <h3 style={{ textAlign: 'center', marginBottom: '16px' }}>
+              {gameState === 'ready' ? 'Identify the time signature!' :
+               gameState === 'listening' ? 'Listen carefully...' :
+               gameState === 'guessing' ? 'What time signature was that?' :
+               lastResult?.correct ? '✓ Perfect!' : '✗ Keep practicing!'}
+            </h3>
+
+            {isPlaying && (
+              <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+                <div style={{ fontSize: '3rem', animation: 'pulse 0.5s ease-in-out infinite' }}>🎵</div>
+              </div>
+            )}
+
+            {gameState === 'ready' && (
+              <button onClick={generateQuestion} className="btn-press floating-btn" style={{ ...styles.startBtn, width: '100%' }}>
+                Start
+              </button>
+            )}
+
+            {gameState === 'guessing' && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
+                {Object.keys(TIME_SIGNATURES).map(sig => (
+                  <button key={sig} onClick={() => handleGuess(sig)}
+                    className="btn-press" style={{
+                      ...styles.choiceBtn,
+                      background: gameState === 'result' && sig === currentSig
+                        ? 'linear-gradient(135deg, #22c55e, #16a34a)'
+                        : 'linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(139, 92, 246, 0.2))',
+                    }}>
+                    <div style={{ fontWeight: '700', fontSize: '1.2rem' }}>{sig}</div>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {gameState === 'result' && (
+              <button onClick={generateQuestion} className="btn-press floating-btn" style={{ ...styles.startBtn, width: '100%' }}>
+                Next
+              </button>
+            )}
+          </div>
+
+          {lastResult && (
+            <div style={{
+              ...styles.feedbackCard,
+              background: lastResult.correct ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+            }}>
+              {lastResult.message}
+            </div>
+          )}
+
+          <button onClick={onBack} className="btn-press" style={styles.resetBtn}>Exit</button>
+        </div>
+      );
+    }
+
+    // Interactive Circle of Fifths Component
+    function CircleOfFifths({ onBack }) {
+      const { settings } = useSettings();
+      const audio = useAudio(settings.instrument, settings.useMidi, settings.volume);
+      const [selectedKey, setSelectedKey] = useState(null);
+      const [showMinor, setShowMinor] = useState(false);
+
+      const playScale = (root, isMinor = false) => {
+        const rootIdx = getNoteIndex(root.replace(/[#b]/g, match => match === '#' ? '♯' : '♭').charAt(0));
+        const scaleType = isMinor ? SCALE_TYPES.natural_minor : SCALE_TYPES.major;
+        const notes = scaleType.intervals.map(interval => {
+          const noteIdx = (rootIdx + interval) % 12;
+          const octave = rootIdx + interval >= 12 ? 5 : 4;
+          return `${NOTES[noteIdx]}${octave}`;
+        });
+        notes.forEach((note, i) => setTimeout(() => audio.playNote(note), i * 200));
+      };
+
+      const playChord = (root, isMinor = false) => {
+        const rootIdx = getNoteIndex(root.replace(/[#b]/g, '').charAt(0));
+        const chordType = isMinor ? CHORD_TYPES.minor : CHORD_TYPES.major;
+        const notes = chordType.intervals.map(interval => {
+          const noteIdx = (rootIdx + interval) % 12;
+          return `${NOTES[noteIdx]}4`;
+        });
+        audio.playNotes(notes);
+      };
+
+      return (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }} className="page-enter">
+          <Breadcrumbs items={[{ label: 'Learn', onClick: onBack }, { label: 'Circle of Fifths' }]} />
+
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginBottom: '8px' }}>
+            <button onClick={() => setShowMinor(false)} className="btn-press"
+              style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', background: !showMinor ? 'linear-gradient(135deg, #3b82f6, #8b5cf6)' : 'rgba(255,255,255,0.1)', color: 'white', fontWeight: '600' }}>
+              Major Keys
+            </button>
+            <button onClick={() => setShowMinor(true)} className="btn-press"
+              style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', background: showMinor ? 'linear-gradient(135deg, #ec4899, #a855f7)' : 'rgba(255,255,255,0.1)', color: 'white', fontWeight: '600' }}>
+              Minor Keys
+            </button>
+          </div>
+
+          <div style={{ ...styles.card, position: 'relative', aspectRatio: '1', maxWidth: '350px', margin: '0 auto', borderRadius: '50%' }}>
+            <svg viewBox="0 0 200 200" style={{ width: '100%', height: '100%' }}>
+              {CIRCLE_OF_FIFTHS.map((key, i) => {
+                const angle = (i * 30 - 90) * (Math.PI / 180);
+                const x = 100 + 75 * Math.cos(angle);
+                const y = 100 + 75 * Math.sin(angle);
+                const keyName = showMinor ? key.minor : key.major;
+                const isSelected = selectedKey === keyName;
+
+                return (
+                  <g key={i} onClick={() => { setSelectedKey(keyName); playChord(keyName.split('/')[0], showMinor); }}
+                    style={{ cursor: 'pointer' }}>
+                    <circle cx={x} cy={y} r="22"
+                      fill={isSelected ? (showMinor ? '#ec4899' : '#3b82f6') : 'rgba(255,255,255,0.1)'}
+                      stroke={isSelected ? 'white' : 'rgba(255,255,255,0.3)'} strokeWidth="2" />
+                    <text x={x} y={y} textAnchor="middle" dominantBaseline="middle"
+                      fill="white" fontSize="12" fontWeight="600">
+                      {keyName.length > 4 ? keyName.split('/')[0] : keyName}
+                    </text>
+                  </g>
+                );
+              })}
+              <circle cx="100" cy="100" r="35" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.2)" strokeWidth="1" />
+              <text x="100" y="95" textAnchor="middle" fill="#94a3b8" fontSize="10">Circle of</text>
+              <text x="100" y="110" textAnchor="middle" fill="white" fontSize="12" fontWeight="600">Fifths</text>
+            </svg>
+          </div>
+
+          {selectedKey && (
+            <div style={styles.card}>
+              <h3 style={{ textAlign: 'center', marginBottom: '12px' }}>{selectedKey} {showMinor ? 'Minor' : 'Major'}</h3>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '12px' }}>
+                <button onClick={() => playScale(selectedKey.split('/')[0], showMinor)} className="btn-press"
+                  style={{ padding: '10px 20px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg, #22c55e, #10b981)', color: 'white', fontWeight: '600' }}>
+                  Play Scale
+                </button>
+                <button onClick={() => playChord(selectedKey.split('/')[0], showMinor)} className="btn-press"
+                  style={{ padding: '10px 20px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg, #f59e0b, #f97316)', color: 'white', fontWeight: '600' }}>
+                  Play Chord
+                </button>
+              </div>
+              <div style={{ marginTop: '12px', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
+                {CIRCLE_OF_FIFTHS.find(k => (showMinor ? k.minor : k.major) === selectedKey)?.sharps > 0 &&
+                  `${CIRCLE_OF_FIFTHS.find(k => (showMinor ? k.minor : k.major) === selectedKey).sharps} sharp(s)`}
+                {CIRCLE_OF_FIFTHS.find(k => (showMinor ? k.minor : k.major) === selectedKey)?.flats > 0 &&
+                  `${CIRCLE_OF_FIFTHS.find(k => (showMinor ? k.minor : k.major) === selectedKey).flats} flat(s)`}
+                {CIRCLE_OF_FIFTHS.find(k => (showMinor ? k.minor : k.major) === selectedKey)?.sharps === 0 &&
+                  CIRCLE_OF_FIFTHS.find(k => (showMinor ? k.minor : k.major) === selectedKey)?.flats === 0 && 'No sharps or flats'}
+              </div>
+            </div>
+          )}
+
+          <button onClick={onBack} className="btn-press" style={styles.resetBtn}>Back</button>
+        </div>
+      );
+    }
+
+    // Reference Library Component
+    function ReferenceLibrary({ onBack }) {
+      const { settings } = useSettings();
+      const audio = useAudio(settings.instrument, settings.useMidi, settings.volume);
+      const [activeTab, setActiveTab] = useState('intervals');
+
+      const playInterval = (semitones) => {
+        const baseNote = 'C4';
+        const baseIdx = getNoteIndex('C');
+        const secondIdx = (baseIdx + semitones) % 12;
+        const secondOctave = semitones >= 12 ? 5 : 4;
+        audio.playNote(baseNote);
+        setTimeout(() => audio.playNote(`${NOTES[secondIdx]}${secondOctave}`), 500);
+      };
+
+      const playChord = (chordType) => {
+        const chord = CHORD_TYPES[chordType];
+        const notes = chord.intervals.map(i => `${NOTES[i % 12]}${i >= 12 ? 5 : 4}`);
+        audio.playNotes(notes);
+      };
+
+      const playScale = (scaleType) => {
+        const scale = SCALE_TYPES[scaleType];
+        scale.intervals.forEach((interval, i) => {
+          setTimeout(() => audio.playNote(`${NOTES[interval % 12]}${interval >= 12 ? 5 : 4}`), i * 250);
+        });
+      };
+
+      const tabs = ['intervals', 'chords', 'scales'];
+
+      return (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }} className="page-enter">
+          <Breadcrumbs items={[{ label: 'Learn', onClick: onBack }, { label: 'Reference' }]} />
+
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+            {tabs.map(tab => (
+              <button key={tab} onClick={() => setActiveTab(tab)} className="btn-press"
+                style={{
+                  padding: '10px 20px', borderRadius: '10px', border: 'none',
+                  background: activeTab === tab ? 'linear-gradient(135deg, #a855f7, #ec4899)' : 'rgba(255,255,255,0.1)',
+                  color: 'white', fontWeight: '600', textTransform: 'capitalize'
+                }}>
+                {tab}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ ...styles.card, maxHeight: '400px', overflowY: 'auto' }}>
+            {activeTab === 'intervals' && (
+              <div style={{ display: 'grid', gap: '8px' }}>
+                {Object.entries(INTERVALS).map(([semitones, interval]) => (
+                  <button key={semitones} onClick={() => playInterval(parseInt(semitones))} className="btn-press card-lift"
+                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: 'rgba(255,255,255,0.05)', borderRadius: '10px', border: 'none', color: 'white', textAlign: 'left' }}>
+                    <div>
+                      <div style={{ fontWeight: '600' }}>{interval.name}</div>
+                      <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{interval.short} · {semitones} semitones</div>
+                    </div>
+                    <span>▶</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {activeTab === 'chords' && (
+              <div style={{ display: 'grid', gap: '8px' }}>
+                {Object.entries(CHORD_TYPES).map(([key, chord]) => (
+                  <button key={key} onClick={() => playChord(key)} className="btn-press card-lift"
+                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: 'rgba(255,255,255,0.05)', borderRadius: '10px', border: 'none', color: 'white', textAlign: 'left' }}>
+                    <div>
+                      <div style={{ fontWeight: '600' }}>{chord.name}</div>
+                      <div style={{ fontSize: '0.75rem', color: '#64748b' }}>C{chord.symbol}</div>
+                    </div>
+                    <span>▶</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {activeTab === 'scales' && (
+              <div style={{ display: 'grid', gap: '8px' }}>
+                {Object.entries(SCALE_TYPES).map(([key, scale]) => (
+                  <button key={key} onClick={() => playScale(key)} className="btn-press card-lift"
+                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: 'rgba(255,255,255,0.05)', borderRadius: '10px', border: 'none', color: 'white', textAlign: 'left' }}>
+                    <div>
+                      <div style={{ fontWeight: '600' }}>{scale.name}</div>
+                      <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{scale.description}</div>
+                    </div>
+                    <span>▶</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <button onClick={onBack} className="btn-press" style={styles.resetBtn}>Back</button>
+        </div>
+      );
+    }
+
+    // XP Display Card Component
+    function XPDisplayCard() {
+      const { xpData, getCurrentLevel, getNextLevel, getProgress } = useXP();
+      const currentLevel = getCurrentLevel();
+      const nextLevel = getNextLevel();
+      const progress = getProgress();
+
+      return (
+        <div style={{ ...styles.card, background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.15), rgba(139, 92, 246, 0.1))', border: '1px solid rgba(168, 85, 247, 0.3)', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: currentLevel.color.includes('gradient') ? currentLevel.color : `linear-gradient(135deg, ${currentLevel.color}, ${currentLevel.color}88)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', fontWeight: '700', border: '3px solid rgba(255,255,255,0.3)' }}>
+              {currentLevel.level}
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: '700', fontSize: '1.1rem', marginBottom: '4px' }}>{currentLevel.title}</div>
+              <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '8px' }}>{xpData.totalXP} XP</div>
+              {nextLevel && (
+                <div>
+                  <div style={{ height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${progress}%`, background: 'linear-gradient(90deg, #a855f7, #ec4899)', borderRadius: '4px', transition: 'width 0.3s' }} />
+                  </div>
+                  <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '4px' }}>{nextLevel.xpRequired - xpData.totalXP} XP to {nextLevel.title}</div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Weekly Challenges Card
+    function WeeklyChallengesCard() {
+      const { challengeData, generateChallenges } = useWeeklyChallenge();
+      const [challenges, setChallenges] = useState([]);
+
+      useEffect(() => {
+        setChallenges(generateChallenges());
+      }, []);
+
+      if (challenges.length === 0) return null;
+
+      return (
+        <div style={{ ...styles.card, marginBottom: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <div style={styles.statsTitle}>Weekly Challenges</div>
+            <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
+              {challengeData.completed.length}/{challenges.length} complete
+            </span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {challenges.map(c => {
+              const progress = challengeData.progress[c.id] || 0;
+              const isComplete = challengeData.completed.includes(c.id);
+              const percent = Math.min(100, Math.round((progress / c.target) * 100));
+              return (
+                <div key={c.id} style={{
+                  padding: '12px', background: isComplete ? 'rgba(34, 197, 94, 0.15)' : 'rgba(255,255,255,0.05)',
+                  borderRadius: '10px', border: isComplete ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(255,255,255,0.1)'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span>{c.icon}</span>
+                      <span style={{ fontWeight: '600', fontSize: '0.9rem' }}>{c.name}</span>
+                    </div>
+                    <span style={{ fontSize: '0.75rem', color: '#fbbf24' }}>+{c.reward} XP</span>
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '8px' }}>{c.description}</div>
+                  <div style={{ height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${percent}%`, background: isComplete ? '#22c55e' : 'linear-gradient(90deg, #3b82f6, #8b5cf6)', borderRadius: '3px' }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    // Theme Selector Component
+    function ThemeSelector() {
+      const { theme, setTheme, availableThemes } = useTheme();
+
+      return (
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {availableThemes.map(t => (
+            <button key={t} onClick={() => setTheme(t)} className="btn-press"
+              style={{
+                padding: '12px 16px', borderRadius: '10px', border: theme === t ? '2px solid white' : '2px solid transparent',
+                background: THEMES[t].background, color: THEMES[t].text, fontWeight: '600', minWidth: '80px'
+              }}>
+              {THEMES[t].name}
+            </button>
+          ))}
+        </div>
+      );
+    }
+
+    // Focus Mode Game
+    function FocusModeGame({ mode, difficulty, onBack }) {
+      const { settings } = useSettings();
+      const audio = useAudio(settings.instrument, settings.useMidi, settings.volume);
+
+      // Minimal UI version of the game
+      return (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#0a0a0f', minHeight: '100vh', padding: '20px' }} className="page-enter">
+          <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+            <h2 style={{ color: '#e2e8f0', marginBottom: '8px' }}>Focus Mode</h2>
+            <p style={{ color: '#64748b', fontSize: '0.85rem' }}>Distraction-free practice</p>
+          </div>
+
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '4rem', marginBottom: '20px' }}>🎧</div>
+              <p style={{ color: '#94a3b8', marginBottom: '30px' }}>Coming soon: Minimal practice interface</p>
+              <button onClick={onBack} className="btn-press"
+                style={{ padding: '16px 40px', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg, #a855f7, #ec4899)', color: 'white', fontWeight: '700', fontSize: '1rem' }}>
+                Exit Focus Mode
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Wordle-style Share Score Component
+    function ShareScoreCard({ score, total, mode, streak }) {
+      const [copied, setCopied] = useState(false);
+
+      const generateShareText = () => {
+        const accuracy = total > 0 ? Math.round((score / total) * 100) : 0;
+        const blocks = [];
+        const correctBlocks = Math.round((score / Math.max(total, 1)) * 5);
+        for (let i = 0; i < 5; i++) {
+          blocks.push(i < correctBlocks ? '🟩' : '⬛');
+        }
+
+        return `🎵 KeyPerfect ${mode}
+${blocks.join('')} ${accuracy}%
+${score}/${total} correct
+🔥 ${streak} streak
+
+Play at keyperfect.app`;
+      };
+
+      const handleShare = async () => {
+        const text = generateShareText();
+        try {
+          if (navigator.share) {
+            await navigator.share({ text });
+          } else {
+            await navigator.clipboard.writeText(text);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+          }
+        } catch (err) {}
+      };
+
+      return (
+        <button onClick={handleShare} className="btn-press"
+          style={{ padding: '12px 24px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg, #22c55e, #10b981)', color: 'white', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {copied ? '✓ Copied!' : '📤 Share Score'}
+        </button>
+      );
+    }
+
+    // Challenge Friend Component
+    function ChallengeFriendCard({ score, mode, seed }) {
+      const [copied, setCopied] = useState(false);
+
+      const generateChallengeLink = () => {
+        const baseUrl = window.location.origin;
+        return `${baseUrl}?challenge=${mode}&seed=${seed}&score=${score}`;
+      };
+
+      const handleChallenge = async () => {
+        const link = generateChallengeLink();
+        const text = `🎵 I scored ${score} in KeyPerfect ${mode}! Can you beat me?\n${link}`;
+        try {
+          if (navigator.share) {
+            await navigator.share({ text });
+          } else {
+            await navigator.clipboard.writeText(text);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+          }
+        } catch (err) {}
+      };
+
+      return (
+        <button onClick={handleChallenge} className="btn-press"
+          style={{ padding: '12px 24px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg, #f59e0b, #f97316)', color: 'white', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {copied ? '✓ Copied!' : '🎯 Challenge Friend'}
+        </button>
+      );
+    }
+
     // Practice Heatmap Component
     function PracticeHeatmap() {
       const { heatmapData, getLast12Weeks } = usePracticeHeatmap();
@@ -4221,25 +5738,53 @@
       const [view, setView] = useState('play');
       const [gameMode, setGameMode] = useState(null);
       const [gameDifficulty, setGameDifficulty] = useState(null);
-      const [specialMode, setSpecialMode] = useState(null); // 'daily' | 'speedrun' | 'survival' | 'inversions' | null
+      const [specialMode, setSpecialMode] = useState(null);
+      const [learnMode, setLearnMode] = useState(null);
 
       const handleStartGame = (mode, difficulty) => { setGameMode(mode); setGameDifficulty(difficulty); setSpecialMode(null); };
       const handleStartDaily = () => { setGameMode('daily'); setSpecialMode('daily'); };
       const handleStartSpeedRun = () => { setGameMode('speedrun'); setSpecialMode('speedrun'); };
       const handleStartSurvival = () => { setGameMode('survival'); setSpecialMode('survival'); };
       const handleStartInversions = () => { setGameMode('inversions'); setSpecialMode('inversions'); };
-      const handleBackToMenu = () => { setGameMode(null); setGameDifficulty(null); setSpecialMode(null); };
+      const handleStartSeventhChords = () => { setGameMode('seventh'); setSpecialMode('seventh'); };
+      const handleStartMelodicDictation = () => { setGameMode('melodic'); setSpecialMode('melodic'); };
+      const handleStartRelativePitch = () => { setGameMode('relative'); setSpecialMode('relative'); };
+      const handleStartTempo = () => { setGameMode('tempo'); setSpecialMode('tempo'); };
+      const handleStartTimeSignature = () => { setGameMode('timesig'); setSpecialMode('timesig'); };
+      const handleBackToMenu = () => { setGameMode(null); setGameDifficulty(null); setSpecialMode(null); setLearnMode(null); };
       const handleTitleClick = () => { setView('play'); handleBackToMenu(); };
 
       const renderGameView = () => {
-        if (!gameMode) return <MainMenu onStartGame={handleStartGame} onStartDaily={handleStartDaily} onStartSpeedRun={handleStartSpeedRun} onStartSurvival={handleStartSurvival} onStartInversions={handleStartInversions} />;
+        if (!gameMode) return <MainMenu
+          onStartGame={handleStartGame}
+          onStartDaily={handleStartDaily}
+          onStartSpeedRun={handleStartSpeedRun}
+          onStartSurvival={handleStartSurvival}
+          onStartInversions={handleStartInversions}
+          onStartSeventhChords={handleStartSeventhChords}
+          onStartMelodicDictation={handleStartMelodicDictation}
+          onStartRelativePitch={handleStartRelativePitch}
+          onStartTempo={handleStartTempo}
+          onStartTimeSignature={handleStartTimeSignature}
+        />;
         if (specialMode === 'daily') return <DailyChallenge onBack={handleBackToMenu} />;
         if (specialMode === 'speedrun') return <SpeedRun onBack={handleBackToMenu} />;
         if (specialMode === 'survival') return <SurvivalMode onBack={handleBackToMenu} />;
         if (specialMode === 'inversions') return <ChordInversionsGame onBack={handleBackToMenu} />;
+        if (specialMode === 'seventh') return <SeventhChordsGame onBack={handleBackToMenu} />;
+        if (specialMode === 'melodic') return <MelodicDictation onBack={handleBackToMenu} />;
+        if (specialMode === 'relative') return <RelativePitchGame onBack={handleBackToMenu} />;
+        if (specialMode === 'tempo') return <TempoTrainer onBack={handleBackToMenu} />;
+        if (specialMode === 'timesig') return <TimeSignatureQuiz onBack={handleBackToMenu} />;
         const games = { notes: NoteGame, intervals: IntervalGame, chords: ChordGame, scales: ScaleGame, progressions: ProgressionGame };
         const GameComp = games[gameMode];
         return <GameComp difficulty={gameDifficulty} onBack={handleBackToMenu} />;
+      };
+
+      const renderLearnView = () => {
+        if (learnMode === 'circle') return <CircleOfFifths onBack={() => setLearnMode(null)} />;
+        if (learnMode === 'reference') return <ReferenceLibrary onBack={() => setLearnMode(null)} />;
+        return <LearnView onCircleOfFifths={() => setLearnMode('circle')} onReferenceLibrary={() => setLearnMode('reference')} />;
       };
 
       return (
@@ -4250,11 +5795,11 @@
           </header>
 
           {view === 'play' && renderGameView()}
-          {view === 'learn' && !gameMode && <LearnView />}
+          {view === 'learn' && !gameMode && renderLearnView()}
           {view === 'stats' && !gameMode && <StatsView />}
           {view === 'settings' && !gameMode && <SettingsView />}
 
-          {!gameMode && <BottomNav currentView={view} setView={setView} />}
+          {!gameMode && !learnMode && <BottomNav currentView={view} setView={setView} />}
         </div>
       );
     }
