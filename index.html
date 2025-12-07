@@ -769,8 +769,320 @@
     // SOUND EFFECTS
     // ============================================
 
+    // Sound effect definitions for rich audio feedback
+    const SOUND_EFFECTS = {
+      // Correct answer - pleasant ascending major third with shimmer
+      success: (ctx, t, vol) => {
+        const notes = [523.25, 659.25, 783.99]; // C5, E5, G5 - major chord arpeggio
+        notes.forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          const delay = i * 0.06;
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, t + delay);
+          gain.gain.setValueAtTime(0, t + delay);
+          gain.gain.linearRampToValueAtTime(vol * 0.25, t + delay + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + delay + 0.4);
+          osc.connect(gain).connect(ctx.destination);
+          osc.start(t + delay);
+          osc.stop(t + delay + 0.5);
+        });
+        // Add sparkle overtone
+        const sparkle = ctx.createOscillator();
+        const sparkleGain = ctx.createGain();
+        sparkle.type = 'sine';
+        sparkle.frequency.setValueAtTime(1567.98, t + 0.1); // G6
+        sparkleGain.gain.setValueAtTime(vol * 0.1, t + 0.1);
+        sparkleGain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+        sparkle.connect(sparkleGain).connect(ctx.destination);
+        sparkle.start(t + 0.1);
+        sparkle.stop(t + 0.4);
+      },
+
+      // Wrong answer - soft descending minor second with gentle buzz
+      error: (ctx, t, vol) => {
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(800, t);
+        osc1.type = 'triangle';
+        osc2.type = 'sine';
+        osc1.frequency.setValueAtTime(220, t);
+        osc1.frequency.exponentialRampToValueAtTime(165, t + 0.15);
+        osc2.frequency.setValueAtTime(233, t);
+        osc2.frequency.exponentialRampToValueAtTime(175, t + 0.15);
+        gain.gain.setValueAtTime(vol * 0.2, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+        osc1.connect(filter).connect(gain).connect(ctx.destination);
+        osc2.connect(filter);
+        osc1.start(t);
+        osc2.start(t);
+        osc1.stop(t + 0.3);
+        osc2.stop(t + 0.3);
+      },
+
+      // Streak of 3 - encouraging double chime
+      streak3: (ctx, t, vol) => {
+        [0, 0.12].forEach((delay, i) => {
+          const freq = i === 0 ? 698.46 : 880; // F5, A5
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, t + delay);
+          gain.gain.setValueAtTime(vol * 0.2, t + delay);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + delay + 0.3);
+          osc.connect(gain).connect(ctx.destination);
+          osc.start(t + delay);
+          osc.stop(t + delay + 0.35);
+        });
+      },
+
+      // Streak of 5 - fire streak with rising fanfare
+      streak5: (ctx, t, vol) => {
+        const notes = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
+        notes.forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          const delay = i * 0.08;
+          osc.type = i < 2 ? 'sine' : 'triangle';
+          osc.frequency.setValueAtTime(freq, t + delay);
+          gain.gain.setValueAtTime(vol * 0.22, t + delay);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + delay + 0.4);
+          osc.connect(gain).connect(ctx.destination);
+          osc.start(t + delay);
+          osc.stop(t + delay + 0.5);
+        });
+      },
+
+      // Streak of 10 - triumphant flourish
+      streak10: (ctx, t, vol) => {
+        const notes = [392, 523.25, 659.25, 783.99, 1046.5, 1318.5]; // G4, C5, E5, G5, C6, E6
+        notes.forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const osc2 = ctx.createOscillator();
+          const gain = ctx.createGain();
+          const delay = i * 0.07;
+          osc.type = 'sine';
+          osc2.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, t + delay);
+          osc2.frequency.setValueAtTime(freq * 2, t + delay);
+          gain.gain.setValueAtTime(vol * 0.18, t + delay);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + delay + 0.5);
+          osc.connect(gain).connect(ctx.destination);
+          osc2.connect(gain);
+          osc.start(t + delay);
+          osc2.start(t + delay);
+          osc.stop(t + delay + 0.6);
+          osc2.stop(t + delay + 0.6);
+        });
+      },
+
+      // Level up - majestic ascending arpeggio with harmonics
+      levelUp: (ctx, t, vol) => {
+        const notes = [261.63, 329.63, 392, 523.25, 659.25, 783.99]; // C4 major scale up
+        notes.forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const osc2 = ctx.createOscillator();
+          const gain = ctx.createGain();
+          const delay = i * 0.1;
+          osc.type = 'sine';
+          osc2.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, t + delay);
+          osc2.frequency.setValueAtTime(freq * 1.5, t + delay); // Perfect fifth
+          gain.gain.setValueAtTime(vol * 0.25, t + delay);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + delay + 0.6);
+          osc.connect(gain).connect(ctx.destination);
+          osc2.connect(gain);
+          osc.start(t + delay);
+          osc2.start(t + delay);
+          osc.stop(t + delay + 0.7);
+          osc2.stop(t + delay + 0.7);
+        });
+        // Final shimmer chord
+        setTimeout(() => {
+          const shimmer = [1046.5, 1318.5, 1567.98]; // C6, E6, G6
+          shimmer.forEach(freq => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, ctx.currentTime);
+            gain.gain.setValueAtTime(vol * 0.15, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
+            osc.connect(gain).connect(ctx.destination);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.9);
+          });
+        }, 600);
+      },
+
+      // Achievement unlocked - celebratory fanfare
+      achievement: (ctx, t, vol) => {
+        const fanfare = [
+          { freq: 392, delay: 0 },      // G4
+          { freq: 440, delay: 0.1 },    // A4
+          { freq: 523.25, delay: 0.2 }, // C5
+          { freq: 659.25, delay: 0.35 }, // E5
+          { freq: 783.99, delay: 0.5 }, // G5
+        ];
+        fanfare.forEach(({ freq, delay }) => {
+          const osc = ctx.createOscillator();
+          const osc2 = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc2.type = 'square';
+          osc.frequency.setValueAtTime(freq, t + delay);
+          osc2.frequency.setValueAtTime(freq, t + delay);
+          gain.gain.setValueAtTime(vol * 0.2, t + delay);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + delay + 0.4);
+          osc.connect(gain).connect(ctx.destination);
+          const squareGain = ctx.createGain();
+          squareGain.gain.value = 0.05;
+          osc2.connect(squareGain).connect(gain);
+          osc.start(t + delay);
+          osc2.start(t + delay);
+          osc.stop(t + delay + 0.5);
+          osc2.stop(t + delay + 0.5);
+        });
+      },
+
+      // Button click - subtle tactile feedback
+      click: (ctx, t, vol) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1200, t);
+        osc.frequency.exponentialRampToValueAtTime(800, t + 0.03);
+        gain.gain.setValueAtTime(vol * 0.08, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.06);
+      },
+
+      // Game complete - victory melody
+      gameComplete: (ctx, t, vol) => {
+        const melody = [
+          { freq: 523.25, delay: 0, dur: 0.2 },     // C5
+          { freq: 587.33, delay: 0.15, dur: 0.2 }, // D5
+          { freq: 659.25, delay: 0.3, dur: 0.2 },  // E5
+          { freq: 783.99, delay: 0.45, dur: 0.3 }, // G5
+          { freq: 659.25, delay: 0.7, dur: 0.2 },  // E5
+          { freq: 783.99, delay: 0.85, dur: 0.5 }, // G5
+          { freq: 1046.5, delay: 1.1, dur: 0.6 },  // C6
+        ];
+        melody.forEach(({ freq, delay, dur }) => {
+          const osc = ctx.createOscillator();
+          const osc2 = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc2.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, t + delay);
+          osc2.frequency.setValueAtTime(freq * 0.5, t + delay); // Octave below
+          gain.gain.setValueAtTime(vol * 0.22, t + delay);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + delay + dur + 0.2);
+          osc.connect(gain).connect(ctx.destination);
+          osc2.connect(gain);
+          osc.start(t + delay);
+          osc2.start(t + delay);
+          osc.stop(t + delay + dur + 0.3);
+          osc2.stop(t + delay + dur + 0.3);
+        });
+      },
+
+      // Countdown tick
+      tick: (ctx, t, vol) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, t);
+        gain.gain.setValueAtTime(vol * 0.15, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.1);
+      },
+
+      // Game start - energetic ascending whoosh
+      start: (ctx, t, vol) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(200, t);
+        osc.frequency.exponentialRampToValueAtTime(800, t + 0.15);
+        gain.gain.setValueAtTime(vol * 0.2, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.25);
+        // Pop at end
+        setTimeout(() => {
+          const pop = ctx.createOscillator();
+          const popGain = ctx.createGain();
+          pop.type = 'sine';
+          pop.frequency.setValueAtTime(1200, ctx.currentTime);
+          popGain.gain.setValueAtTime(vol * 0.12, ctx.currentTime);
+          popGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+          pop.connect(popGain).connect(ctx.destination);
+          pop.start(ctx.currentTime);
+          pop.stop(ctx.currentTime + 0.1);
+        }, 150);
+      },
+
+      // Hint used - gentle notification
+      hint: (ctx, t, vol) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(600, t);
+        osc.frequency.setValueAtTime(500, t + 0.1);
+        gain.gain.setValueAtTime(vol * 0.12, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.25);
+      },
+
+      // New daily quest
+      newQuest: (ctx, t, vol) => {
+        [440, 554.37, 659.25].forEach((freq, i) => { // A4, C#5, E5
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          const delay = i * 0.1;
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, t + delay);
+          gain.gain.setValueAtTime(vol * 0.18, t + delay);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + delay + 0.35);
+          osc.connect(gain).connect(ctx.destination);
+          osc.start(t + delay);
+          osc.stop(t + delay + 0.4);
+        });
+      },
+
+      // XP gained - satisfying coin-like sound
+      xpGain: (ctx, t, vol) => {
+        const osc = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc2.type = 'sine';
+        osc.frequency.setValueAtTime(1318.5, t); // E6
+        osc2.frequency.setValueAtTime(1567.98, t + 0.05); // G6
+        gain.gain.setValueAtTime(vol * 0.12, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+        osc.connect(gain).connect(ctx.destination);
+        osc2.connect(gain);
+        osc.start(t);
+        osc2.start(t + 0.05);
+        osc.stop(t + 0.25);
+        osc2.stop(t + 0.25);
+      },
+    };
+
     function useSoundEffects() {
       const [enabled, setEnabled] = useLocalStorage('keyperfect_sfx', true);
+      const [volume, setVolume] = useLocalStorage('keyperfect_sfx_volume', 0.7);
       const audioCtx = useRef(null);
 
       const playSound = useCallback((type) => {
@@ -778,30 +1090,180 @@
         try {
           if (!audioCtx.current) audioCtx.current = new (window.AudioContext || window.webkitAudioContext)();
           const ctx = audioCtx.current;
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-
-          if (type === 'success') {
-            osc.frequency.setValueAtTime(523.25, ctx.currentTime); // C5
-            osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.1); // E5
-            gain.gain.setValueAtTime(0.3, ctx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
-            osc.start(ctx.currentTime);
-            osc.stop(ctx.currentTime + 0.3);
-          } else if (type === 'error') {
-            osc.frequency.setValueAtTime(200, ctx.currentTime);
-            osc.type = 'sawtooth';
-            gain.gain.setValueAtTime(0.2, ctx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
-            osc.start(ctx.currentTime);
-            osc.stop(ctx.currentTime + 0.2);
+          if (ctx.state === 'suspended') ctx.resume();
+          const soundFn = SOUND_EFFECTS[type];
+          if (soundFn) {
+            soundFn(ctx, ctx.currentTime, volume);
           }
-        } catch (e) {}
-      }, [enabled]);
+        } catch (e) {
+          console.warn('Sound effect error:', e);
+        }
+      }, [enabled, volume]);
 
-      return { playSound, sfxEnabled: enabled, setSfxEnabled: setEnabled };
+      return { playSound, sfxEnabled: enabled, setSfxEnabled: setEnabled, sfxVolume: volume, setSfxVolume: setVolume };
+    }
+
+    // Ambient sound generator for focus mode
+    function useAmbientSound() {
+      const [ambientType, setAmbientType] = useLocalStorage('keyperfect_ambient', 'none');
+      const audioCtxRef = useRef(null);
+      const nodesRef = useRef([]);
+      const isPlayingRef = useRef(false);
+
+      const stopAmbient = useCallback(() => {
+        nodesRef.current.forEach(node => {
+          try { node.stop?.(); node.disconnect?.(); } catch (e) {}
+        });
+        nodesRef.current = [];
+        isPlayingRef.current = false;
+      }, []);
+
+      const startAmbient = useCallback((type) => {
+        stopAmbient();
+        if (type === 'none') return;
+
+        try {
+          if (!audioCtxRef.current) audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+          const ctx = audioCtxRef.current;
+          if (ctx.state === 'suspended') ctx.resume();
+          isPlayingRef.current = true;
+
+          if (type === 'rain') {
+            // White noise filtered to sound like rain
+            const bufferSize = 2 * ctx.sampleRate;
+            const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+            const output = noiseBuffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) output[i] = Math.random() * 2 - 1;
+
+            const noise = ctx.createBufferSource();
+            noise.buffer = noiseBuffer;
+            noise.loop = true;
+
+            const filter = ctx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = 400;
+
+            const gain = ctx.createGain();
+            gain.gain.value = 0.08;
+
+            noise.connect(filter).connect(gain).connect(ctx.destination);
+            noise.start();
+            nodesRef.current.push(noise, filter, gain);
+          } else if (type === 'ocean') {
+            // Layered noise with LFO modulation for waves
+            const bufferSize = 2 * ctx.sampleRate;
+            const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+            const output = noiseBuffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) output[i] = Math.random() * 2 - 1;
+
+            const noise = ctx.createBufferSource();
+            noise.buffer = noiseBuffer;
+            noise.loop = true;
+
+            const filter = ctx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = 300;
+
+            const lfo = ctx.createOscillator();
+            lfo.frequency.value = 0.1;
+            const lfoGain = ctx.createGain();
+            lfoGain.gain.value = 150;
+            lfo.connect(lfoGain).connect(filter.frequency);
+
+            const gain = ctx.createGain();
+            gain.gain.value = 0.1;
+
+            noise.connect(filter).connect(gain).connect(ctx.destination);
+            noise.start();
+            lfo.start();
+            nodesRef.current.push(noise, filter, lfo, lfoGain, gain);
+          } else if (type === 'forest') {
+            // Soft brown noise with occasional bird-like chirps
+            const bufferSize = 2 * ctx.sampleRate;
+            const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+            const output = noiseBuffer.getChannelData(0);
+            let lastOut = 0;
+            for (let i = 0; i < bufferSize; i++) {
+              const white = Math.random() * 2 - 1;
+              output[i] = (lastOut + (0.02 * white)) / 1.02;
+              lastOut = output[i];
+              output[i] *= 3.5;
+            }
+
+            const noise = ctx.createBufferSource();
+            noise.buffer = noiseBuffer;
+            noise.loop = true;
+
+            const gain = ctx.createGain();
+            gain.gain.value = 0.06;
+
+            noise.connect(gain).connect(ctx.destination);
+            noise.start();
+            nodesRef.current.push(noise, gain);
+          } else if (type === 'cafe') {
+            // Low rumble with occasional high frequency chatter simulation
+            const bufferSize = 2 * ctx.sampleRate;
+            const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+            const output = noiseBuffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) output[i] = Math.random() * 2 - 1;
+
+            const noise = ctx.createBufferSource();
+            noise.buffer = noiseBuffer;
+            noise.loop = true;
+
+            const lowFilter = ctx.createBiquadFilter();
+            lowFilter.type = 'lowpass';
+            lowFilter.frequency.value = 250;
+
+            const highFilter = ctx.createBiquadFilter();
+            highFilter.type = 'bandpass';
+            highFilter.frequency.value = 2000;
+            highFilter.Q.value = 0.5;
+
+            const lowGain = ctx.createGain();
+            lowGain.gain.value = 0.06;
+
+            const highGain = ctx.createGain();
+            highGain.gain.value = 0.02;
+
+            noise.connect(lowFilter).connect(lowGain).connect(ctx.destination);
+            noise.connect(highFilter).connect(highGain).connect(ctx.destination);
+            noise.start();
+            nodesRef.current.push(noise, lowFilter, highFilter, lowGain, highGain);
+          } else if (type === 'drone') {
+            // Musical drone in C with subtle movement
+            const fundamental = 130.81; // C3
+            [1, 1.5, 2, 3].forEach((ratio, i) => {
+              const osc = ctx.createOscillator();
+              osc.type = i === 0 ? 'sine' : 'triangle';
+              osc.frequency.value = fundamental * ratio;
+
+              const lfo = ctx.createOscillator();
+              lfo.frequency.value = 0.05 + (i * 0.02);
+              const lfoGain = ctx.createGain();
+              lfoGain.gain.value = 2;
+              lfo.connect(lfoGain).connect(osc.frequency);
+
+              const gain = ctx.createGain();
+              gain.gain.value = (0.08 - i * 0.015);
+
+              osc.connect(gain).connect(ctx.destination);
+              osc.start();
+              lfo.start();
+              nodesRef.current.push(osc, lfo, lfoGain, gain);
+            });
+          }
+        } catch (e) {
+          console.warn('Ambient sound error:', e);
+        }
+      }, [stopAmbient]);
+
+      useEffect(() => {
+        if (ambientType !== 'none') startAmbient(ambientType);
+        return () => stopAmbient();
+      }, [ambientType, startAmbient, stopAmbient]);
+
+      return { ambientType, setAmbientType, stopAmbient, startAmbient };
     }
 
     // ============================================
@@ -1635,10 +2097,13 @@
 
     // Achievement Unlock Notification
     function AchievementNotification({ achievement, onClose }) {
+      const { playSound } = useSoundEffects();
+
       useEffect(() => {
+        playSound('achievement');
         const timer = setTimeout(onClose, 4000);
         return () => clearTimeout(timer);
-      }, [onClose]);
+      }, [onClose, playSound]);
 
       return (
         <div style={{
@@ -1951,6 +2416,7 @@
         level: 1,
         xpHistory: [],
       });
+      const { playSound } = useSoundEffects();
 
       const getCurrentLevel = useCallback(() => {
         for (let i = XP_LEVELS.length - 1; i >= 0; i--) {
@@ -1984,8 +2450,14 @@
           return { ...prev, totalXP: newTotal, xpHistory: newHistory };
         });
         const newLevel = XP_LEVELS.find(l => l.xpRequired <= xpData.totalXP + amount);
-        return newLevel && newLevel.level > oldLevel ? newLevel : null;
-      }, [xpData.totalXP, getCurrentLevel, setXPData]);
+        const leveledUp = newLevel && newLevel.level > oldLevel;
+        if (leveledUp) {
+          setTimeout(() => playSound('levelUp'), 300);
+        } else {
+          setTimeout(() => playSound('xpGain'), 100);
+        }
+        return leveledUp ? newLevel : null;
+      }, [xpData.totalXP, getCurrentLevel, setXPData, playSound]);
 
       return { xpData, addXP, getCurrentLevel, getNextLevel, getProgress };
     }
@@ -2490,10 +2962,11 @@
             setStreak(newStreak);
             if (newStreak > bestStreak) setBestStreak(newStreak);
             setLastResult({ correct: true, message: bonus > 0 ? `✓ Correct! +${bonus} bonus!` : '✓ Correct!', hint });
-            // Streak milestones with confetti
-            if (newStreak === 5) { addToast('🔥 5 streak! Keep going!', 'success'); setConfettiTrigger(Date.now()); }
-            if (newStreak === 10) { addToast('🔥🔥 10 streak! Amazing!', 'success'); setConfettiTrigger(Date.now()); }
-            if (newStreak === 25) { addToast('🔥🔥🔥 25 streak! Legendary!', 'success'); setConfettiTrigger(Date.now()); }
+            // Streak milestones with confetti and sounds
+            if (newStreak === 3) { setTimeout(() => playSound('streak3'), 200); }
+            if (newStreak === 5) { addToast('🔥 5 streak! Keep going!', 'success'); setConfettiTrigger(Date.now()); setTimeout(() => playSound('streak5'), 200); }
+            if (newStreak === 10) { addToast('🔥🔥 10 streak! Amazing!', 'success'); setConfettiTrigger(Date.now()); setTimeout(() => playSound('streak10'), 200); }
+            if (newStreak === 25) { addToast('🔥🔥🔥 25 streak! Legendary!', 'success'); setConfettiTrigger(Date.now()); setTimeout(() => playSound('streak10'), 200); }
           } else {
             playSound('error');
             triggerHaptic('error');
@@ -3127,7 +3600,9 @@
     // Settings View
     function SettingsView() {
       const { settings, updateSettings } = useSettings();
-      const { sfxEnabled, setSfxEnabled } = useSoundEffects();
+      const { sfxEnabled, setSfxEnabled, sfxVolume, setSfxVolume } = useSoundEffects();
+      const { ambientType, setAmbientType } = useAmbientSound();
+      const { playSound } = useSoundEffects();
 
       const Toggle = ({ checked, onChange }) => (
         <button onClick={() => { onChange(!checked); triggerHaptic('light'); }} className="btn-press"
@@ -3136,13 +3611,22 @@
         </button>
       );
 
+      const ambientOptions = [
+        { id: 'none', name: 'Off', icon: '🔇' },
+        { id: 'rain', name: 'Rain', icon: '🌧️' },
+        { id: 'ocean', name: 'Ocean', icon: '🌊' },
+        { id: 'forest', name: 'Forest', icon: '🌲' },
+        { id: 'cafe', name: 'Cafe', icon: '☕' },
+        { id: 'drone', name: 'Drone', icon: '🎵' },
+      ];
+
       return (
         <div style={{ flex: 1 }} className="page-enter">
           <Breadcrumbs items={[{ label: 'Settings' }]} />
 
-          {/* Sound Settings */}
+          {/* Instrument Settings */}
           <div style={styles.card}>
-            <h3 style={styles.cardTitle}>Sound</h3>
+            <h3 style={styles.cardTitle}>Instrument</h3>
             <div style={styles.settingRow}>
               <span style={styles.settingLabel}>Instrument</span>
               <select value={settings.instrument} onChange={(e) => updateSettings({ instrument: e.target.value })} style={styles.select}>
@@ -3156,17 +3640,71 @@
             <div style={styles.settingRow}>
               <div>
                 <span style={styles.settingLabel}>Use MIDI sounds</span>
-                <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>Realistic sampled instruments</div>
+                <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>Higher quality sampled instruments</div>
               </div>
               <Toggle checked={settings.useMidi} onChange={(val) => updateSettings({ useMidi: val })} />
             </div>
-            <div style={styles.settingRow}>
-              <span style={styles.settingLabel}>Volume</span>
+            <div style={{ ...styles.settingRow, borderBottom: 'none' }}>
+              <span style={styles.settingLabel}>Instrument Volume</span>
               <VolumeSlider value={settings.volume} onChange={(val) => updateSettings({ volume: val })} />
             </div>
-            <div style={{ ...styles.settingRow, borderBottom: 'none' }}>
+          </div>
+
+          {/* Sound Effects Settings */}
+          <div style={{ ...styles.card, marginTop: '16px' }}>
+            <h3 style={styles.cardTitle}>Sound Effects</h3>
+            <div style={styles.settingRow}>
               <span style={styles.settingLabel}>Sound effects</span>
               <Toggle checked={sfxEnabled} onChange={setSfxEnabled} />
+            </div>
+            {sfxEnabled && (
+              <>
+                <div style={styles.settingRow}>
+                  <span style={styles.settingLabel}>Effects Volume</span>
+                  <VolumeSlider value={sfxVolume} onChange={(val) => setSfxVolume(val)} />
+                </div>
+                <div style={{ ...styles.settingRow, borderBottom: 'none', flexDirection: 'column', gap: '12px', alignItems: 'stretch' }}>
+                  <span style={styles.settingLabel}>Preview Effects</span>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    {[
+                      { id: 'success', label: 'Correct', icon: '✓' },
+                      { id: 'error', label: 'Wrong', icon: '✗' },
+                      { id: 'streak5', label: 'Streak', icon: '🔥' },
+                      { id: 'levelUp', label: 'Level Up', icon: '⭐' },
+                      { id: 'achievement', label: 'Achievement', icon: '🏆' },
+                      { id: 'gameComplete', label: 'Victory', icon: '🎉' },
+                    ].map(({ id, label, icon }) => (
+                      <button key={id} onClick={() => playSound(id)} className="btn-press"
+                        style={{
+                          padding: '8px 12px', borderRadius: '10px', fontSize: '0.8rem', fontWeight: '600',
+                          border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.05)', color: 'white',
+                          display: 'flex', alignItems: 'center', gap: '6px'
+                        }}>
+                        <span>{icon}</span> {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Ambient Sounds */}
+          <div style={{ ...styles.card, marginTop: '16px' }}>
+            <h3 style={styles.cardTitle}>Ambient Sounds</h3>
+            <p style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: '12px' }}>Background soundscapes to help you focus</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+              {ambientOptions.map(({ id, name, icon }) => (
+                <button key={id} onClick={() => { setAmbientType(id); triggerHaptic('light'); }} className="btn-press"
+                  style={{
+                    padding: '12px 16px', borderRadius: '12px', fontSize: '0.9rem', fontWeight: '600',
+                    border: ambientType === id ? '2px solid #a855f7' : '2px solid rgba(255,255,255,0.15)',
+                    background: ambientType === id ? 'rgba(168, 85, 247, 0.3)' : 'rgba(255,255,255,0.05)',
+                    color: 'white', display: 'flex', alignItems: 'center', gap: '8px', minWidth: '90px'
+                  }}>
+                  <span style={{ fontSize: '1.2rem' }}>{icon}</span> {name}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -3315,7 +3853,7 @@
             <p style={{ color: '#94a3b8', fontSize: '0.9rem', lineHeight: 1.6 }}>
               KeyPerfect is an ear training app to help musicians recognize notes, intervals, chords, scales, and progressions.
             </p>
-            <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '12px' }}>Version 9.0</p>
+            <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '12px' }}>Version 9.1</p>
           </div>
         </div>
       );
@@ -3888,6 +4426,9 @@
           setIsNewHighScore(newHigh);
           if (newHigh) {
             addToast('🏆 NEW HIGH SCORE!', 'success');
+            playSound('gameComplete');
+          } else {
+            playSound('gameComplete');
           }
           return;
         }
@@ -4220,6 +4761,7 @@
             const newBest = saveSurvival(score, bestStreak);
             setIsNewBest(newBest);
             if (newBest) addToast('🏆 NEW BEST SCORE!', 'success');
+            setTimeout(() => playSound('gameComplete'), 400);
           } else {
             addToast(`💔 ${newLives} ${newLives === 1 ? 'life' : 'lives'} remaining`, 'error');
             setTimeout(() => generateQuestion(), 600);
