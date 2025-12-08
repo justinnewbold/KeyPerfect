@@ -4,6 +4,32 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <title>KeyPerfect - Music Ear Training</title>
+
+  <!-- PWA Meta Tags -->
+  <meta name="description" content="Train your musical ear with KeyPerfect. Practice identifying notes, intervals, chords, scales, and progressions with gamified exercises." />
+  <meta name="theme-color" content="#0f0c29" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="KeyPerfect" />
+
+  <!-- Open Graph / Social Sharing -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="KeyPerfect - Music Ear Training" />
+  <meta property="og:description" content="Train your musical ear with gamified exercises. Practice notes, intervals, chords, scales, and progressions." />
+  <meta property="og:image" content="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%230f0c29' width='100' height='100' rx='20'/><text x='50' y='65' font-size='50' text-anchor='middle' fill='white'>🎹</text></svg>" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="KeyPerfect - Music Ear Training" />
+  <meta name="twitter:description" content="Train your musical ear with gamified exercises." />
+
+  <!-- Favicon - Inline SVG -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%23a855f7'/><stop offset='100%25' stop-color='%23ec4899'/></linearGradient></defs><rect fill='url(%23g)' width='100' height='100' rx='20'/><text x='50' y='68' font-size='55' text-anchor='middle'>🎹</text></svg>" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%23a855f7'/><stop offset='100%25' stop-color='%23ec4899'/></linearGradient></defs><rect fill='url(%23g)' width='100' height='100' rx='20'/><text x='50' y='68' font-size='55' text-anchor='middle'>🎹</text></svg>" />
+
+  <!-- PWA Manifest (inline via data URI) -->
+  <link rel="manifest" href="data:application/json,{%22name%22:%22KeyPerfect%22,%22short_name%22:%22KeyPerfect%22,%22description%22:%22Music%20Ear%20Training%20App%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22%230f0c29%22,%22theme_color%22:%22%230f0c29%22,%22orientation%22:%22portrait%22,%22icons%22:[{%22src%22:%22data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%23a855f7'/><stop offset='100%25' stop-color='%23ec4899'/></linearGradient></defs><rect fill='url(%23g)' width='512' height='512' rx='100'/><text x='256' y='340' font-size='280' text-anchor='middle'>🎹</text></svg>%22,%22sizes%22:%22512x512%22,%22type%22:%22image/svg+xml%22,%22purpose%22:%22any%20maskable%22}]}" />
+
   <script src="https://unpkg.com/tone@14.8.49/build/Tone.js"></script>
   <script src="https://unpkg.com/soundfont-player@0.12.0/dist/soundfont-player.min.js"></script>
   <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -3853,7 +3879,7 @@
             <p style={{ color: '#94a3b8', fontSize: '0.9rem', lineHeight: 1.6 }}>
               KeyPerfect is an ear training app to help musicians recognize notes, intervals, chords, scales, and progressions.
             </p>
-            <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '12px' }}>Version 9.1</p>
+            <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '12px' }}>Version 9.2</p>
           </div>
         </div>
       );
@@ -6273,10 +6299,203 @@ Play at keyperfect.app`;
     }
 
     // ============================================
+    // PWA INSTALL PROMPT
+    // ============================================
+
+    function InstallPrompt() {
+      const [showPrompt, setShowPrompt] = useState(false);
+      const [deferredPrompt, setDeferredPrompt] = useState(null);
+      const [dismissed, setDismissed] = useLocalStorage('keyperfect_install_dismissed', false);
+
+      useEffect(() => {
+        const handler = (e) => {
+          e.preventDefault();
+          setDeferredPrompt(e);
+          if (!dismissed) {
+            setTimeout(() => setShowPrompt(true), 3000); // Show after 3 seconds
+          }
+        };
+        window.addEventListener('beforeinstallprompt', handler);
+        return () => window.removeEventListener('beforeinstallprompt', handler);
+      }, [dismissed]);
+
+      const handleInstall = async () => {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          setShowPrompt(false);
+        }
+        setDeferredPrompt(null);
+      };
+
+      const handleDismiss = () => {
+        setShowPrompt(false);
+        setDismissed(true);
+      };
+
+      if (!showPrompt) return null;
+
+      return (
+        <div style={{
+          position: 'fixed', bottom: '80px', left: '16px', right: '16px',
+          background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.95), rgba(236, 72, 153, 0.95))',
+          borderRadius: '16px', padding: '16px 20px',
+          display: 'flex', alignItems: 'center', gap: '16px',
+          boxShadow: '0 10px 40px rgba(0,0,0,0.4)', zIndex: 1000,
+          backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.2)'
+        }} className="toast-enter">
+          <div style={{ fontSize: '2.5rem' }}>🎹</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: '700', fontSize: '1rem', marginBottom: '4px' }}>Install KeyPerfect</div>
+            <div style={{ fontSize: '0.85rem', opacity: 0.9 }}>Add to home screen for the best experience</div>
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button onClick={handleDismiss} style={{
+              padding: '8px 12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.3)',
+              background: 'transparent', color: 'white', fontSize: '0.85rem', cursor: 'pointer'
+            }}>Later</button>
+            <button onClick={handleInstall} className="btn-press" style={{
+              padding: '8px 16px', borderRadius: '8px', border: 'none',
+              background: 'white', color: '#a855f7', fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer'
+            }}>Install</button>
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================
+    // ONBOARDING FLOW
+    // ============================================
+
+    function Onboarding({ onComplete }) {
+      const [step, setStep] = useState(0);
+      const { playSound } = useSoundEffects();
+
+      const steps = [
+        {
+          icon: '🎹',
+          title: 'Welcome to KeyPerfect!',
+          description: 'Train your musical ear with fun, gamified exercises. Let\'s take a quick tour!',
+        },
+        {
+          icon: '🎵',
+          title: '5 Training Modes',
+          description: 'Practice identifying notes, intervals, chords, scales, and chord progressions at various difficulty levels.',
+        },
+        {
+          icon: '⚡',
+          title: 'Special Challenges',
+          description: 'Try Daily Challenge, Speed Run, and Survival Mode to test your skills under pressure!',
+        },
+        {
+          icon: '🏆',
+          title: 'Level Up & Earn XP',
+          description: 'Gain experience points, unlock achievements, and track your progress over time.',
+        },
+        {
+          icon: '🔊',
+          title: 'Enable Sound',
+          description: 'For the best experience, make sure your device volume is up. Tap below to test!',
+          action: () => playSound('success'),
+          actionLabel: 'Test Sound',
+        },
+      ];
+
+      const handleNext = () => {
+        if (step < steps.length - 1) {
+          setStep(step + 1);
+          playSound('click');
+        } else {
+          playSound('start');
+          onComplete();
+        }
+      };
+
+      const currentStep = steps[step];
+
+      return (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 2000,
+          background: 'linear-gradient(-45deg, #0f0c29, #302b63, #24243e)',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          padding: '24px', textAlign: 'center'
+        }}>
+          <div style={{
+            background: 'rgba(255,255,255,0.05)', borderRadius: '24px',
+            padding: '40px 32px', maxWidth: '400px', width: '100%',
+            border: '1px solid rgba(255,255,255,0.1)',
+            backdropFilter: 'blur(20px)'
+          }} className="page-enter">
+            <div style={{ fontSize: '5rem', marginBottom: '24px' }}>{currentStep.icon}</div>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '12px', color: 'white' }}>
+              {currentStep.title}
+            </h2>
+            <p style={{ fontSize: '1rem', color: 'rgba(255,255,255,0.8)', lineHeight: 1.6, marginBottom: '24px' }}>
+              {currentStep.description}
+            </p>
+
+            {currentStep.action && (
+              <button onClick={currentStep.action} className="btn-press" style={{
+                padding: '12px 24px', borderRadius: '12px', marginBottom: '24px',
+                background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
+                color: 'white', fontSize: '1rem', cursor: 'pointer'
+              }}>
+                {currentStep.actionLabel}
+              </button>
+            )}
+
+            {/* Progress dots */}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '24px' }}>
+              {steps.map((_, i) => (
+                <div key={i} style={{
+                  width: '10px', height: '10px', borderRadius: '50%',
+                  background: i === step ? '#a855f7' : 'rgba(255,255,255,0.2)',
+                  transition: 'background 0.3s'
+                }} />
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              {step > 0 && (
+                <button onClick={() => setStep(step - 1)} className="btn-press" style={{
+                  padding: '14px 24px', borderRadius: '12px',
+                  background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
+                  color: 'white', fontSize: '1rem', fontWeight: '600', cursor: 'pointer'
+                }}>
+                  Back
+                </button>
+              )}
+              <button onClick={handleNext} className="btn-press" style={{
+                padding: '14px 32px', borderRadius: '12px',
+                background: 'linear-gradient(135deg, #a855f7, #ec4899)', border: 'none',
+                color: 'white', fontSize: '1rem', fontWeight: '700', cursor: 'pointer',
+                flex: step === 0 ? 1 : 'none'
+              }}>
+                {step === steps.length - 1 ? "Let's Go!" : 'Next'}
+              </button>
+            </div>
+
+            {step === 0 && (
+              <button onClick={onComplete} style={{
+                marginTop: '16px', padding: '8px',
+                background: 'transparent', border: 'none',
+                color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem', cursor: 'pointer'
+              }}>
+                Skip intro
+              </button>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================
     // MAIN APP
     // ============================================
 
     function App() {
+      const [hasOnboarded, setHasOnboarded] = useLocalStorage('keyperfect_onboarded', false);
       const [view, setView] = useState('play');
       const [gameMode, setGameMode] = useState(null);
       const [gameDifficulty, setGameDifficulty] = useState(null);
@@ -6329,6 +6548,11 @@ Play at keyperfect.app`;
         return <LearnView onCircleOfFifths={() => setLearnMode('circle')} onReferenceLibrary={() => setLearnMode('reference')} />;
       };
 
+      // Show onboarding for first-time users
+      if (!hasOnboarded) {
+        return <Onboarding onComplete={() => setHasOnboarded(true)} />;
+      }
+
       return (
         <div style={styles.container}>
           <header style={{ ...styles.header, position: 'relative' }}>
@@ -6353,6 +6577,9 @@ Play at keyperfect.app`;
           {view === 'settings' && !gameMode && <SettingsView />}
 
           {!gameMode && !learnMode && <BottomNav currentView={view} setView={setView} />}
+
+          {/* PWA Install Prompt */}
+          <InstallPrompt />
         </div>
       );
     }
@@ -6373,6 +6600,91 @@ Play at keyperfect.app`;
       </SettingsProvider>,
       document.getElementById('root')
     );
+  </script>
+
+  <!-- Service Worker Registration for PWA/Offline Support -->
+  <script>
+    // Register service worker for offline capability
+    if ('serviceWorker' in navigator) {
+      // Create an inline service worker using Blob URL
+      const swCode = `
+        const CACHE_NAME = 'keyperfect-v9.2';
+        const CDN_URLS = [
+          'https://unpkg.com/tone@14.8.49/build/Tone.js',
+          'https://unpkg.com/soundfont-player@0.12.0/dist/soundfont-player.min.js',
+          'https://unpkg.com/react@18/umd/react.development.js',
+          'https://unpkg.com/react-dom@18/umd/react-dom.development.js',
+          'https://unpkg.com/@babel/standalone/babel.min.js',
+          'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap'
+        ];
+
+        // Install event - cache essential resources
+        self.addEventListener('install', (event) => {
+          event.waitUntil(
+            caches.open(CACHE_NAME).then((cache) => {
+              return cache.addAll(CDN_URLS).catch(err => console.log('Cache addAll error:', err));
+            })
+          );
+          self.skipWaiting();
+        });
+
+        // Activate event - clean up old caches
+        self.addEventListener('activate', (event) => {
+          event.waitUntil(
+            caches.keys().then((cacheNames) => {
+              return Promise.all(
+                cacheNames.filter(name => name !== CACHE_NAME).map(name => caches.delete(name))
+              );
+            })
+          );
+          self.clients.claim();
+        });
+
+        // Fetch event - serve from cache, fallback to network
+        self.addEventListener('fetch', (event) => {
+          // Skip non-GET requests
+          if (event.request.method !== 'GET') return;
+
+          event.respondWith(
+            caches.match(event.request).then((cachedResponse) => {
+              if (cachedResponse) {
+                // Return cached version and update cache in background
+                event.waitUntil(
+                  fetch(event.request).then(response => {
+                    if (response.ok) {
+                      caches.open(CACHE_NAME).then(cache => cache.put(event.request, response));
+                    }
+                  }).catch(() => {})
+                );
+                return cachedResponse;
+              }
+
+              // Not in cache, fetch from network
+              return fetch(event.request).then((response) => {
+                // Cache successful responses
+                if (response.ok && (event.request.url.startsWith('http'))) {
+                  const responseClone = response.clone();
+                  caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseClone));
+                }
+                return response;
+              }).catch(() => {
+                // Return offline fallback for navigation requests
+                if (event.request.mode === 'navigate') {
+                  return caches.match('/');
+                }
+              });
+            })
+          );
+        });
+      `;
+
+      const swBlob = new Blob([swCode], { type: 'application/javascript' });
+      const swUrl = URL.createObjectURL(swBlob);
+
+      navigator.serviceWorker.register(swUrl, { scope: '/' })
+        .then(reg => console.log('ServiceWorker registered:', reg.scope))
+        .catch(err => console.log('ServiceWorker registration failed:', err));
+    }
   </script>
 </body>
 </html>
