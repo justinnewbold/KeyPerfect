@@ -1305,17 +1305,94 @@
       return audioContextRef.current;
     }
 
-    function useAudio(instrument, useMidi = false, volume = 0.7) {
+    // Salamander Grand Piano - High Quality Sampled Piano
+    // Uses real Steinway D recordings for authentic sound
+    const SALAMANDER_SAMPLES = {
+      'A0': 'A0.mp3', 'C1': 'C1.mp3', 'D#1': 'Ds1.mp3', 'F#1': 'Fs1.mp3',
+      'A1': 'A1.mp3', 'C2': 'C2.mp3', 'D#2': 'Ds2.mp3', 'F#2': 'Fs2.mp3',
+      'A2': 'A2.mp3', 'C3': 'C3.mp3', 'D#3': 'Ds3.mp3', 'F#3': 'Fs3.mp3',
+      'A3': 'A3.mp3', 'C4': 'C4.mp3', 'D#4': 'Ds4.mp3', 'F#4': 'Fs4.mp3',
+      'A4': 'A4.mp3', 'C5': 'C5.mp3', 'D#5': 'Ds5.mp3', 'F#5': 'Fs5.mp3',
+      'A5': 'A5.mp3', 'C6': 'C6.mp3', 'D#6': 'Ds6.mp3', 'F#6': 'Fs6.mp3',
+      'A6': 'A6.mp3', 'C7': 'C7.mp3', 'D#7': 'Ds7.mp3', 'F#7': 'Fs7.mp3',
+      'A7': 'A7.mp3', 'C8': 'C8.mp3',
+    };
+    const SALAMANDER_BASE_URL = 'https://nbrosowsky.github.io/tonern-piano/Salamander/';
+
+    // Global sampler cache to avoid reloading
+    const salamanderSamplerRef = { current: null, loading: false, loadPromise: null };
+
+    function loadSalamanderPiano(volume = 0.7) {
+      if (salamanderSamplerRef.current) {
+        salamanderSamplerRef.current.volume.value = Tone.gainToDb(volume);
+        return Promise.resolve(salamanderSamplerRef.current);
+      }
+      if (salamanderSamplerRef.loadPromise) {
+        return salamanderSamplerRef.loadPromise;
+      }
+
+      salamanderSamplerRef.loading = true;
+      salamanderSamplerRef.loadPromise = new Promise((resolve, reject) => {
+        const sampler = new Tone.Sampler({
+          urls: SALAMANDER_SAMPLES,
+          baseUrl: SALAMANDER_BASE_URL,
+          release: 1,
+          onload: () => {
+            sampler.volume.value = Tone.gainToDb(volume);
+            salamanderSamplerRef.current = sampler;
+            salamanderSamplerRef.loading = false;
+            console.log('Salamander Grand Piano loaded');
+            resolve(sampler);
+          },
+          onerror: (err) => {
+            salamanderSamplerRef.loading = false;
+            console.error('Failed to load Salamander Piano:', err);
+            reject(err);
+          }
+        }).toDestination();
+      });
+
+      return salamanderSamplerRef.loadPromise;
+    }
+
+    function useAudio(instrument, useMidi = false, volume = 0.7, useHQPiano = false) {
       const [synth, setSynth] = useState(null);
       const [polySynth, setPolySynth] = useState(null);
       const [midiInstrument, setMidiInstrument] = useState(null);
+      const [salamanderPiano, setSalamanderPiano] = useState(null);
       const [isPlaying, setIsPlaying] = useState(false);
       const [isLoading, setIsLoading] = useState(true);
       const gainNodeRef = useRef(null);
 
-      // Load synth instruments
+      const isHQPianoActive = useHQPiano && instrument === 'piano';
+
+      // Load Salamander Piano (high quality samples)
       useEffect(() => {
-        if (useMidi) return;
+        if (!isHQPianoActive) {
+          setSalamanderPiano(null);
+          return;
+        }
+        setIsLoading(true);
+        loadSalamanderPiano(volume)
+          .then(sampler => {
+            setSalamanderPiano(sampler);
+            setIsLoading(false);
+          })
+          .catch(() => {
+            setIsLoading(false);
+          });
+      }, [isHQPianoActive, volume]);
+
+      // Update Salamander volume
+      useEffect(() => {
+        if (salamanderPiano) {
+          salamanderPiano.volume.value = Tone.gainToDb(volume);
+        }
+      }, [salamanderPiano, volume]);
+
+      // Load synth instruments (fallback)
+      useEffect(() => {
+        if (useMidi || isHQPianoActive) return;
         setIsLoading(true);
         const config = INSTRUMENTS[instrument]?.config || INSTRUMENTS.piano.config;
         const gainNode = new Tone.Gain(volume).toDestination();
@@ -1326,7 +1403,7 @@
         setPolySynth(newPolySynth);
         setTimeout(() => setIsLoading(false), 300);
         return () => { newSynth.dispose(); newPolySynth.dispose(); gainNode.dispose(); };
-      }, [instrument, useMidi]);
+      }, [instrument, useMidi, isHQPianoActive]);
 
       // Update volume
       useEffect(() => {
@@ -1337,7 +1414,7 @@
 
       // Load MIDI instrument
       useEffect(() => {
-        if (!useMidi) return;
+        if (!useMidi || isHQPianoActive) return;
         setIsLoading(true);
         const midiName = INSTRUMENTS[instrument]?.midi || 'acoustic_grand_piano';
         const ac = getAudioContext();
@@ -1351,13 +1428,17 @@
           console.error('Failed to load MIDI instrument:', err);
           setIsLoading(false);
         });
-      }, [instrument, useMidi]);
+      }, [instrument, useMidi, isHQPianoActive]);
 
       const playNote = useCallback(async (note, octave = 4, duration = '2n') => {
         if (isPlaying) return;
         setIsPlaying(true);
         try {
-          if (useMidi && midiInstrument) {
+          // Use Salamander Piano for high-quality piano sound
+          if (salamanderPiano && isHQPianoActive) {
+            await Tone.start();
+            salamanderPiano.triggerAttackRelease(`${note}${octave}`, 1.5);
+          } else if (useMidi && midiInstrument) {
             const ac = getAudioContext();
             if (ac.state === 'suspended') await ac.resume();
             midiInstrument.play(`${note}${octave}`, ac.currentTime, { duration: 1.5, gain: volume });
@@ -1367,13 +1448,17 @@
           }
           setTimeout(() => setIsPlaying(false), 1500);
         } catch (err) { setIsPlaying(false); }
-      }, [synth, midiInstrument, isPlaying, useMidi]);
+      }, [synth, midiInstrument, salamanderPiano, isPlaying, useMidi, isHQPianoActive]);
 
       const playNotes = useCallback(async (notes, duration = '2n') => {
         if (isPlaying) return;
         setIsPlaying(true);
         try {
-          if (useMidi && midiInstrument) {
+          // Use Salamander Piano for high-quality piano sound
+          if (salamanderPiano && isHQPianoActive) {
+            await Tone.start();
+            salamanderPiano.triggerAttackRelease(notes, 1.8);
+          } else if (useMidi && midiInstrument) {
             const ac = getAudioContext();
             if (ac.state === 'suspended') await ac.resume();
             notes.forEach(note => midiInstrument.play(note, ac.currentTime, { duration: 1.8, gain: volume }));
@@ -1383,13 +1468,20 @@
           }
           setTimeout(() => setIsPlaying(false), 1800);
         } catch (err) { setIsPlaying(false); }
-      }, [polySynth, midiInstrument, isPlaying, useMidi]);
+      }, [polySynth, midiInstrument, salamanderPiano, isPlaying, useMidi, isHQPianoActive]);
 
       const playSequence = useCallback(async (notes, interval = 0.5) => {
         if (isPlaying) return;
         setIsPlaying(true);
         try {
-          if (useMidi && midiInstrument) {
+          // Use Salamander Piano for high-quality piano sound
+          if (salamanderPiano && isHQPianoActive) {
+            await Tone.start();
+            const now = Tone.now();
+            notes.forEach((note, i) => {
+              salamanderPiano.triggerAttackRelease(note, 0.4, now + i * interval);
+            });
+          } else if (useMidi && midiInstrument) {
             const ac = getAudioContext();
             if (ac.state === 'suspended') await ac.resume();
             const now = ac.currentTime;
@@ -1401,13 +1493,20 @@
           }
           setTimeout(() => setIsPlaying(false), notes.length * interval * 1000 + 500);
         } catch (err) { setIsPlaying(false); }
-      }, [synth, midiInstrument, isPlaying, useMidi]);
+      }, [synth, midiInstrument, salamanderPiano, isPlaying, useMidi, isHQPianoActive]);
 
       const playChordSequence = useCallback(async (chordNotes, interval = 0.8) => {
         if (isPlaying) return;
         setIsPlaying(true);
         try {
-          if (useMidi && midiInstrument) {
+          // Use Salamander Piano for high-quality piano sound
+          if (salamanderPiano && isHQPianoActive) {
+            await Tone.start();
+            const now = Tone.now();
+            chordNotes.forEach((chord, i) => {
+              salamanderPiano.triggerAttackRelease(chord, 0.7, now + i * interval);
+            });
+          } else if (useMidi && midiInstrument) {
             const ac = getAudioContext();
             if (ac.state === 'suspended') await ac.resume();
             const now = ac.currentTime;
@@ -1421,9 +1520,9 @@
           }
           setTimeout(() => setIsPlaying(false), chordNotes.length * interval * 1000 + 800);
         } catch (err) { setIsPlaying(false); }
-      }, [polySynth, midiInstrument, isPlaying, useMidi]);
+      }, [polySynth, midiInstrument, salamanderPiano, isPlaying, useMidi, isHQPianoActive]);
 
-      return { playNote, playNotes, playSequence, playChordSequence, isPlaying, isLoading };
+      return { playNote, playNotes, playSequence, playChordSequence, isPlaying, isLoading, isHQPianoActive };
     }
 
     // ============================================
@@ -1567,11 +1666,12 @@
     const SettingsContext = createContext();
 
     function SettingsProvider({ children }) {
-      const [settings, setSettings] = useLocalStorage('keyperfect_settings_v7', {
+      const [settings, setSettings] = useLocalStorage('keyperfect_settings_v8', {
         instrument: 'piano',
         autoPlayOnStart: true,
         showOctaveInChoices: false,
         useMidi: false,
+        useHQPiano: true, // Use Salamander Grand Piano samples
         volume: 0.7,
         practiceMode: false,
         timedMode: false,
@@ -2659,8 +2759,8 @@
     }
 
     // Sound Preview Component
-    function SoundPreview({ instrument, useMidi, volume }) {
-      const audio = useAudio(instrument, useMidi, volume);
+    function SoundPreview({ instrument, useMidi, volume, useHQPiano }) {
+      const audio = useAudio(instrument, useMidi, volume, useHQPiano);
       const [isPreviewPlaying, setIsPreviewPlaying] = useState(false);
 
       const playPreview = () => {
@@ -2854,7 +2954,7 @@
       const { recordSessionAnswer } = useSessionStats();
       const { addToast } = useToast();
       const { playSound } = useSoundEffects();
-      const audio = useAudio(settings.instrument, settings.useMidi, settings.volume);
+      const audio = useAudio(settings.instrument, settings.useMidi, settings.volume, settings.useHQPiano);
       const diffSettings = difficultySettings[difficulty];
 
       const [gameState, setGameState] = useState('playing');
@@ -3219,7 +3319,7 @@
     // Learn View with Swipe
     function LearnView({ onCircleOfFifths, onReferenceLibrary }) {
       const { settings } = useSettings();
-      const audio = useAudio(settings.instrument, settings.useMidi, settings.volume);
+      const audio = useAudio(settings.instrument, settings.useMidi, settings.volume, settings.useHQPiano);
       const [currentPage, setCurrentPage] = useState('intervals');
 
       const ScalesPage = () => (
@@ -3661,15 +3761,29 @@
             </div>
             <div style={styles.settingRow}>
               <span style={styles.settingLabel}>Preview Sound</span>
-              <SoundPreview instrument={settings.instrument} useMidi={settings.useMidi} volume={settings.volume} />
+              <SoundPreview instrument={settings.instrument} useMidi={settings.useMidi} volume={settings.volume} useHQPiano={settings.useHQPiano} />
             </div>
             <div style={styles.settingRow}>
               <div>
                 <span style={styles.settingLabel}>Use MIDI sounds</span>
-                <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>Higher quality sampled instruments</div>
+                <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>Sampled instruments (non-piano)</div>
               </div>
               <Toggle checked={settings.useMidi} onChange={(val) => updateSettings({ useMidi: val })} />
             </div>
+            <div style={styles.settingRow}>
+              <div>
+                <span style={styles.settingLabel}>Salamander Grand Piano</span>
+                <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>Real Steinway D recordings (~12MB)</div>
+              </div>
+              <Toggle checked={settings.useHQPiano} onChange={(val) => updateSettings({ useHQPiano: val })} />
+            </div>
+            {settings.useHQPiano && settings.instrument === 'piano' && (
+              <div style={{ padding: '12px 16px', background: 'rgba(34, 197, 94, 0.1)', borderRadius: '8px', marginBottom: '12px', border: '1px solid rgba(34, 197, 94, 0.2)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#22c55e', fontSize: '0.85rem' }}>
+                  <span>✓</span> High-quality piano active
+                </div>
+              </div>
+            )}
             <div style={{ ...styles.settingRow, borderBottom: 'none' }}>
               <span style={styles.settingLabel}>Instrument Volume</span>
               <VolumeSlider value={settings.volume} onChange={(val) => updateSettings({ volume: val })} />
@@ -3879,7 +3993,7 @@
             <p style={{ color: '#94a3b8', fontSize: '0.9rem', lineHeight: 1.6 }}>
               KeyPerfect is an ear training app to help musicians recognize notes, intervals, chords, scales, and progressions.
             </p>
-            <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '12px' }}>Version 9.2</p>
+            <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '12px' }}>Version 10.0</p>
           </div>
         </div>
       );
@@ -4140,7 +4254,7 @@
       const { settings } = useSettings();
       const { addToast } = useToast();
       const { playSound } = useSoundEffects();
-      const audio = useAudio(settings.instrument, settings.useMidi, settings.volume);
+      const audio = useAudio(settings.instrument, settings.useMidi, settings.volume, settings.useHQPiano);
       const { seed, startDaily, completeDaily, hasPlayedToday } = useDailyChallenge();
 
       const [questionIndex, setQuestionIndex] = useState(0);
@@ -4377,7 +4491,7 @@
       const { settings } = useSettings();
       const { addToast } = useToast();
       const { playSound } = useSoundEffects();
-      const audio = useAudio(settings.instrument, settings.useMidi, settings.volume);
+      const audio = useAudio(settings.instrument, settings.useMidi, settings.volume, settings.useHQPiano);
       const { speedRunStats, saveRun } = useSpeedRun();
 
       const DURATION = 60; // 60 seconds
@@ -4681,7 +4795,7 @@
       const { settings } = useSettings();
       const { addToast } = useToast();
       const { playSound } = useSoundEffects();
-      const audio = useAudio(settings.instrument, settings.useMidi, settings.volume);
+      const audio = useAudio(settings.instrument, settings.useMidi, settings.volume, settings.useHQPiano);
       const { survivalStats, saveSurvival } = useSurvival();
 
       const [lives, setLives] = useState(3);
@@ -4935,7 +5049,7 @@
       const { recordAnswer } = useStats();
       const { addToast } = useToast();
       const { playSound } = useSoundEffects();
-      const audio = useAudio(settings.instrument, settings.useMidi, settings.volume);
+      const audio = useAudio(settings.instrument, settings.useMidi, settings.volume, settings.useHQPiano);
 
       const [score, setScore] = useState(0);
       const [streak, setStreak] = useState(0);
@@ -5087,7 +5201,7 @@
       const { recordAnswer } = useStats();
       const { addToast } = useToast();
       const { playSound } = useSoundEffects();
-      const audio = useAudio(settings.instrument, settings.useMidi, settings.volume);
+      const audio = useAudio(settings.instrument, settings.useMidi, settings.volume, settings.useHQPiano);
       const { addXP } = useXP();
 
       const [score, setScore] = useState(0);
@@ -5237,7 +5351,7 @@
     // Melodic Dictation Game
     function MelodicDictation({ onBack }) {
       const { settings } = useSettings();
-      const audio = useAudio(settings.instrument, settings.useMidi, settings.volume);
+      const audio = useAudio(settings.instrument, settings.useMidi, settings.volume, settings.useHQPiano);
       const { playSound } = useSoundEffects();
       const { addXP } = useXP();
 
@@ -5384,7 +5498,7 @@
     // Relative Pitch Game
     function RelativePitchGame({ onBack }) {
       const { settings } = useSettings();
-      const audio = useAudio(settings.instrument, settings.useMidi, settings.volume);
+      const audio = useAudio(settings.instrument, settings.useMidi, settings.volume, settings.useHQPiano);
       const { playSound } = useSoundEffects();
       const { addXP } = useXP();
 
@@ -5799,7 +5913,7 @@
     // Interactive Circle of Fifths Component
     function CircleOfFifths({ onBack }) {
       const { settings } = useSettings();
-      const audio = useAudio(settings.instrument, settings.useMidi, settings.volume);
+      const audio = useAudio(settings.instrument, settings.useMidi, settings.volume, settings.useHQPiano);
       const [selectedKey, setSelectedKey] = useState(null);
       const [showMinor, setShowMinor] = useState(false);
 
@@ -5899,7 +6013,7 @@
     // Reference Library Component
     function ReferenceLibrary({ onBack }) {
       const { settings } = useSettings();
-      const audio = useAudio(settings.instrument, settings.useMidi, settings.volume);
+      const audio = useAudio(settings.instrument, settings.useMidi, settings.volume, settings.useHQPiano);
       const [activeTab, setActiveTab] = useState('intervals');
 
       const playInterval = (semitones) => {
@@ -6095,7 +6209,7 @@
     // Focus Mode Game
     function FocusModeGame({ mode, difficulty, onBack }) {
       const { settings } = useSettings();
-      const audio = useAudio(settings.instrument, settings.useMidi, settings.volume);
+      const audio = useAudio(settings.instrument, settings.useMidi, settings.volume, settings.useHQPiano);
 
       // Minimal UI version of the game
       return (
@@ -6608,7 +6722,7 @@ Play at keyperfect.app`;
     if ('serviceWorker' in navigator) {
       // Create an inline service worker using Blob URL
       const swCode = `
-        const CACHE_NAME = 'keyperfect-v9.2';
+        const CACHE_NAME = 'keyperfect-v10.0';
         const CDN_URLS = [
           'https://unpkg.com/tone@14.8.49/build/Tone.js',
           'https://unpkg.com/soundfont-player@0.12.0/dist/soundfont-player.min.js',
