@@ -1807,8 +1807,7 @@
       scoreLabel: { fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: '500' },
       scoreValue: { fontSize: '1.4rem', fontWeight: '700' },
 
-      // Floating Play Button
-      floatingPlayBtn: { position: 'fixed', bottom: '120px', right: '24px', width: '72px', height: '72px', borderRadius: '50%', border: 'none', background: 'linear-gradient(135deg, #3b82f6, #8b5cf6, #a855f7)', color: 'white', fontSize: '1.8rem', cursor: 'pointer', boxShadow: '0 8px 30px rgba(139, 92, 246, 0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      // Play hints
       playHint: { marginTop: '12px', color: '#64748b', fontSize: '0.85rem', textAlign: 'center', fontWeight: '500' },
 
       // Choice Buttons - Enhanced
@@ -2844,17 +2843,43 @@
       );
     }
 
-    // Floating Play Button
-    function FloatingPlayButton({ onClick, isPlaying, isLoading }) {
+    // Play Button - Prominent inline design
+    function PlayButton({ onClick, isPlaying, isLoading, size = 'large' }) {
+      const sizes = {
+        small: { width: '56px', height: '56px', fontSize: '1.4rem' },
+        medium: { width: '72px', height: '72px', fontSize: '1.8rem' },
+        large: { width: '88px', height: '88px', fontSize: '2.2rem' },
+      };
+      const sizeStyle = sizes[size] || sizes.large;
+
       if (isLoading) return (
-        <button style={{ ...styles.floatingPlayBtn, opacity: 0.5 }} disabled>
+        <button style={{
+          ...sizeStyle, borderRadius: '50%', border: 'none',
+          background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
+          color: 'white', cursor: 'wait', opacity: 0.5,
+          boxShadow: '0 8px 30px rgba(139, 92, 246, 0.4)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }} disabled>
           <span>⏳</span>
         </button>
       );
+
       return (
         <button onClick={() => { onClick(); triggerHaptic('medium'); }} disabled={isPlaying}
-          className={`btn-press ${!isPlaying ? 'floating-btn' : ''}`}
-          style={{ ...styles.floatingPlayBtn, opacity: isPlaying ? 0.7 : 1 }}>
+          className="btn-press"
+          style={{
+            ...sizeStyle, borderRadius: '50%', border: 'none',
+            background: isPlaying
+              ? 'linear-gradient(135deg, #22c55e, #16a34a)'
+              : 'linear-gradient(135deg, #3b82f6, #8b5cf6, #a855f7)',
+            color: 'white', cursor: isPlaying ? 'default' : 'pointer',
+            boxShadow: isPlaying
+              ? '0 8px 30px rgba(34, 197, 94, 0.5)'
+              : '0 8px 30px rgba(139, 92, 246, 0.5)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'all 0.3s ease',
+            transform: isPlaying ? 'scale(1.05)' : 'scale(1)',
+          }}>
           <span>{isPlaying ? '🔊' : '▶️'}</span>
         </button>
       );
@@ -3162,7 +3187,6 @@
             />
           )}
 
-          {!settings.timedMode && <p style={styles.playHint}>Tap the play button to hear again</p>}
 
           {lastResult && (
             <div className={lastResult.correct ? 'success-check' : ''} style={{ ...styles.resultBox, backgroundColor: lastResult.correct ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)', borderColor: lastResult.correct ? '#22c55e' : '#ef4444' }}>
@@ -3181,6 +3205,12 @@
               ⏱ Timed Mode - Answer quickly for bonus points!
             </div>
           )}
+
+          {/* Play Button - Centered and Prominent */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', margin: '8px 0' }}>
+            <PlayButton onClick={handleReplay} isPlaying={audio.isPlaying} isLoading={audio.isLoading} size="large" />
+            <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>Tap to hear again</span>
+          </div>
 
           <div className={shakeWrong ? 'shake' : ''} style={styles.choicesGrid}>
             {choices.map((choice, i) => {
@@ -3210,8 +3240,6 @@
             </span>
           </div>
           <style>{`.kbd-hint { display: none !important; } @media (hover: hover) and (pointer: fine) { .kbd-hint { display: inline !important; } }`}</style>
-
-          <FloatingPlayButton onClick={handleReplay} isPlaying={audio.isPlaying} isLoading={audio.isLoading} />
         </div>
       );
     }
@@ -4448,9 +4476,10 @@
           </div>
 
           <div style={{ ...styles.card, textAlign: 'center', padding: '20px' }}>
-            <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px' }}>
+            <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '1px' }}>
               Identify the {modeLabels[currentQuestion.mode]}
             </div>
+            <PlayButton onClick={playCurrentQuestion} isPlaying={audio.isPlaying} isLoading={audio.isLoading} size="medium" />
           </div>
 
           {lastResult && (
@@ -4480,8 +4509,6 @@
               </button>
             )}
           </div>
-
-          <FloatingPlayButton onClick={playCurrentQuestion} isPlaying={audio.isPlaying} isLoading={audio.isLoading} />
         </div>
       );
     }
@@ -4768,9 +4795,12 @@
             </div>
           </div>
 
-          {/* Mode indicator */}
-          <div style={{ textAlign: 'center', fontSize: '0.85rem', color: '#94a3b8' }}>
-            {currentQuestion && GAME_MODES[currentQuestion.mode]?.icon} {currentQuestion && GAME_MODES[currentQuestion.mode]?.name}
+          {/* Mode indicator with play button */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px' }}>
+            <PlayButton onClick={handleReplay} isPlaying={audio.isPlaying} isLoading={audio.isLoading} size="small" />
+            <div style={{ fontSize: '0.85rem', color: '#94a3b8' }}>
+              {currentQuestion && GAME_MODES[currentQuestion.mode]?.icon} {currentQuestion && GAME_MODES[currentQuestion.mode]?.name}
+            </div>
           </div>
 
           {/* Choices */}
@@ -4784,8 +4814,6 @@
               </button>
             ))}
           </div>
-
-          <FloatingPlayButton onClick={handleReplay} isPlaying={audio.isPlaying} isLoading={audio.isLoading} />
         </div>
       );
     }
@@ -5023,8 +5051,12 @@
             </div>
           </div>
 
-          <div style={{ textAlign: 'center', fontSize: '0.85rem', color: '#94a3b8' }}>
-            {currentQuestion && GAME_MODES[currentQuestion.mode]?.icon} {currentQuestion && GAME_MODES[currentQuestion.mode]?.name}
+          {/* Play Button and Mode indicator */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px' }}>
+            <PlayButton onClick={handleReplay} isPlaying={audio.isPlaying} isLoading={audio.isLoading} size="medium" />
+            <div style={{ fontSize: '0.85rem', color: '#94a3b8' }}>
+              {currentQuestion && GAME_MODES[currentQuestion.mode]?.icon} {currentQuestion && GAME_MODES[currentQuestion.mode]?.name}
+            </div>
           </div>
 
           <div style={styles.choicesGrid}>
@@ -5037,8 +5069,6 @@
               </button>
             ))}
           </div>
-
-          <FloatingPlayButton onClick={handleReplay} isPlaying={audio.isPlaying} isLoading={audio.isLoading} />
         </div>
       );
     }
@@ -5155,8 +5185,13 @@
 
           <ScoreBoard score={score} streak={streak} total={total} bestStreak={bestStreak} />
 
-          <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.9rem' }}>
+          <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.9rem', marginBottom: '8px' }}>
             What inversion is this <span style={{ color: '#a855f7', fontWeight: '600' }}>{currentQuestion?.rootNote} {CHORD_TYPES[currentQuestion?.chordType]?.name}</span> chord?
+          </div>
+
+          {/* Play Button */}
+          <div style={{ display: 'flex', justifyContent: 'center', margin: '8px 0' }}>
+            <PlayButton onClick={handleReplay} isPlaying={audio.isPlaying} isLoading={audio.isLoading} size="medium" />
           </div>
 
           {lastResult && (
@@ -5189,8 +5224,6 @@
             {gameState === 'result' && <button onClick={generateQuestion} className="btn-press" style={styles.nextBtn}>Next →</button>}
             <button onClick={onBack} className="btn-press" style={styles.resetBtn}>Exit</button>
           </div>
-
-          <FloatingPlayButton onClick={handleReplay} isPlaying={audio.isPlaying} isLoading={audio.isLoading} />
         </div>
       );
     }
@@ -5297,9 +5330,12 @@
 
           {currentQuestion && (
             <div style={styles.card}>
-              <h3 style={{ textAlign: 'center', marginBottom: '20px', color: '#e2e8f0' }}>
+              <h3 style={{ textAlign: 'center', marginBottom: '12px', color: '#e2e8f0' }}>
                 What type of 7th chord is this?
               </h3>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+                <PlayButton onClick={() => currentQuestion?.play()} isPlaying={audio.isPlaying} isLoading={audio.isLoading} size="medium" />
+              </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 {currentQuestion.choices.map((choice) => (
                   <button key={choice} onClick={() => handleGuess(choice)}
@@ -5343,7 +5379,6 @@
             <button onClick={onBack} className="btn-press" style={styles.resetBtn}>Exit</button>
           </div>
 
-          <FloatingPlayButton onClick={() => currentQuestion?.play()} isPlaying={audio.isPlaying} isLoading={audio.isLoading} />
         </div>
       );
     }
@@ -5432,11 +5467,15 @@
           </div>
 
           <div style={styles.card}>
-            <h3 style={{ textAlign: 'center', marginBottom: '16px' }}>
+            <h3 style={{ textAlign: 'center', marginBottom: '12px' }}>
               {gameState === 'listening' ? 'Listen carefully...' :
                gameState === 'guessing' ? `Enter ${melody.length} notes (${userGuess.length}/${melody.length})` :
                gameState === 'correct' ? '✓ Perfect!' : `✗ It was: ${melody.join(' → ')}`}
             </h3>
+
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+              <PlayButton onClick={() => playMelody(melody)} isPlaying={audio.isPlaying} isLoading={audio.isLoading} size="medium" />
+            </div>
 
             {gameState === 'guessing' && (
               <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
@@ -5490,7 +5529,6 @@
           </div>
 
           <button onClick={onBack} className="btn-press" style={styles.resetBtn}>Exit</button>
-          <FloatingPlayButton onClick={() => playMelody(melody)} isPlaying={audio.isPlaying} isLoading={audio.isLoading} />
         </div>
       );
     }
@@ -5576,9 +5614,12 @@
           </div>
 
           <div style={styles.card}>
-            <h3 style={{ textAlign: 'center', marginBottom: '16px' }}>
+            <h3 style={{ textAlign: 'center', marginBottom: '12px' }}>
               What interval from {referenceNote}?
             </h3>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+              <PlayButton onClick={generateQuestion} isPlaying={audio.isPlaying} isLoading={audio.isLoading} size="medium" />
+            </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
               {intervalChoices.map(int => (
                 <button key={int} onClick={() => handleGuess(int)}
@@ -5625,8 +5666,6 @@
             )}
             <button onClick={onBack} className="btn-press" style={styles.resetBtn}>Exit</button>
           </div>
-
-          <FloatingPlayButton onClick={generateQuestion} isPlaying={audio.isPlaying} isLoading={audio.isLoading} />
         </div>
       );
     }
