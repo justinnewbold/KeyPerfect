@@ -1317,7 +1317,7 @@
       'A6': 'A6.mp3', 'C7': 'C7.mp3', 'D#7': 'Ds7.mp3', 'F#7': 'Fs7.mp3',
       'A7': 'A7.mp3', 'C8': 'C8.mp3',
     };
-    const SALAMANDER_BASE_URL = 'https://nbrosowsky.github.io/tonern-piano/Salamander/';
+    const SALAMANDER_BASE_URL = 'https://tonejs.github.io/audio/salamander/';
 
     // Global sampler cache to avoid reloading
     const salamanderSamplerRef = { current: null, loading: false, loadPromise: null };
@@ -4335,7 +4335,7 @@
             const choices = seededShuffle([...wrongChoices, interval], seed + i * 107);
             newQuestions.push({ mode, interval, notes, choices, answer: interval });
           } else if (mode === 'chords') {
-            const chords = ['major', 'minor', 'dim', 'aug'];
+            const chords = ['major', 'minor', 'diminished', 'augmented'];
             const chordIndex = Math.floor(seededRandom(seed + i * 108) * chords.length);
             const chordType = chords[chordIndex];
             const rootNote = NOTES[Math.floor(seededRandom(seed + i * 109) * NOTES.length)];
@@ -4345,7 +4345,7 @@
             const choices = seededShuffle([...wrongChoices, chordType], seed + i * 111);
             newQuestions.push({ mode, chordType, notes, choices, answer: chordType });
           } else if (mode === 'scales') {
-            const scales = ['major', 'minor', 'dorian', 'mixolydian'];
+            const scales = ['major', 'natural_minor', 'dorian', 'mixolydian'];
             const scaleIndex = Math.floor(seededRandom(seed + i * 112) * scales.length);
             const scaleType = scales[scaleIndex];
             const rootNote = NOTES[Math.floor(seededRandom(seed + i * 113) * NOTES.length)];
