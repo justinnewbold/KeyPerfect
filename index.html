@@ -2341,7 +2341,7 @@
       });
 
       const todayStr = new Date().toISOString().split('T')[0];
-      const hasPlayedToday = dailyStats.lastPlayedDate === todayStr;
+      const hasPlayedToday = dailyStats.lastPlayedDate === todayStr && dailyStats.completed;
       const seed = getDailySeed();
 
       const startDaily = useCallback(() => {
@@ -3170,76 +3170,66 @@
       }
 
       return (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }} className="page-enter">
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', paddingBottom: '140px' }} className="page-enter">
           <Confetti trigger={confettiTrigger} />
           <BonusPoints points={bonusPoints} trigger={bonusTrigger} />
-          <Breadcrumbs items={[{ label: 'Play', onClick: onBack }, { label: modeInfo.name }]} />
-          <ScoreBoard score={score} total={totalPlayed} streak={streak} bestStreak={bestStreak} isPlaying={audio.isPlaying} />
 
-          {/* Timed Mode Timer */}
-          {settings.timedMode && !settings.practiceMode && gameState === 'playing' && (
-            <CountdownTimer
-              key={timerKey}
-              duration={settings.timerDuration}
-              onTimeUp={handleTimeUp}
-              isActive={gameState === 'playing'}
-              onTick={setTimeRemaining}
-            />
-          )}
+          {/* Sticky Header with Score */}
+          <div style={{ position: 'sticky', top: 0, zIndex: 50, background: 'linear-gradient(180deg, rgba(15,12,41,1) 0%, rgba(15,12,41,0.98) 90%, rgba(15,12,41,0) 100%)', paddingBottom: '8px' }}>
+            <Breadcrumbs items={[{ label: 'Play', onClick: onBack }, { label: modeInfo.name }]} />
+            <ScoreBoard score={score} total={totalPlayed} streak={streak} bestStreak={bestStreak} isPlaying={audio.isPlaying} />
+            {/* Timed Mode Timer */}
+            {settings.timedMode && !settings.practiceMode && gameState === 'playing' && (
+              <CountdownTimer
+                key={timerKey}
+                duration={settings.timerDuration}
+                onTimeUp={handleTimeUp}
+                isActive={gameState === 'playing'}
+                onTick={setTimeRemaining}
+              />
+            )}
+          </div>
 
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '8px' }}>
+            {lastResult && (
+              <div className={lastResult.correct ? 'success-check' : ''} style={{ ...styles.resultBox, backgroundColor: lastResult.correct ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)', borderColor: lastResult.correct ? '#22c55e' : '#ef4444' }}>
+                <div style={{ fontSize: '1.1rem' }}>{lastResult.message}</div>
+                {lastResult.hint && <div style={{ fontSize: '0.8rem', marginTop: '6px', color: '#94a3b8' }}>{lastResult.hint}</div>}
+                {lastResult.showPiano && <PianoVisualization highlightedNotes={lastResult.showPiano} startOctave={3} octaves={2} />}
+              </div>
+            )}
 
-          {lastResult && (
-            <div className={lastResult.correct ? 'success-check' : ''} style={{ ...styles.resultBox, backgroundColor: lastResult.correct ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)', borderColor: lastResult.correct ? '#22c55e' : '#ef4444' }}>
-              <div style={{ fontSize: '1.2rem' }}>{lastResult.message}</div>
-              {lastResult.hint && <div style={{ fontSize: '0.85rem', marginTop: '8px', color: '#94a3b8' }}>{lastResult.hint}</div>}
-              {lastResult.showPiano && <PianoVisualization highlightedNotes={lastResult.showPiano} startOctave={3} octaves={2} />}
+            <div className={shakeWrong ? 'shake' : ''} style={styles.choicesGrid}>
+              {choices.map((choice, i) => {
+                const correctAnswer = currentQuestion ? getCorrectAnswer(currentQuestion) : null;
+                const isCorrect = gameState === 'result' && choice === correctAnswer;
+                const isWrong = gameState === 'result' && choice === selectedAnswer && choice !== correctAnswer;
+                return (
+                  <button key={i} onClick={() => handleGuess(choice)} disabled={gameState === 'result'}
+                    className={`btn-press ${isCorrect ? 'glow-green' : ''} ${isWrong ? 'glow-red' : ''}`}
+                    style={{ ...styles.choiceBtn, fontSize: '0.9rem', position: 'relative', ...(isCorrect ? styles.choiceBtnCorrect : {}), ...(isWrong ? styles.choiceBtnWrong : {}), ...(gameState === 'result' ? { cursor: 'default' } : {}) }}>
+                    <span style={{ position: 'absolute', top: '4px', left: '8px', fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)', fontWeight: '500' }}>{i + 1}</span>
+                    {getChoiceLabel(choice)}
+                  </button>
+                );
+              })}
             </div>
-          )}
-          {settings.practiceMode && (
-            <div style={{ textAlign: 'center', padding: '10px', backgroundColor: 'rgba(168, 85, 247, 0.15)', borderRadius: '12px', fontSize: '0.85rem', color: '#a855f7', border: '1px solid rgba(168, 85, 247, 0.3)' }}>
-              🎓 Practice Mode - No scoring
+          </div>
+
+          {/* Sticky Bottom - Play Button and Actions */}
+          <div style={{
+            position: 'fixed', bottom: '70px', left: 0, right: 0,
+            background: 'linear-gradient(0deg, rgba(15,12,41,1) 0%, rgba(15,12,41,0.98) 85%, rgba(15,12,41,0) 100%)',
+            padding: '16px 16px 12px', zIndex: 50
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px', maxWidth: '500px', margin: '0 auto' }}>
+              <PlayButton onClick={handleReplay} isPlaying={audio.isPlaying} isLoading={audio.isLoading} size="large" />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
+                {gameState === 'result' && <button onClick={generateRound} className="btn-press" style={{ ...styles.nextBtn, margin: 0, flex: 1 }}>Next →</button>}
+                <button onClick={onBack} className="btn-press" style={{ ...styles.resetBtn, margin: 0, padding: '10px 16px', fontSize: '0.85rem' }}>Exit</button>
+              </div>
             </div>
-          )}
-          {settings.timedMode && !settings.practiceMode && gameState !== 'playing' && (
-            <div style={{ textAlign: 'center', padding: '10px', backgroundColor: 'rgba(251, 191, 36, 0.15)', borderRadius: '12px', fontSize: '0.85rem', color: '#fbbf24', border: '1px solid rgba(251, 191, 36, 0.3)' }}>
-              ⏱ Timed Mode - Answer quickly for bonus points!
-            </div>
-          )}
-
-          {/* Play Button - Centered and Prominent */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', margin: '8px 0' }}>
-            <PlayButton onClick={handleReplay} isPlaying={audio.isPlaying} isLoading={audio.isLoading} size="large" />
-            <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>Tap to hear again</span>
           </div>
-
-          <div className={shakeWrong ? 'shake' : ''} style={styles.choicesGrid}>
-            {choices.map((choice, i) => {
-              const correctAnswer = currentQuestion ? getCorrectAnswer(currentQuestion) : null;
-              const isCorrect = gameState === 'result' && choice === correctAnswer;
-              const isWrong = gameState === 'result' && choice === selectedAnswer && choice !== correctAnswer;
-              return (
-                <button key={i} onClick={() => handleGuess(choice)} disabled={gameState === 'result'}
-                  className={`btn-press ${isCorrect ? 'glow-green' : ''} ${isWrong ? 'glow-red' : ''}`}
-                  style={{ ...styles.choiceBtn, fontSize: '0.9rem', position: 'relative', ...(isCorrect ? styles.choiceBtnCorrect : {}), ...(isWrong ? styles.choiceBtnWrong : {}), ...(gameState === 'result' ? { cursor: 'default' } : {}) }}>
-                  <span style={{ position: 'absolute', top: '4px', left: '8px', fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)', fontWeight: '500' }}>{i + 1}</span>
-                  {getChoiceLabel(choice)}
-                </button>
-              );
-            })}
-          </div>
-
-          <div style={styles.actionButtons}>
-            {gameState === 'result' && <button onClick={generateRound} className="btn-press" style={styles.nextBtn}>Next →</button>}
-            <button onClick={onBack} className="btn-press" style={styles.resetBtn}>Exit</button>
-          </div>
-
-          {/* Keyboard shortcuts hint for desktop */}
-          <div style={{ textAlign: 'center', marginTop: '8px', fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)' }}>
-            <span style={{ display: 'none' }} className="kbd-hint">
-              [Space/R] Replay · [1-{choices.length}] Answer · [Enter/N] Next
-            </span>
-          </div>
-          <style>{`.kbd-hint { display: none !important; } @media (hover: hover) and (pointer: fine) { .kbd-hint { display: inline !important; } }`}</style>
         </div>
       );
     }
@@ -4031,11 +4021,9 @@
     function MainMenu({ onStartGame, onStartDaily, onStartSpeedRun, onStartSurvival, onStartInversions, onStartSeventhChords, onStartMelodicDictation, onStartRelativePitch, onStartTempo, onStartTimeSignature }) {
       const [selectedMode, setSelectedMode] = useState('notes');
       const [selectedDifficulty, setSelectedDifficulty] = useState('easy');
-      const [showAdvanced, setShowAdvanced] = useState(false);
+      const [showMore, setShowMore] = useState(false);
       const { settings } = useSettings();
       const { dailyStats, hasPlayedToday } = useDailyChallenge();
-      const { speedRunStats } = useSpeedRun();
-      const { survivalStats } = useSurvival();
 
       const getDifficulties = () => {
         const map = { notes: NOTE_DIFFICULTIES, intervals: INTERVAL_DIFFICULTIES, chords: CHORD_DIFFICULTIES, scales: SCALE_DIFFICULTIES, progressions: PROGRESSION_DIFFICULTIES };
@@ -4043,235 +4031,137 @@
       };
 
       return (
-        <div style={{ flex: 1 }} className="page-enter">
-          <Breadcrumbs items={[{ label: 'Play' }]} />
+        <div style={{ flex: 1, paddingBottom: '80px' }} className="page-enter">
+          {/* Sticky XP Display */}
+          <div style={{ position: 'sticky', top: 0, zIndex: 50, background: 'linear-gradient(180deg, rgba(15,12,41,1) 0%, rgba(15,12,41,0.95) 80%, rgba(15,12,41,0) 100%)', paddingBottom: '12px', marginBottom: '8px' }}>
+            <XPDisplayCard />
+          </div>
 
-          {/* XP Display */}
-          <XPDisplayCard />
-
-          {/* Daily Challenge Card */}
-          <div className={hasPlayedToday ? '' : 'daily-badge'} style={{
-            ...styles.card,
-            background: hasPlayedToday
-              ? 'rgba(255, 255, 255, 0.08)'
-              : 'linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.15))',
-            border: hasPlayedToday ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(251, 191, 36, 0.4)',
-            marginBottom: '16px'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                  <span style={{ fontSize: '1.5rem' }}>📅</span>
-                  <span style={{ fontSize: '1.1rem', fontWeight: '700', color: hasPlayedToday ? '#94a3b8' : '#fbbf24' }}>Daily Challenge</span>
-                </div>
-                {hasPlayedToday ? (
-                  <div style={{ fontSize: '0.85rem', color: '#94a3b8' }}>
-                    Completed! Score: {dailyStats.score} | Streak: {dailyStats.streak}
-                  </div>
-                ) : (
-                  <div style={{ fontSize: '0.85rem', color: '#fbbf24' }}>
-                    10 questions, one attempt. Can you beat yesterday?
-                  </div>
-                )}
-              </div>
+          {/* Quick Play Modes - Horizontal Scroll */}
+          <div style={{ marginBottom: '16px' }}>
+            <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '8px', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+              {/* Daily Challenge */}
               <button onClick={() => { if (!hasPlayedToday) { onStartDaily(); triggerHaptic('medium'); } }}
                 disabled={hasPlayedToday}
-                className="btn-press" style={{
-                  padding: '12px 20px', borderRadius: '12px', border: 'none',
-                  background: hasPlayedToday ? 'rgba(255,255,255,0.1)' : 'linear-gradient(135deg, #fbbf24, #f59e0b)',
-                  color: hasPlayedToday ? '#64748b' : '#1a1a2e',
-                  fontWeight: '700', fontSize: '0.9rem',
-                  cursor: hasPlayedToday ? 'not-allowed' : 'pointer',
+                className={`btn-press ${hasPlayedToday ? '' : 'daily-badge'}`}
+                style={{
+                  minWidth: '140px', padding: '14px 16px', borderRadius: '14px', border: 'none',
+                  background: hasPlayedToday ? 'rgba(255,255,255,0.08)' : 'linear-gradient(135deg, rgba(251, 191, 36, 0.3), rgba(245, 158, 11, 0.2))',
+                  color: 'white', textAlign: 'center', flexShrink: 0,
                   opacity: hasPlayedToday ? 0.6 : 1
                 }}>
-                {hasPlayedToday ? '✓ Done' : 'Play'}
+                <div style={{ fontSize: '1.5rem', marginBottom: '4px' }}>{hasPlayedToday ? '✓' : '📅'}</div>
+                <div style={{ fontSize: '0.8rem', fontWeight: '600', color: hasPlayedToday ? '#94a3b8' : '#fbbf24' }}>Daily</div>
               </button>
-            </div>
-          </div>
-
-          {/* Speed Run Card */}
-          <div style={{
-            ...styles.card,
-            background: 'linear-gradient(135deg, rgba(236, 72, 153, 0.15), rgba(249, 115, 22, 0.1))',
-            border: '1px solid rgba(236, 72, 153, 0.3)',
-            marginBottom: '16px'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                  <span style={{ fontSize: '1.5rem' }}>⚡</span>
-                  <span style={{ fontSize: '1.1rem', fontWeight: '700', background: 'linear-gradient(135deg, #ec4899, #f97316)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Speed Run</span>
-                </div>
-                <div style={{ fontSize: '0.85rem', color: '#94a3b8' }}>
-                  60 seconds · High Score: <span style={{ color: '#fbbf24', fontWeight: '600' }}>{speedRunStats.highScore}</span>
-                </div>
-              </div>
-              <button onClick={() => { onStartSpeedRun(); triggerHaptic('medium'); }}
-                className="btn-press" style={{
-                  padding: '12px 20px', borderRadius: '12px', border: 'none',
-                  background: 'linear-gradient(135deg, #ec4899, #f97316)',
-                  color: 'white', fontWeight: '700', fontSize: '0.9rem', cursor: 'pointer'
+              {/* Speed Run */}
+              <button onClick={() => { onStartSpeedRun(); triggerHaptic('medium'); }} className="btn-press"
+                style={{
+                  minWidth: '140px', padding: '14px 16px', borderRadius: '14px', border: 'none',
+                  background: 'linear-gradient(135deg, rgba(236, 72, 153, 0.25), rgba(249, 115, 22, 0.15))',
+                  color: 'white', textAlign: 'center', flexShrink: 0
                 }}>
-                Play
+                <div style={{ fontSize: '1.5rem', marginBottom: '4px' }}>⚡</div>
+                <div style={{ fontSize: '0.8rem', fontWeight: '600', color: '#ec4899' }}>Speed Run</div>
               </button>
-            </div>
-          </div>
-
-          {/* Survival Mode Card */}
-          <div style={{
-            ...styles.card,
-            background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(220, 38, 38, 0.1))',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
-            marginBottom: '16px'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                  <span style={{ fontSize: '1.5rem' }}>❤️</span>
-                  <span style={{ fontSize: '1.1rem', fontWeight: '700', color: '#ef4444' }}>Survival Mode</span>
-                </div>
-                <div style={{ fontSize: '0.85rem', color: '#94a3b8' }}>
-                  3 lives · Best: <span style={{ color: '#ef4444', fontWeight: '600' }}>{survivalStats.bestScore}</span>
-                </div>
-              </div>
-              <button onClick={() => { onStartSurvival(); triggerHaptic('medium'); }}
-                className="btn-press" style={{
-                  padding: '12px 20px', borderRadius: '12px', border: 'none',
-                  background: 'linear-gradient(135deg, #ef4444, #dc2626)',
-                  color: 'white', fontWeight: '700', fontSize: '0.9rem', cursor: 'pointer'
+              {/* Survival */}
+              <button onClick={() => { onStartSurvival(); triggerHaptic('medium'); }} className="btn-press"
+                style={{
+                  minWidth: '140px', padding: '14px 16px', borderRadius: '14px', border: 'none',
+                  background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.25), rgba(220, 38, 38, 0.15))',
+                  color: 'white', textAlign: 'center', flexShrink: 0
                 }}>
-                Play
+                <div style={{ fontSize: '1.5rem', marginBottom: '4px' }}>❤️</div>
+                <div style={{ fontSize: '0.8rem', fontWeight: '600', color: '#ef4444' }}>Survival</div>
               </button>
-            </div>
-          </div>
-
-          {/* Chord Inversions Card */}
-          <div style={{
-            ...styles.card,
-            background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(16, 185, 129, 0.1))',
-            border: '1px solid rgba(34, 197, 94, 0.3)',
-            marginBottom: '16px'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                  <span style={{ fontSize: '1.5rem' }}>🔄</span>
-                  <span style={{ fontSize: '1.1rem', fontWeight: '700', color: '#22c55e' }}>Chord Inversions</span>
-                </div>
-                <div style={{ fontSize: '0.85rem', color: '#94a3b8' }}>
-                  Root · 1st · 2nd inversions
-                </div>
-              </div>
-              <button onClick={() => { onStartInversions(); triggerHaptic('medium'); }}
-                className="btn-press" style={{
-                  padding: '12px 20px', borderRadius: '12px', border: 'none',
-                  background: 'linear-gradient(135deg, #22c55e, #10b981)',
-                  color: 'white', fontWeight: '700', fontSize: '0.9rem', cursor: 'pointer'
+              {/* Inversions */}
+              <button onClick={() => { onStartInversions(); triggerHaptic('medium'); }} className="btn-press"
+                style={{
+                  minWidth: '140px', padding: '14px 16px', borderRadius: '14px', border: 'none',
+                  background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.25), rgba(16, 185, 129, 0.15))',
+                  color: 'white', textAlign: 'center', flexShrink: 0
                 }}>
-                Play
+                <div style={{ fontSize: '1.5rem', marginBottom: '4px' }}>🔄</div>
+                <div style={{ fontSize: '0.8rem', fontWeight: '600', color: '#22c55e' }}>Inversions</div>
               </button>
             </div>
           </div>
 
-          {/* Daily Quests */}
-          <DailyQuestsCard />
-
-          {/* Weekly Challenges */}
-          <WeeklyChallengesCard />
-
-          {/* Advanced Training Modes */}
+          {/* Main Game Mode Selection */}
           <div style={{ ...styles.card, marginBottom: '16px' }}>
-            <button onClick={() => setShowAdvanced(!showAdvanced)} className="btn-press"
-              style={{ background: 'none', border: 'none', color: 'white', width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: '0' }}>
-              <h2 style={{ ...styles.cardTitle, margin: 0 }}>Advanced Training</h2>
-              <span style={{ transform: showAdvanced ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.3s' }}>▼</span>
-            </button>
-            <div className="accordion-content" style={{ maxHeight: showAdvanced ? '600px' : '0', opacity: showAdvanced ? 1 : 0, marginTop: showAdvanced ? '16px' : '0' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
-                <button onClick={() => { onStartSeventhChords(); triggerHaptic('medium'); }} className="btn-press card-lift"
-                  style={{ padding: '16px', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(168, 85, 247, 0.1))', color: 'white', textAlign: 'left' }}>
-                  <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>🎹</div>
-                  <div style={{ fontWeight: '600', marginBottom: '4px' }}>7th Chords</div>
-                  <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>maj7, m7, dom7, dim7</div>
-                </button>
-                <button onClick={() => { onStartMelodicDictation(); triggerHaptic('medium'); }} className="btn-press card-lift"
-                  style={{ padding: '16px', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(99, 102, 241, 0.1))', color: 'white', textAlign: 'left' }}>
-                  <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>🎶</div>
-                  <div style={{ fontWeight: '600', marginBottom: '4px' }}>Melodic Dictation</div>
-                  <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Transcribe melodies</div>
-                </button>
-                <button onClick={() => { onStartRelativePitch(); triggerHaptic('medium'); }} className="btn-press card-lift"
-                  style={{ padding: '16px', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(16, 185, 129, 0.1))', color: 'white', textAlign: 'left' }}>
-                  <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>🎯</div>
-                  <div style={{ fontWeight: '600', marginBottom: '4px' }}>Relative Pitch</div>
-                  <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Intervals from reference</div>
-                </button>
-                <button onClick={() => { onStartTempo(); triggerHaptic('medium'); }} className="btn-press card-lift"
-                  style={{ padding: '16px', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg, rgba(249, 115, 22, 0.2), rgba(251, 146, 60, 0.1))', color: 'white', textAlign: 'left' }}>
-                  <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>🥁</div>
-                  <div style={{ fontWeight: '600', marginBottom: '4px' }}>Tempo Trainer</div>
-                  <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Guess the BPM</div>
-                </button>
-                <button onClick={() => { onStartTimeSignature(); triggerHaptic('medium'); }} className="btn-press card-lift"
-                  style={{ padding: '16px', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg, rgba(236, 72, 153, 0.2), rgba(219, 39, 119, 0.1))', color: 'white', textAlign: 'left', gridColumn: 'span 2' }}>
-                  <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>🎵</div>
-                  <div style={{ fontWeight: '600', marginBottom: '4px' }}>Time Signatures</div>
-                  <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>4/4, 3/4, 6/8, and more</div>
-                </button>
-              </div>
-            </div>
-          </div>
+            <h2 style={{ ...styles.cardTitle, marginBottom: '12px' }}>Practice Mode</h2>
 
-          <div style={styles.card}>
-            <h2 style={styles.cardTitle}>Select Game Mode</h2>
-
-            {/* Horizontal scrolling mode selector */}
-            <div style={styles.modeScroll}>
+            {/* Compact mode selector */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px', marginBottom: '16px' }}>
               {Object.entries(GAME_MODES).map(([key, mode]) => (
                 <button key={key} onClick={() => { setSelectedMode(key); triggerHaptic('light'); }}
-                  className="btn-press card-lift" style={{ ...styles.modeCard, ...(selectedMode === key ? styles.modeCardActive : {}) }}>
-                  <span style={styles.modeIcon}>{mode.icon}</span>
-                  <div style={styles.modeName}>{mode.name}</div>
-                  <div style={styles.modeDesc}>{mode.description}</div>
+                  className="btn-press" style={{
+                    padding: '12px 8px', borderRadius: '12px', border: 'none',
+                    background: selectedMode === key ? 'linear-gradient(135deg, #a855f7, #ec4899)' : 'rgba(255,255,255,0.08)',
+                    color: 'white', textAlign: 'center'
+                  }}>
+                  <div style={{ fontSize: '1.3rem' }}>{mode.icon}</div>
+                  <div style={{ fontSize: '0.65rem', marginTop: '4px', fontWeight: selectedMode === key ? '600' : '400' }}>{mode.name}</div>
                 </button>
               ))}
             </div>
 
-            <h3 style={{ ...styles.cardTitle, marginTop: '24px', marginBottom: '16px' }}>Difficulty</h3>
-
-            {/* Chip-style difficulty selector */}
-            <div style={styles.difficultyChips}>
+            {/* Difficulty chips */}
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginBottom: '16px' }}>
               {Object.entries(getDifficulties()).map(([key, diff]) => (
                 <button key={key} onClick={() => { setSelectedDifficulty(key); triggerHaptic('light'); }}
-                  className="btn-press" style={{ ...styles.difficultyChip, ...(selectedDifficulty === key ? styles.difficultyChipActive : {}) }}>
+                  className="btn-press" style={{
+                    padding: '8px 16px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: '600',
+                    border: selectedDifficulty === key ? '2px solid #a855f7' : '1px solid rgba(255,255,255,0.2)',
+                    background: selectedDifficulty === key ? 'rgba(168, 85, 247, 0.3)' : 'rgba(255,255,255,0.05)',
+                    color: 'white'
+                  }}>
                   {diff.label}
                 </button>
               ))}
             </div>
 
-            {/* Difficulty description */}
-            <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem', marginBottom: '24px' }}>
-              {getDifficulties()[selectedDifficulty]?.description}
-            </p>
-
-            {/* Mode indicators */}
-            <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginBottom: '16px', flexWrap: 'wrap' }}>
-              {settings.practiceMode && (
-                <div style={{ padding: '8px 14px', backgroundColor: 'rgba(168, 85, 247, 0.15)', borderRadius: '20px', fontSize: '0.8rem', color: '#a855f7', border: '1px solid rgba(168, 85, 247, 0.3)' }}>
-                  🎓 Practice
-                </div>
-              )}
-              {settings.timedMode && !settings.practiceMode && (
-                <div style={{ padding: '8px 14px', backgroundColor: 'rgba(251, 191, 36, 0.15)', borderRadius: '20px', fontSize: '0.8rem', color: '#fbbf24', border: '1px solid rgba(251, 191, 36, 0.3)' }}>
-                  ⏱ {settings.timerDuration}s Timer
-                </div>
-              )}
-            </div>
-
             <button onClick={() => { onStartGame(selectedMode, selectedDifficulty); triggerHaptic('medium'); }}
-              className="btn-press floating-btn" style={styles.startBtn}>
-              Start Game
+              className="btn-press floating-btn" style={{ ...styles.startBtn, width: '100%' }}>
+              Start {GAME_MODES[selectedMode].name}
             </button>
+          </div>
+
+          {/* More Training - Collapsed */}
+          <div style={{ ...styles.card, padding: '12px 16px' }}>
+            <button onClick={() => setShowMore(!showMore)} className="btn-press"
+              style={{ background: 'none', border: 'none', color: 'white', width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: '0' }}>
+              <span style={{ fontSize: '0.9rem', fontWeight: '600' }}>More Training Modes</span>
+              <span style={{ transform: showMore ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.3s', fontSize: '0.8rem' }}>▼</span>
+            </button>
+            <div className="accordion-content" style={{ maxHeight: showMore ? '400px' : '0', opacity: showMore ? 1 : 0, marginTop: showMore ? '12px' : '0' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                <button onClick={() => { onStartSeventhChords(); triggerHaptic('medium'); }} className="btn-press"
+                  style={{ padding: '12px 8px', borderRadius: '10px', border: 'none', background: 'rgba(139, 92, 246, 0.2)', color: 'white', textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.2rem' }}>🎹</div>
+                  <div style={{ fontSize: '0.65rem', marginTop: '4px' }}>7th Chords</div>
+                </button>
+                <button onClick={() => { onStartMelodicDictation(); triggerHaptic('medium'); }} className="btn-press"
+                  style={{ padding: '12px 8px', borderRadius: '10px', border: 'none', background: 'rgba(59, 130, 246, 0.2)', color: 'white', textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.2rem' }}>🎶</div>
+                  <div style={{ fontSize: '0.65rem', marginTop: '4px' }}>Melodic</div>
+                </button>
+                <button onClick={() => { onStartRelativePitch(); triggerHaptic('medium'); }} className="btn-press"
+                  style={{ padding: '12px 8px', borderRadius: '10px', border: 'none', background: 'rgba(34, 197, 94, 0.2)', color: 'white', textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.2rem' }}>🎯</div>
+                  <div style={{ fontSize: '0.65rem', marginTop: '4px' }}>Relative</div>
+                </button>
+                <button onClick={() => { onStartTempo(); triggerHaptic('medium'); }} className="btn-press"
+                  style={{ padding: '12px 8px', borderRadius: '10px', border: 'none', background: 'rgba(249, 115, 22, 0.2)', color: 'white', textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.2rem' }}>🥁</div>
+                  <div style={{ fontSize: '0.65rem', marginTop: '4px' }}>Tempo</div>
+                </button>
+                <button onClick={() => { onStartTimeSignature(); triggerHaptic('medium'); }} className="btn-press"
+                  style={{ padding: '12px 8px', borderRadius: '10px', border: 'none', background: 'rgba(236, 72, 153, 0.2)', color: 'white', textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.2rem' }}>🎵</div>
+                  <div style={{ fontSize: '0.65rem', marginTop: '4px' }}>Time Sig</div>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       );
