@@ -68,7 +68,7 @@ export function GameScreen({
       playQuestionAudio();
     }, 500);
     return () => clearTimeout(timer);
-  }, [question.id]);
+  }, [question.id, playQuestionAudio]);
 
   const handleAnswer = (answer: string) => {
     if (result) return;

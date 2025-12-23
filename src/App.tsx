@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   Navigation,
   HomeScreen,
@@ -39,7 +39,16 @@ function App() {
     nextQuestion,
     endGame,
     setIsPlaying,
+    timeExpired,
   } = useGameState();
+
+  // Handle time expiration for timed game modes
+  useEffect(() => {
+    if (timeExpired && gameState && appState.screen === 'game') {
+      const result = endGame();
+      setAppState({ screen: 'result', result });
+    }
+  }, [timeExpired, gameState, appState.screen, endGame]);
 
   // Navigation handler
   const handleNavigate = useCallback((screen: Screen) => {

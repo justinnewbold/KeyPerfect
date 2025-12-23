@@ -299,16 +299,28 @@ export function updateGameModeStats(mode: string, score: number, time?: number):
 }
 
 // Achievements
+interface StoredAchievement {
+  id: string;
+  unlockedDate: string;
+}
+
 export function getUnlockedAchievements(): Achievement[] {
-  const unlocked = getItem<string[]>(STORAGE_KEYS.ACHIEVEMENTS, []);
-  return ACHIEVEMENTS.filter(a => unlocked.includes(a.id)).map(a => ({
-    ...a,
-    unlockedDate: a.unlockedDate,
-  }));
+  // Try to get achievements with dates first (new format)
+  const unlockedWithDates = getItem<StoredAchievement[]>('keyperfect_achievements_with_dates', []);
+  const unlockedIds = getItem<string[]>(STORAGE_KEYS.ACHIEVEMENTS, []);
+
+  return ACHIEVEMENTS.filter(a => unlockedIds.includes(a.id)).map(a => {
+    const storedData = unlockedWithDates.find(s => s.id === a.id);
+    return {
+      ...a,
+      unlockedDate: storedData?.unlockedDate,
+    };
+  });
 }
 
 export function checkAndUnlockAchievements(stats: UserStats): Achievement[] {
   const unlocked = getItem<string[]>(STORAGE_KEYS.ACHIEVEMENTS, []);
+  const unlockedWithDates = getItem<StoredAchievement[]>('keyperfect_achievements_with_dates', []);
   const newlyUnlocked: Achievement[] = [];
   const today = new Date().toISOString().split('T')[0];
 
@@ -351,12 +363,14 @@ export function checkAndUnlockAchievements(stats: UserStats): Achievement[] {
 
     if (shouldUnlock) {
       unlocked.push(achievement.id);
+      unlockedWithDates.push({ id: achievement.id, unlockedDate: today });
       newlyUnlocked.push({ ...achievement, unlockedDate: today });
     }
   });
 
   if (newlyUnlocked.length > 0) {
     setItem(STORAGE_KEYS.ACHIEVEMENTS, unlocked);
+    setItem('keyperfect_achievements_with_dates', unlockedWithDates);
   }
 
   return newlyUnlocked;

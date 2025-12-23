@@ -98,17 +98,18 @@ function generateChordQuestion(id: string, level: LevelConfig): GameQuestion {
   const quality = randomElement(level.chords);
   const notes = getChordNotes(rootMidi, quality);
 
-  const options = shuffleArray([
-    quality,
-    ...level.chords.filter(c => c !== quality).slice(0, 3),
-  ]);
+  // Ensure we have at least 4 options by repeating from level.chords if needed
+  const otherChords = level.chords.filter(c => c !== quality);
+  const neededOptions = Math.max(0, 3 - otherChords.length);
+  const additionalOptions = neededOptions > 0 ? otherChords.slice(0, neededOptions) : [];
+  const allOptions = shuffleArray([quality, ...otherChords, ...additionalOptions]);
 
   return {
     id,
     type: 'chords',
     prompt: `What type of chord is this?`,
     correctAnswer: quality,
-    options: options.slice(0, 4),
+    options: allOptions.slice(0, 4),
     audioData: {
       notes,
       rootNote: rootMidi,
@@ -127,17 +128,18 @@ function generateScaleQuestion(id: string, level: LevelConfig): GameQuestion {
   const scaleType = randomElement(level.scales);
   const notes = getScaleNotes(rootMidi, scaleType);
 
-  const options = shuffleArray([
-    scaleType,
-    ...level.scales.filter(s => s !== scaleType).slice(0, 3),
-  ]);
+  // Ensure we have at least 4 options by repeating from level.scales if needed
+  const otherScales = level.scales.filter(s => s !== scaleType);
+  const neededOptions = Math.max(0, 3 - otherScales.length);
+  const additionalOptions = neededOptions > 0 ? otherScales.slice(0, neededOptions) : [];
+  const allOptions = shuffleArray([scaleType, ...otherScales, ...additionalOptions]);
 
   return {
     id,
     type: 'scales',
     prompt: `What scale is this?`,
     correctAnswer: scaleType,
-    options: options.slice(0, 4),
+    options: allOptions.slice(0, 4),
     audioData: {
       notes,
       rootNote: rootMidi,
@@ -156,17 +158,18 @@ function generateIntervalQuestion(id: string, level: LevelConfig): GameQuestion 
   const intervalType = randomElement(level.intervals);
   const notes = getIntervalNotes(rootMidi, intervalType);
 
-  const options = shuffleArray([
-    intervalType,
-    ...level.intervals.filter(i => i !== intervalType).slice(0, 3),
-  ]);
+  // Ensure we have at least 4 options by repeating from level.intervals if needed
+  const otherIntervals = level.intervals.filter(i => i !== intervalType);
+  const neededOptions = Math.max(0, 3 - otherIntervals.length);
+  const additionalOptions = neededOptions > 0 ? otherIntervals.slice(0, neededOptions) : [];
+  const allOptions = shuffleArray([intervalType, ...otherIntervals, ...additionalOptions]);
 
   return {
     id,
     type: 'intervals',
     prompt: `What interval is this?`,
     correctAnswer: intervalType,
-    options: options.slice(0, 4),
+    options: allOptions.slice(0, 4),
     audioData: {
       notes,
       rootNote: rootMidi,
