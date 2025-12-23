@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Play, Volume2, Check, X, ChevronRight } from 'lucide-react';
+import { Play, Volume2, Check, X, ChevronRight, Keyboard } from 'lucide-react';
 import { GameQuestion, AnswerRecord } from '../types/gameModes';
 import { LevelConfig } from '../types/levels';
 import { CHORD_TYPES, SCALE_TYPES, INTERVALS, INVERSIONS } from '../types/music';
@@ -8,6 +8,8 @@ import { Button } from './ui/Button';
 import { Progress } from './ui/Progress';
 import { Badge, StreakBadge, XPBadge } from './ui/Badge';
 import { useAudio } from '../hooks/useAudio';
+import { useGameKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
+import { triggerHapticFeedback } from '../utils/haptics';
 
 interface GameScreenProps {
   level: LevelConfig;
@@ -70,7 +72,7 @@ export function GameScreen({
     return () => clearTimeout(timer);
   }, [question.id, playQuestionAudio]);
 
-  const handleAnswer = (answer: string) => {
+  const handleAnswer = useCallback((answer: string) => {
     if (result) return;
 
     setSelectedAnswer(answer);
@@ -79,10 +81,29 @@ export function GameScreen({
 
     if (answerResult.isCorrect) {
       audio.playSuccess();
+      triggerHapticFeedback('success');
     } else {
       audio.playError();
+      triggerHapticFeedback('error');
     }
-  };
+  }, [result, onAnswer, audio]);
+
+  // Handle option selection by index (for keyboard shortcuts)
+  const handleSelectOption = useCallback((index: number) => {
+    if (index >= 0 && index < question.options.length) {
+      handleAnswer(question.options[index]);
+    }
+  }, [question.options, handleAnswer]);
+
+  // Keyboard shortcuts
+  useGameKeyboardShortcuts({
+    onSelectOption: handleSelectOption,
+    onReplay: playQuestionAudio,
+    onNext,
+    onExit,
+    hasResult: !!result,
+    enabled: true,
+  });
 
   const getDisplayName = (value: string): string => {
     if (question.type === 'chords') {
@@ -193,7 +214,7 @@ export function GameScreen({
 
         {/* Answer Options */}
         <div className="grid grid-cols-2 gap-3 mb-6">
-          {question.options.map(option => {
+          {question.options.map((option, index) => {
             const isSelected = selectedAnswer === option;
             const isCorrect = result && option === question.correctAnswer;
             const isWrong = result && isSelected && !result.isCorrect;
@@ -203,7 +224,7 @@ export function GameScreen({
                 key={option}
                 onClick={() => handleAnswer(option)}
                 disabled={!!result}
-                className={`p-4 rounded-xl border-2 text-center font-medium transition-all duration-200 ${
+                className={`p-4 rounded-xl border-2 text-center font-medium transition-all duration-200 relative ${
                   isCorrect
                     ? 'bg-green-500/20 border-green-500 text-green-300'
                     : isWrong
@@ -213,6 +234,12 @@ export function GameScreen({
                     : 'bg-white/10 border-white/20 hover:bg-white/20 hover:border-white/30'
                 } ${result ? 'cursor-default' : 'active:scale-95'}`}
               >
+                {/* Keyboard hint */}
+                {!result && (
+                  <span className="absolute top-1 left-2 text-xs text-white/40 hidden sm:block">
+                    {index + 1}
+                  </span>
+                )}
                 <div className="flex items-center justify-center gap-2">
                   {isCorrect && <Check className="w-5 h-5" />}
                   {isWrong && <X className="w-5 h-5" />}
@@ -221,6 +248,12 @@ export function GameScreen({
               </button>
             );
           })}
+        </div>
+
+        {/* Keyboard shortcuts hint */}
+        <div className="hidden sm:flex items-center justify-center gap-2 text-xs text-white/40 mb-4">
+          <Keyboard className="w-3 h-3" />
+          <span>Press 1-4 to answer, R to replay, Space/Enter for next</span>
         </div>
 
         {/* Result Feedback */}

@@ -8,6 +8,7 @@ import {
   StatsScreen,
   GuitarTools,
   LearnScreen,
+  SettingsScreen,
 } from './components';
 import type { Screen } from './components';
 import { LevelConfig, LEVELS } from './types/levels';
@@ -217,12 +218,7 @@ function App() {
         return <GuitarTools />;
 
       case 'settings':
-        return (
-          <div className="min-h-screen pb-24 px-4 pt-6">
-            <h1 className="text-2xl font-bold mb-4">Settings</h1>
-            <p className="text-white/60">Settings coming soon...</p>
-          </div>
-        );
+        return <SettingsScreen />;
 
       default:
         return <HomeScreen onStartLevel={handleStartLevel} onStartChallenge={handleStartChallenge} onStartGameMode={handleStartGameMode} />;
