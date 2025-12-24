@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   Navigation,
   HomeScreen,
@@ -8,6 +8,7 @@ import {
   StatsScreen,
   GuitarTools,
   LearnScreen,
+  SettingsScreen,
 } from './components';
 import type { Screen } from './components';
 import { LevelConfig, LEVELS } from './types/levels';
@@ -39,7 +40,16 @@ function App() {
     nextQuestion,
     endGame,
     setIsPlaying,
+    timeExpired,
   } = useGameState();
+
+  // Handle time expiration for timed game modes
+  useEffect(() => {
+    if (timeExpired && gameState && appState.screen === 'game') {
+      const result = endGame();
+      setAppState({ screen: 'result', result });
+    }
+  }, [timeExpired, gameState, appState.screen, endGame]);
 
   // Navigation handler
   const handleNavigate = useCallback((screen: Screen) => {
@@ -208,12 +218,7 @@ function App() {
         return <GuitarTools />;
 
       case 'settings':
-        return (
-          <div className="min-h-screen pb-24 px-4 pt-6">
-            <h1 className="text-2xl font-bold mb-4">Settings</h1>
-            <p className="text-white/60">Settings coming soon...</p>
-          </div>
-        );
+        return <SettingsScreen />;
 
       default:
         return <HomeScreen onStartLevel={handleStartLevel} onStartChallenge={handleStartChallenge} onStartGameMode={handleStartGameMode} />;

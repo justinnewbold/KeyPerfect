@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   GameState,
   GameQuestion,
@@ -30,16 +30,64 @@ interface UseGameStateReturn {
   replayAudio: () => void;
   isPlaying: boolean;
   setIsPlaying: (playing: boolean) => void;
+  timeExpired: boolean;
 }
 
 export function useGameState(): UseGameStateReturn {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [timeExpired, setTimeExpired] = useState(false);
+  const timerRef = useRef<number | null>(null);
 
+  // Timer effect for timed game modes
+  useEffect(() => {
+    if (!gameState) {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      return;
+    }
+
+    const isTimedMode = gameState.mode === 'speedrun' || gameState.mode === 'timeattack';
+
+    if (!isTimedMode || gameState.isComplete) {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      return;
+    }
+
+    timerRef.current = window.setInterval(() => {
+      setGameState(prev => {
+        if (!prev || prev.isComplete) return prev;
+
+        const newTime = prev.timeRemaining - 1;
+
+        if (newTime <= 0) {
+          setTimeExpired(true);
+          return { ...prev, timeRemaining: 0, isComplete: true };
+        }
+
+        return { ...prev, timeRemaining: newTime };
+      });
+    }, 1000);
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [gameState?.mode, gameState?.isComplete]);
+
+  // Reset timeExpired when starting a new game
   const startGame = useCallback((
     mode: GameModeType | ChallengeModeType,
     levelId: number = 1
   ) => {
+    setTimeExpired(false);
     const level = LEVELS.find(l => l.id === levelId) || LEVELS[0];
     let totalQuestions = level.questionsToComplete;
 
@@ -119,6 +167,18 @@ export function useGameState(): UseGameStateReturn {
         ? prev.lives - 1
         : prev.lives;
 
+      // Time adjustments for timeattack mode
+      let newTime = prev.timeRemaining;
+      if (prev.mode === 'timeattack') {
+        if (isCorrect) {
+          newTime = prev.timeRemaining + 3; // Add 3 seconds for correct answer
+        } else {
+          newTime = Math.max(0, prev.timeRemaining - 2); // Subtract 2 seconds for wrong answer
+        }
+      } else if (prev.mode === 'speedrun' && !isCorrect) {
+        newTime = Math.max(0, prev.timeRemaining - 2); // Subtract 2 seconds for wrong answer in speedrun
+      }
+
       // Check if game should end
       const shouldEnd =
         (prev.mode === 'survival' && newLives <= 0) ||
@@ -129,6 +189,7 @@ export function useGameState(): UseGameStateReturn {
         score: prev.score + xpEarned,
         streak: newStreak,
         lives: newLives,
+        timeRemaining: newTime,
         answers: [...prev.answers, record],
         isComplete: shouldEnd,
       };
@@ -239,5 +300,6 @@ export function useGameState(): UseGameStateReturn {
     replayAudio,
     isPlaying,
     setIsPlaying,
+    timeExpired,
   };
 }

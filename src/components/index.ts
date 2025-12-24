@@ -8,3 +8,16 @@ export { ResultScreen } from './ResultScreen';
 export { StatsScreen } from './StatsScreen';
 export { GuitarTools } from './GuitarTools';
 export { LearnScreen } from './LearnScreen';
+export { SettingsScreen } from './SettingsScreen';
+export { ErrorBoundary, useErrorHandler } from './ErrorBoundary';
+export { PianoKeyboard, MiniPiano } from './PianoKeyboard';
+export { TutorialScreen } from './TutorialScreen';
+export { PracticeScreen } from './PracticeScreen';
+export { WaveformVisualizer, SimpleVisualizer } from './WaveformVisualizer';
+// New components
+export { ReverseModeGame } from './ReverseModeGame';
+export { MelodicDictationGame } from './MelodicDictationGame';
+export { AnalyticsDashboard } from './AnalyticsDashboard';
+export { CustomPractice } from './CustomPractice';
+export { ShareButton } from './ShareButton';
+export { Leaderboard } from './Leaderboard';
