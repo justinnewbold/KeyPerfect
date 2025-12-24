@@ -1,8 +1,31 @@
 // KeyPerfect Service Worker for Offline Support
-const CACHE_NAME = 'keyperfect-v11.0.0';
+const CACHE_NAME = 'keyperfect-v12.0.0';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
+  '/manifest.json',
+];
+
+// Dynamic cache for assets loaded at runtime
+const DYNAMIC_CACHE = 'keyperfect-dynamic-v12.0.0';
+
+// Cache duration in milliseconds (7 days)
+const CACHE_DURATION = 7 * 24 * 60 * 60 * 1000;
+
+// Assets that should always be fetched fresh
+const ALWAYS_FRESH = [
+  '/api/',
+  '/auth/',
+];
+
+// Assets that should be cached longer (fonts, icons)
+const LONG_CACHE = [
+  '.woff',
+  '.woff2',
+  '.ttf',
+  '.ico',
+  '.png',
+  '.svg',
 ];
 
 // Install event - cache static assets
