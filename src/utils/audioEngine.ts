@@ -320,6 +320,38 @@ export function playInterval(
   }
 }
 
+// Play a rhythm pattern
+export function playRhythm(
+  pattern: number[], // Array of beat durations in milliseconds
+  instrument: InstrumentType = 'piano',
+  midi: number = 60, // Note to use for the beat
+  velocity: number = 0.7
+): { stop: () => void } {
+  const sounds: { stop: () => void }[] = [];
+  const timeouts: ReturnType<typeof setTimeout>[] = [];
+  let cancelled = false;
+
+  let currentTime = 0;
+  pattern.forEach((duration, index) => {
+    const timeout = setTimeout(() => {
+      if (cancelled) return;
+      // Use a short percussive note for each beat
+      const sound = playNote(midi, instrument, 0.1, velocity);
+      sounds.push(sound);
+    }, currentTime);
+    timeouts.push(timeout);
+    currentTime += duration;
+  });
+
+  return {
+    stop: () => {
+      cancelled = true;
+      timeouts.forEach(t => clearTimeout(t));
+      sounds.forEach(s => s.stop());
+    },
+  };
+}
+
 // Stop all sounds
 export function stopAllSounds() {
   activeSounds.forEach(sound => sound.stop());

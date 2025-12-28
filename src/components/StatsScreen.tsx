@@ -20,6 +20,8 @@ import {
   getIntervalStats,
   getUnlockedAchievements,
   getGameModeStats,
+  getPracticeInsights,
+  getSessionHistory,
 } from '../utils/storage';
 import { getLevelFromXP, getXPProgress, ACHIEVEMENTS } from '../types/stats';
 import { calculateWeakAreas, getDisplayName, formatTime } from '../utils/gameHelpers';
@@ -36,6 +38,8 @@ export function StatsScreen() {
   const intervalStats = getIntervalStats();
   const gameModeStats = getGameModeStats();
   const unlockedAchievements = getUnlockedAchievements();
+  const practiceInsights = getPracticeInsights();
+  const sessionHistory = getSessionHistory();
   const xpProgress = getXPProgress(userStats.totalXP);
   const userLevel = getLevelFromXP(userStats.totalXP);
 
@@ -281,6 +285,109 @@ export function StatsScreen() {
 
         {activeTab === 'insights' && (
           <div className="space-y-4 animate-in">
+            {/* Weekly Progress Chart */}
+            <Card className="p-4">
+              <h3 className="font-semibold mb-3">Weekly Progress</h3>
+              <div className="flex items-end gap-1 h-24 mb-2">
+                {practiceInsights.weeklyProgress.map((day, i) => {
+                  const maxXp = Math.max(...practiceInsights.weeklyProgress.map(d => d.xp), 1);
+                  const height = day.xp > 0 ? Math.max((day.xp / maxXp) * 100, 10) : 4;
+                  const dayName = new Date(day.date).toLocaleDateString('en', { weekday: 'short' }).charAt(0);
+                  return (
+                    <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                      <div
+                        className={`w-full rounded-t transition-all ${day.sessions > 0 ? 'bg-gradient-to-t from-purple-600 to-purple-400' : 'bg-white/10'}`}
+                        style={{ height: `${height}%` }}
+                        title={`${day.date}: ${day.sessions} sessions, ${day.xp} XP`}
+                      />
+                      <span className="text-xs text-white/40">{dayName}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex justify-between text-xs text-white/60">
+                <span>{practiceInsights.practiceConsistency}/7 days practiced</span>
+                <span>{practiceInsights.weeklyProgress.reduce((sum, d) => sum + d.xp, 0)} XP this week</span>
+              </div>
+            </Card>
+
+            {/* Trend & Stats */}
+            <div className="grid grid-cols-2 gap-3">
+              <Card className="p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <TrendingUp className={`w-5 h-5 ${
+                    practiceInsights.recentTrend === 'improving' ? 'text-green-400' :
+                    practiceInsights.recentTrend === 'declining' ? 'text-red-400' : 'text-blue-400'
+                  }`} />
+                  <span className="text-sm text-white/60">Trend</span>
+                </div>
+                <div className={`text-lg font-bold capitalize ${
+                  practiceInsights.recentTrend === 'improving' ? 'text-green-400' :
+                  practiceInsights.recentTrend === 'declining' ? 'text-red-400' : 'text-blue-400'
+                }`}>
+                  {practiceInsights.recentTrend}
+                </div>
+              </Card>
+
+              <Card className="p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Clock className="w-5 h-5 text-cyan-400" />
+                  <span className="text-sm text-white/60">Practice Time</span>
+                </div>
+                <div className="text-lg font-bold">
+                  {Math.round(practiceInsights.totalPracticeTime / 60)}m
+                </div>
+              </Card>
+            </div>
+
+            {/* Strongest & Weakest */}
+            {(practiceInsights.strongestMode || practiceInsights.weakestMode) && (
+              <Card className="p-4">
+                <h3 className="font-semibold mb-3">Mode Performance</h3>
+                <div className="space-y-2">
+                  {practiceInsights.strongestMode && (
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-green-500/10 border border-green-500/20">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4 text-green-400" />
+                        <span className="text-sm">Strongest</span>
+                      </div>
+                      <Badge variant="success">{practiceInsights.strongestMode}</Badge>
+                    </div>
+                  )}
+                  {practiceInsights.weakestMode && practiceInsights.weakestMode !== practiceInsights.strongestMode && (
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4 text-amber-400" />
+                        <span className="text-sm">Needs Work</span>
+                      </div>
+                      <Badge variant="warning">{practiceInsights.weakestMode}</Badge>
+                    </div>
+                  )}
+                </div>
+              </Card>
+            )}
+
+            {/* Recent Sessions */}
+            {sessionHistory.length > 0 && (
+              <Card className="p-4">
+                <h3 className="font-semibold mb-3">Recent Sessions</h3>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {sessionHistory.slice(0, 5).map((session) => (
+                    <div key={session.id} className="flex items-center justify-between p-3 rounded-xl bg-white/5">
+                      <div>
+                        <div className="text-sm font-medium capitalize">{session.mode}</div>
+                        <div className="text-xs text-white/60">{session.date}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm font-bold text-green-400">{Math.round(session.accuracy)}%</div>
+                        <div className="text-xs text-white/60">+{session.xpEarned} XP</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
+
             {/* Weak Areas */}
             {weakAreas.length > 0 && (
               <Card className="p-4">
@@ -289,7 +396,7 @@ export function StatsScreen() {
                   <h3 className="font-semibold">Areas to Improve</h3>
                 </div>
                 <div className="space-y-3">
-                  {weakAreas.map((area, i) => (
+                  {weakAreas.slice(0, 3).map((area, i) => (
                     <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
                       <div>
                         <div className="font-medium">{area.name}</div>
@@ -305,30 +412,17 @@ export function StatsScreen() {
               </Card>
             )}
 
-            {/* Strong Areas */}
-            {chordStats.filter(s => s.attempts >= 5 && (s.correct / s.attempts) >= 0.8).length > 0 && (
-              <Card className="p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <CheckCircle className="w-5 h-5 text-green-400" />
-                  <h3 className="font-semibold">Strengths</h3>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {chordStats
-                    .filter(s => s.attempts >= 5 && (s.correct / s.attempts) >= 0.8)
-                    .slice(0, 8)
-                    .map(stat => (
-                      <Badge key={stat.chordType} variant="success">
-                        {getDisplayName(stat.chordType, 'chord')}
-                      </Badge>
-                    ))}
-                </div>
-              </Card>
-            )}
-
             {/* Recommendations */}
             <Card className="p-4">
               <h3 className="font-semibold mb-3">Recommendations</h3>
               <div className="space-y-3">
+                {practiceInsights.practiceConsistency < 3 && (
+                  <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20">
+                    <p className="text-sm">
+                      Practice more regularly! Aim for at least 3 days per week to build strong habits.
+                    </p>
+                  </div>
+                )}
                 {weakAreas.length > 0 ? (
                   <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20">
                     <p className="text-sm">
@@ -346,14 +440,6 @@ export function StatsScreen() {
                   <div className="p-3 rounded-xl bg-green-500/10 border border-green-500/20">
                     <p className="text-sm">
                       Great job! Your accuracy is solid across all areas. Try advancing to higher levels.
-                    </p>
-                  </div>
-                )}
-
-                {dailyStats.currentStreak === 0 && (
-                  <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
-                    <p className="text-sm">
-                      Complete the Daily Challenge to start building your streak!
                     </p>
                   </div>
                 )}

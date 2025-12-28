@@ -108,6 +108,10 @@ export function generateQuestion(
       return generateInversionQuestion(id, level);
     case 'progressions':
       return generateProgressionQuestion(id, level);
+    case 'notereading':
+      return generateNoteReadingQuestion(id, level, difficultyModifier);
+    case 'rhythm':
+      return generateRhythmQuestion(id, level, difficultyModifier);
     default:
       return generateChordQuestion(id, level, difficultyModifier);
   }
@@ -312,6 +316,108 @@ function getProgressionChords(rootMidi: number, progression: ProgressionType): n
     }
     return getChordNotes(adjustedRoot, 'major');
   });
+}
+
+function generateNoteReadingQuestion(id: string, level: LevelConfig, difficultyModifier: number = 0.5): GameQuestion {
+  // Notes available based on difficulty
+  const trebleNotes = [
+    { note: 'C4', midi: 60 }, { note: 'D4', midi: 62 }, { note: 'E4', midi: 64 },
+    { note: 'F4', midi: 65 }, { note: 'G4', midi: 67 }, { note: 'A4', midi: 69 },
+    { note: 'B4', midi: 71 }, { note: 'C5', midi: 72 }, { note: 'D5', midi: 74 },
+    { note: 'E5', midi: 76 }, { note: 'F5', midi: 77 }, { note: 'G5', midi: 79 },
+  ];
+
+  // More notes at higher difficulty
+  const availableNotes = difficultyModifier < 0.3
+    ? trebleNotes.slice(0, 7) // C4-B4 for beginners
+    : difficultyModifier < 0.6
+    ? trebleNotes.slice(0, 10) // C4-E5 for intermediate
+    : trebleNotes; // All notes for advanced
+
+  const selectedNote = randomElement(availableNotes);
+  const noteNameOnly = selectedNote.note.replace(/[0-9]/g, '');
+
+  // Generate options (other note names without octave)
+  const allNoteNames = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+  const otherNotes = allNoteNames.filter(n => n !== noteNameOnly);
+  const wrongOptions = shuffleArray(otherNotes).slice(0, 3);
+  const allOptions = shuffleArray([noteNameOnly, ...wrongOptions]);
+
+  return {
+    id,
+    type: 'notereading',
+    prompt: 'What note is shown on the staff?',
+    correctAnswer: noteNameOnly,
+    options: allOptions,
+    audioData: {
+      notes: [selectedNote.midi],
+      rootNote: selectedNote.midi,
+      type: selectedNote.note, // Full note name with octave for staff display
+      playbackMode: 'chord',
+      duration: 1,
+    },
+    difficulty: level.id,
+    xpValue: 10 + level.id * 2 + Math.floor(difficultyModifier * 5),
+  };
+}
+
+// Rhythm patterns with their beat timings (in beats, where 1 = quarter note)
+const RHYTHM_PATTERNS = {
+  'quarter-notes': { name: 'Quarter Notes', pattern: [1, 1, 1, 1], beats: 4 },
+  'half-notes': { name: 'Half Notes', pattern: [2, 2], beats: 4 },
+  'eighth-notes': { name: 'Eighth Notes', pattern: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5], beats: 4 },
+  'dotted-quarter': { name: 'Dotted Quarter', pattern: [1.5, 0.5, 1.5, 0.5], beats: 4 },
+  'syncopated': { name: 'Syncopated', pattern: [0.5, 1, 0.5, 1, 1], beats: 4 },
+  'triplets': { name: 'Triplets', pattern: [0.33, 0.33, 0.34, 0.33, 0.33, 0.34, 1, 1], beats: 4 },
+  'mixed-simple': { name: 'Mixed Simple', pattern: [1, 0.5, 0.5, 1, 1], beats: 4 },
+  'mixed-complex': { name: 'Mixed Complex', pattern: [0.5, 0.5, 1, 0.5, 0.5, 0.5, 0.5], beats: 4 },
+};
+
+function generateRhythmQuestion(id: string, level: LevelConfig, difficultyModifier: number = 0.5): GameQuestion {
+  // Available patterns based on difficulty
+  const allPatterns = Object.keys(RHYTHM_PATTERNS);
+  const easyPatterns = ['quarter-notes', 'half-notes', 'eighth-notes'];
+  const mediumPatterns = [...easyPatterns, 'dotted-quarter', 'mixed-simple'];
+  const hardPatterns = allPatterns;
+
+  const availablePatterns = difficultyModifier < 0.3
+    ? easyPatterns
+    : difficultyModifier < 0.6
+    ? mediumPatterns
+    : hardPatterns;
+
+  const patternKey = randomElement(availablePatterns);
+  const pattern = RHYTHM_PATTERNS[patternKey as keyof typeof RHYTHM_PATTERNS];
+
+  // Convert pattern to milliseconds (at 120 BPM, 1 beat = 500ms)
+  const bpm = 120;
+  const msPerBeat = 60000 / bpm;
+  const rhythmPattern = pattern.pattern.map(beat => Math.round(beat * msPerBeat));
+
+  // Generate options
+  const otherPatterns = availablePatterns.filter(p => p !== patternKey);
+  const wrongOptions = shuffleArray(otherPatterns).slice(0, 3).map(
+    p => RHYTHM_PATTERNS[p as keyof typeof RHYTHM_PATTERNS].name
+  );
+  const allOptions = shuffleArray([pattern.name, ...wrongOptions]);
+
+  return {
+    id,
+    type: 'rhythm',
+    prompt: 'What rhythm pattern do you hear?',
+    correctAnswer: pattern.name,
+    options: allOptions.slice(0, Math.min(4, allOptions.length)),
+    audioData: {
+      notes: [60], // Use middle C for the click
+      rootNote: 60,
+      type: patternKey,
+      playbackMode: 'rhythm',
+      duration: (pattern.beats * msPerBeat) / 1000,
+      rhythmPattern,
+    },
+    difficulty: level.id,
+    xpValue: 10 + level.id * 2 + Math.floor(difficultyModifier * 5),
+  };
 }
 
 // Generate questions for a game session with progressive difficulty
