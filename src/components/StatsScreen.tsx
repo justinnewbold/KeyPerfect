@@ -9,9 +9,10 @@ import {
   AlertTriangle,
   CheckCircle,
 } from 'lucide-react';
-import { Card, CardContent, CardHeader } from './ui/Card';
+import { Card } from './ui/Card';
 import { Progress, CircularProgress } from './ui/Progress';
 import { Badge, LevelBadge, XPBadge } from './ui/Badge';
+import { StatCard } from './ui/StatCard';
 import {
   getUserStats,
   getDailyStats,
@@ -109,37 +110,30 @@ export function StatsScreen() {
 
             {/* Stats Grid */}
             <div className="grid grid-cols-2 gap-3">
-              <Card className="p-4">
-                <div className="flex items-center gap-2 mb-2 text-green-400">
-                  <CheckCircle className="w-5 h-5" />
-                  <span className="text-sm">Correct</span>
-                </div>
-                <div className="text-2xl font-bold">{userStats.totalCorrect}</div>
-              </Card>
-
-              <Card className="p-4">
-                <div className="flex items-center gap-2 mb-2 text-red-400">
-                  <AlertTriangle className="w-5 h-5" />
-                  <span className="text-sm">Incorrect</span>
-                </div>
-                <div className="text-2xl font-bold">{userStats.totalIncorrect}</div>
-              </Card>
-
-              <Card className="p-4">
-                <div className="flex items-center gap-2 mb-2 text-orange-400">
-                  <TrendingUp className="w-5 h-5" />
-                  <span className="text-sm">Best Streak</span>
-                </div>
-                <div className="text-2xl font-bold">{userStats.longestStreak}</div>
-              </Card>
-
-              <Card className="p-4">
-                <div className="flex items-center gap-2 mb-2 text-blue-400">
-                  <Calendar className="w-5 h-5" />
-                  <span className="text-sm">Daily Streak</span>
-                </div>
-                <div className="text-2xl font-bold">{dailyStats.currentStreak}</div>
-              </Card>
+              <StatCard
+                icon={<CheckCircle className="w-5 h-5" />}
+                label="Correct"
+                value={userStats.totalCorrect}
+                iconColor="text-green-400"
+              />
+              <StatCard
+                icon={<AlertTriangle className="w-5 h-5" />}
+                label="Incorrect"
+                value={userStats.totalIncorrect}
+                iconColor="text-red-400"
+              />
+              <StatCard
+                icon={<TrendingUp className="w-5 h-5" />}
+                label="Best Streak"
+                value={userStats.longestStreak}
+                iconColor="text-orange-400"
+              />
+              <StatCard
+                icon={<Calendar className="w-5 h-5" />}
+                label="Daily Streak"
+                value={dailyStats.currentStreak}
+                iconColor="text-blue-400"
+              />
             </div>
 
             {/* Sessions */}
@@ -314,30 +308,29 @@ export function StatsScreen() {
             {/* Trend & Stats */}
             <div className="grid grid-cols-2 gap-3">
               <Card className="p-4">
-                <div className="flex items-center gap-2 mb-2">
+                <div className="flex items-center gap-2 mb-2" aria-hidden="true">
                   <TrendingUp className={`w-5 h-5 ${
                     practiceInsights.recentTrend === 'improving' ? 'text-green-400' :
                     practiceInsights.recentTrend === 'declining' ? 'text-red-400' : 'text-blue-400'
                   }`} />
                   <span className="text-sm text-white/60">Trend</span>
                 </div>
-                <div className={`text-lg font-bold capitalize ${
-                  practiceInsights.recentTrend === 'improving' ? 'text-green-400' :
-                  practiceInsights.recentTrend === 'declining' ? 'text-red-400' : 'text-blue-400'
-                }`}>
+                <div
+                  className={`text-lg font-bold capitalize ${
+                    practiceInsights.recentTrend === 'improving' ? 'text-green-400' :
+                    practiceInsights.recentTrend === 'declining' ? 'text-red-400' : 'text-blue-400'
+                  }`}
+                  aria-label={`Trend: ${practiceInsights.recentTrend}`}
+                >
                   {practiceInsights.recentTrend}
                 </div>
               </Card>
-
-              <Card className="p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Clock className="w-5 h-5 text-cyan-400" />
-                  <span className="text-sm text-white/60">Practice Time</span>
-                </div>
-                <div className="text-lg font-bold">
-                  {Math.round(practiceInsights.totalPracticeTime / 60)}m
-                </div>
-              </Card>
+              <StatCard
+                icon={<Clock className="w-5 h-5" />}
+                label="Practice Time"
+                value={`${Math.round(practiceInsights.totalPracticeTime / 60)}m`}
+                iconColor="text-cyan-400"
+              />
             </div>
 
             {/* Strongest & Weakest */}

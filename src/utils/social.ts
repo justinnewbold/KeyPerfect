@@ -173,63 +173,58 @@ export function getUsername(): string {
   return getLocalLeaderboard().username;
 }
 
-// Generate mock leaderboard with user's best scores
+// Generate leaderboard from user's actual game history
 export function generateLeaderboard(mode: string = 'daily'): Leaderboard {
   const data = getLocalLeaderboard();
-  const userEntries = data.entries.filter(e => e.mode === mode);
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const weekStart = todayStart - (7 * 24 * 60 * 60 * 1000);
 
-  // Sort by score descending
-  const sortedEntries = [...userEntries].sort((a, b) => b.score - a.score);
-
-  // Generate mock players
-  const mockNames = [
-    'MusicMaster', 'EarTrainer', 'ChordWizard', 'PitchPerfect',
-    'ScaleRunner', 'MelodyMaker', 'HarmonyHero', 'RhythmKing',
-  ];
-
-  const generateMockEntries = (count: number, scoreRange: [number, number]): LeaderboardEntry[] => {
-    return Array(count).fill(null).map((_, i) => ({
-      rank: i + 1,
-      username: mockNames[i % mockNames.length] + (i >= mockNames.length ? (i + 1).toString() : ''),
-      score: Math.floor(scoreRange[0] + Math.random() * (scoreRange[1] - scoreRange[0])),
-      accuracy: Math.floor(70 + Math.random() * 30),
-      date: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
-    }));
+  // Filter entries by time period
+  const filterByPeriod = (entries: typeof data.entries, periodStart: number): LeaderboardEntry[] => {
+    return entries
+      .filter(e => new Date(e.date).getTime() >= periodStart)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 10)
+      .map((entry, index) => ({
+        rank: index + 1,
+        username: data.username,
+        score: entry.score,
+        accuracy: entry.accuracy,
+        date: entry.date,
+        isCurrentUser: true,
+      }));
   };
 
-  // Create leaderboards
-  const daily = generateMockEntries(10, [150, 300]);
-  const weekly = generateMockEntries(10, [1000, 2500]);
-  const allTime = generateMockEntries(10, [5000, 15000]);
-
-  // Insert user's best score if available
-  if (sortedEntries.length > 0) {
-    const userBest = sortedEntries[0];
-    const userEntry: LeaderboardEntry = {
-      rank: 0,
+  // Generate personal best leaderboards based on actual data
+  const daily = filterByPeriod(data.entries, todayStart);
+  const weekly = filterByPeriod(data.entries, weekStart);
+  const allTime = data.entries
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 10)
+    .map((entry, index) => ({
+      rank: index + 1,
       username: data.username,
-      score: userBest.score,
-      accuracy: userBest.accuracy,
-      date: userBest.date,
+      score: entry.score,
+      accuracy: entry.accuracy,
+      date: entry.date,
       isCurrentUser: true,
-    };
+    }));
 
-    // Find position in daily
-    const dailyPos = daily.findIndex(e => e.score < userEntry.score);
-    if (dailyPos !== -1) {
-      daily.splice(dailyPos, 0, userEntry);
-      daily.pop();
-    }
-  }
+  // If no entries, show placeholder message
+  const createPlaceholder = (message: string): LeaderboardEntry[] => [{
+    rank: 1,
+    username: message,
+    score: 0,
+    accuracy: 0,
+    date: new Date().toISOString(),
+  }];
 
-  // Update ranks
-  [daily, weekly, allTime].forEach(board => {
-    board.forEach((entry, i) => {
-      entry.rank = i + 1;
-    });
-  });
-
-  return { daily, weekly, allTime };
+  return {
+    daily: daily.length > 0 ? daily : createPlaceholder('Play a game to see your daily scores!'),
+    weekly: weekly.length > 0 ? weekly : createPlaceholder('Play a game to see your weekly scores!'),
+    allTime: allTime.length > 0 ? allTime : createPlaceholder('Play a game to see your best scores!'),
+  };
 }
 
 // Achievements for social sharing

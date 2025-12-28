@@ -6,9 +6,21 @@ interface CardProps {
   hover?: boolean;
   gradient?: boolean;
   onClick?: () => void;
+  role?: string;
+  'aria-label'?: string;
+  'aria-disabled'?: boolean;
 }
 
-export function Card({ children, className = '', hover = false, gradient = false, onClick }: CardProps) {
+export function Card({
+  children,
+  className = '',
+  hover = false,
+  gradient = false,
+  onClick,
+  role,
+  'aria-label': ariaLabel,
+  'aria-disabled': ariaDisabled,
+}: CardProps) {
   const baseStyles = 'bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl';
   const hoverStyles = hover ? 'transition-all duration-300 hover:bg-white/15 hover:border-white/30 hover:transform hover:scale-[1.02] cursor-pointer' : '';
   const gradientStyles = gradient ? 'gradient-border' : '';
@@ -17,8 +29,10 @@ export function Card({ children, className = '', hover = false, gradient = false
     <div
       className={`${baseStyles} ${hoverStyles} ${gradientStyles} ${className}`}
       onClick={onClick}
-      role={onClick ? 'button' : undefined}
+      role={role ?? (onClick ? 'button' : undefined)}
       tabIndex={onClick ? 0 : undefined}
+      aria-label={ariaLabel}
+      aria-disabled={ariaDisabled}
     >
       {children}
     </div>

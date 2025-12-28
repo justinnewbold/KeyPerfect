@@ -15,6 +15,7 @@ import {
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
+import { ToggleSwitch } from './ui/ToggleSwitch';
 import { INSTRUMENTS, InstrumentType, getInstrumentList } from '../types/instruments';
 import {
   getSettings,
@@ -247,90 +248,38 @@ export function SettingsScreen() {
       <Card className="p-4 mb-4">
         <h3 className="font-semibold mb-3">Preferences</h3>
 
-        <div className="space-y-3">
-          <label className="flex items-center justify-between cursor-pointer">
-            <div className="flex items-center gap-3">
-              {settings.soundEffects ? (
-                <Bell className="w-5 h-5 text-purple-400" />
-              ) : (
-                <BellOff className="w-5 h-5 text-gray-400" />
-              )}
-              <span>Sound Effects</span>
-            </div>
-            <button
-              onClick={handleSoundEffectsToggle}
-              className={`w-12 h-6 rounded-full transition-colors ${
-                settings.soundEffects ? 'bg-purple-500' : 'bg-white/20'
-              }`}
-            >
-              <div
-                className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform ${
-                  settings.soundEffects ? 'translate-x-6' : 'translate-x-0.5'
-                }`}
-              />
-            </button>
-          </label>
+        <div className="space-y-4">
+          <ToggleSwitch
+            icon={settings.soundEffects ? <Bell className="w-5 h-5" /> : <BellOff className="w-5 h-5 text-gray-400" />}
+            label="Sound Effects"
+            description="Play sounds for correct/incorrect answers"
+            value={settings.soundEffects}
+            onChange={handleSoundEffectsToggle}
+          />
 
-          <label className="flex items-center justify-between cursor-pointer">
-            <div className="flex items-center gap-3">
-              <span className="text-lg">⏭️</span>
-              <span>Auto-Advance</span>
-            </div>
-            <button
-              onClick={handleAutoAdvanceToggle}
-              className={`w-12 h-6 rounded-full transition-colors ${
-                settings.autoAdvance ? 'bg-purple-500' : 'bg-white/20'
-              }`}
-            >
-              <div
-                className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform ${
-                  settings.autoAdvance ? 'translate-x-6' : 'translate-x-0.5'
-                }`}
-              />
-            </button>
-          </label>
+          <ToggleSwitch
+            icon={<span className="text-lg">⏭️</span>}
+            label="Auto-Advance"
+            description="Automatically go to next question"
+            value={settings.autoAdvance}
+            onChange={handleAutoAdvanceToggle}
+          />
 
-          <label className="flex items-center justify-between cursor-pointer">
-            <div className="flex items-center gap-3">
-              <span className="text-lg">💡</span>
-              <span>Show Hints</span>
-            </div>
-            <button
-              onClick={handleShowHintsToggle}
-              className={`w-12 h-6 rounded-full transition-colors ${
-                settings.showHints ? 'bg-purple-500' : 'bg-white/20'
-              }`}
-            >
-              <div
-                className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform ${
-                  settings.showHints ? 'translate-x-6' : 'translate-x-0.5'
-                }`}
-              />
-            </button>
-          </label>
+          <ToggleSwitch
+            icon={<span className="text-lg">💡</span>}
+            label="Show Hints"
+            description="Display helpful hints during practice"
+            value={settings.showHints}
+            onChange={handleShowHintsToggle}
+          />
 
-          <label className="flex items-center justify-between cursor-pointer">
-            <div className="flex items-center gap-3">
-              {settings.notifications ? (
-                <Bell className="w-5 h-5 text-purple-400" />
-              ) : (
-                <BellOff className="w-5 h-5 text-gray-400" />
-              )}
-              <span>Notifications</span>
-            </div>
-            <button
-              onClick={handleNotificationsToggle}
-              className={`w-12 h-6 rounded-full transition-colors ${
-                settings.notifications ? 'bg-purple-500' : 'bg-white/20'
-              }`}
-            >
-              <div
-                className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform ${
-                  settings.notifications ? 'translate-x-6' : 'translate-x-0.5'
-                }`}
-              />
-            </button>
-          </label>
+          <ToggleSwitch
+            icon={settings.notifications ? <Bell className="w-5 h-5" /> : <BellOff className="w-5 h-5 text-gray-400" />}
+            label="Notifications"
+            description="Receive reminders to practice"
+            value={settings.notifications}
+            onChange={handleNotificationsToggle}
+          />
         </div>
       </Card>
 

@@ -1,13 +1,8 @@
 import React, { useState } from 'react';
 import {
   Play,
-  Zap,
-  Calendar,
-  Heart,
-  Timer,
   ChevronRight,
   Brain,
-  Target,
   Settings2,
   Trophy,
 } from 'lucide-react';
@@ -17,10 +12,11 @@ import { Progress, CircularProgress } from './ui/Progress';
 import { Badge, LevelBadge, XPBadge, StreakBadge } from './ui/Badge';
 import { getUserStats, getDailyStats, getUnlockedAchievements, PRACTICE_PRESETS, PracticePresetId, updateSettings, getGoals, updateGoalProgress, CustomPreset } from '../utils/storage';
 import { getLevelFromXP, getXPProgress, ACHIEVEMENTS } from '../types/stats';
-import { GAME_MODES, CHALLENGE_MODES, GameModeType, ChallengeModeType } from '../types/gameModes';
+import { GameModeType, ChallengeModeType } from '../types/gameModes';
 import { getPracticeRecommendation, getLearningProgress } from '../utils/spacedRepetition';
 import { CustomPracticeBuilder } from './CustomPracticeBuilder';
 import { GoalsPanel } from './GoalsPanel';
+import { ChallengeModes, TrainingModes, GoalsSection } from './home';
 
 interface HomeScreenProps {
   onStartLevel: () => void;
@@ -207,143 +203,17 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
         </div>
 
         {/* Challenge Modes */}
-        <div>
-          <h2 className="text-lg font-semibold mb-3">Challenge Modes</h2>
-          <div className="grid grid-cols-2 gap-3">
-            {/* Daily Challenge */}
-            <Card
-              hover={canPlayDaily}
-              onClick={() => canPlayDaily && onStartChallenge('daily')}
-              className={`p-4 ${!canPlayDaily ? 'opacity-60' : ''}`}
-            >
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center">
-                  <Calendar className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="font-semibold">Daily</h4>
-                  {!canPlayDaily && (
-                    <Badge variant="success" size="sm">Completed</Badge>
-                  )}
-                </div>
-              </div>
-              <p className="text-xs text-white/60">New challenge every day</p>
-            </Card>
-
-            {/* Speed Run */}
-            <Card
-              hover
-              onClick={() => onStartChallenge('speedrun')}
-              className="p-4"
-            >
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-yellow-500 to-orange-500 flex items-center justify-center">
-                  <Zap className="w-5 h-5" />
-                </div>
-                <h4 className="font-semibold">Speed Run</h4>
-              </div>
-              <p className="text-xs text-white/60">60 seconds, max points</p>
-            </Card>
-
-            {/* Survival */}
-            <Card
-              hover
-              onClick={() => onStartChallenge('survival')}
-              className="p-4"
-            >
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center">
-                  <Heart className="w-5 h-5" />
-                </div>
-                <h4 className="font-semibold">Survival</h4>
-              </div>
-              <p className="text-xs text-white/60">3 lives, how far can you go?</p>
-            </Card>
-
-            {/* Time Attack */}
-            <Card
-              hover
-              onClick={() => onStartChallenge('timeattack')}
-              className="p-4"
-            >
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
-                  <Timer className="w-5 h-5" />
-                </div>
-                <h4 className="font-semibold">Time Attack</h4>
-              </div>
-              <p className="text-xs text-white/60">Beat the clock</p>
-            </Card>
-          </div>
-        </div>
+        <ChallengeModes canPlayDaily={canPlayDaily} onStartChallenge={onStartChallenge} />
 
         {/* Training Modes */}
-        <div>
-          <h2 className="text-lg font-semibold mb-3">Training Modes</h2>
-          <div className="grid grid-cols-2 gap-3">
-            {Object.values(GAME_MODES).map(mode => (
-              <Card
-                key={mode.id}
-                hover
-                onClick={() => onStartGameMode(mode.id)}
-                className="p-4"
-              >
-                <div className="flex items-center gap-3 mb-2">
-                  <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${mode.color} flex items-center justify-center`}>
-                    <span className="text-lg">{mode.icon}</span>
-                  </div>
-                  <h4 className="font-semibold text-sm">{mode.name}</h4>
-                </div>
-                <p className="text-xs text-white/60 line-clamp-2">{mode.description}</p>
-              </Card>
-            ))}
-          </div>
-        </div>
+        <TrainingModes onStartGameMode={onStartGameMode} />
 
         {/* Goals Progress */}
-        {(activeGoals.length > 0 || completedWithReward.length > 0) && (
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-semibold flex items-center gap-2">
-                <Target className="w-5 h-5 text-purple-400" />
-                Goals
-              </h2>
-              <button
-                onClick={() => setShowGoals(true)}
-                className="text-sm text-purple-400 hover:text-purple-300"
-              >
-                View All
-              </button>
-            </div>
-            <div className="space-y-2">
-              {completedWithReward.length > 0 && (
-                <Card className="p-3 border-2 border-yellow-500/50 bg-yellow-500/5">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xl">🎁</span>
-                      <span className="text-sm">{completedWithReward.length} reward{completedWithReward.length > 1 ? 's' : ''} to claim!</span>
-                    </div>
-                    <button
-                      onClick={() => setShowGoals(true)}
-                      className="px-3 py-1 rounded-lg bg-yellow-500 text-black text-sm font-medium"
-                    >
-                      Claim
-                    </button>
-                  </div>
-                </Card>
-              )}
-              {activeGoals.slice(0, 2).map(goal => (
-                <Card key={goal.id} className="p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium">{goal.name}</span>
-                    <span className="text-xs text-white/60">{goal.current}/{goal.target}</span>
-                  </div>
-                  <Progress value={goal.current} max={goal.target} size="sm" color="purple" />
-                </Card>
-              ))}
-            </div>
-          </div>
-        )}
+        <GoalsSection
+          activeGoals={activeGoals}
+          completedWithReward={completedWithReward}
+          onViewAll={() => setShowGoals(true)}
+        />
 
         {/* Custom Practice Button */}
         <Card

@@ -66,8 +66,8 @@ export function Leaderboard({ onBack }: LeaderboardProps) {
             <ArrowLeft className="w-5 h-5" />
           </button>
         )}
-        <Trophy className="w-6 h-6 text-yellow-400" />
-        <h1 className="text-2xl font-bold">Leaderboard</h1>
+        <Trophy className="w-6 h-6 text-yellow-400" aria-hidden="true" />
+        <h1 className="text-2xl font-bold">Personal Best</h1>
       </div>
 
       {/* Username Card */}
@@ -173,8 +173,8 @@ export function Leaderboard({ onBack }: LeaderboardProps) {
 
       {/* Info */}
       <div className="mt-6 text-center text-sm text-white/40">
-        <p>Play more to climb the leaderboard!</p>
-        <p className="mt-1">Leaderboard resets daily at midnight</p>
+        <p>Track your personal best scores!</p>
+        <p className="mt-1">Daily scores reset at midnight</p>
       </div>
     </div>
   );

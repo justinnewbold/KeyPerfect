@@ -1,10 +1,11 @@
 import React from 'react';
 import { Trophy, Target, Zap, Clock, TrendingUp, Home, RotateCcw, Award } from 'lucide-react';
 import { GameResult } from '../types/gameModes';
-import { Card, CardContent } from './ui/Card';
+import { Card } from './ui/Card';
 import { Button } from './ui/Button';
-import { Progress, CircularProgress } from './ui/Progress';
-import { Badge, XPBadge } from './ui/Badge';
+import { CircularProgress } from './ui/Progress';
+import { XPBadge } from './ui/Badge';
+import { StatCard } from './ui/StatCard';
 import { ACHIEVEMENTS } from '../types/stats';
 
 interface ResultScreenProps {
@@ -65,7 +66,7 @@ export function ResultScreen({ result, onPlayAgain, onHome }: ResultScreenProps)
       {/* XP Earned */}
       <Card className="p-6 mb-6 text-center bg-gradient-to-r from-purple-500/20 to-pink-500/20 border-purple-500/30">
         <div className="flex items-center justify-center gap-2 mb-2">
-          <Zap className="w-6 h-6 text-yellow-400" />
+          <Zap className="w-6 h-6 text-yellow-400" aria-hidden="true" />
           <span className="text-3xl font-bold">{result.totalXPEarned}</span>
           <span className="text-xl text-white/60">XP</span>
         </div>
@@ -74,52 +75,37 @@ export function ResultScreen({ result, onPlayAgain, onHome }: ResultScreenProps)
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 gap-3 mb-6">
-        <Card className="p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <Target className="w-4 h-4 text-green-400" />
-            <span className="text-sm text-white/60">Correct</span>
-          </div>
-          <div className="text-2xl font-bold">
-            {result.correctAnswers}/{result.totalQuestions}
-          </div>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <TrendingUp className="w-4 h-4 text-orange-400" />
-            <span className="text-sm text-white/60">Best Streak</span>
-          </div>
-          <div className="text-2xl font-bold">
-            {result.longestStreak}
-          </div>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <Clock className="w-4 h-4 text-blue-400" />
-            <span className="text-sm text-white/60">Total Time</span>
-          </div>
-          <div className="text-2xl font-bold">
-            {formatTime(result.totalTime)}
-          </div>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <Trophy className="w-4 h-4 text-amber-400" />
-            <span className="text-sm text-white/60">Score</span>
-          </div>
-          <div className="text-2xl font-bold">
-            {result.score}
-          </div>
-        </Card>
+        <StatCard
+          icon={<Target className="w-4 h-4" />}
+          label="Correct"
+          value={`${result.correctAnswers}/${result.totalQuestions}`}
+          iconColor="text-green-400"
+        />
+        <StatCard
+          icon={<TrendingUp className="w-4 h-4" />}
+          label="Best Streak"
+          value={result.longestStreak}
+          iconColor="text-orange-400"
+        />
+        <StatCard
+          icon={<Clock className="w-4 h-4" />}
+          label="Total Time"
+          value={formatTime(result.totalTime)}
+          iconColor="text-blue-400"
+        />
+        <StatCard
+          icon={<Trophy className="w-4 h-4" />}
+          label="Score"
+          value={result.score}
+          iconColor="text-amber-400"
+        />
       </div>
 
       {/* New Achievements */}
       {newAchievements.length > 0 && (
         <Card className="p-4 mb-6">
           <div className="flex items-center gap-2 mb-3">
-            <Award className="w-5 h-5 text-yellow-400" />
+            <Award className="w-5 h-5 text-yellow-400" aria-hidden="true" />
             <h3 className="font-semibold">New Achievements!</h3>
           </div>
           <div className="space-y-2">
