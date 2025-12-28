@@ -108,6 +108,7 @@ export function useGameState(): UseGameStateReturn {
 
     const questions = generateGameQuestions(level, gameMode, totalQuestions);
 
+    const now = Date.now();
     setGameState({
       mode,
       level: levelId,
@@ -119,7 +120,8 @@ export function useGameState(): UseGameStateReturn {
       timeRemaining: mode === 'speedrun' ? 60 : mode === 'timeattack' ? 30 : 0,
       questions,
       answers: [],
-      startTime: Date.now(),
+      gameStartTime: now, // Track when game started for total time
+      startTime: now, // Track when current question started for response time
       isComplete: false,
     });
   }, []);
@@ -222,7 +224,7 @@ export function useGameState(): UseGameStateReturn {
 
     const correctAnswers = gameState.answers.filter(a => a.isCorrect).length;
     const totalXPEarned = gameState.answers.reduce((sum, a) => sum + a.xpEarned, 0);
-    const totalTime = (Date.now() - gameState.startTime) / 1000;
+    const totalTime = (Date.now() - gameState.gameStartTime) / 1000;
     const accuracy = gameState.answers.length > 0
       ? (correctAnswers / gameState.answers.length) * 100
       : 0;
