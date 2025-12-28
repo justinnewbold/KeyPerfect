@@ -188,6 +188,19 @@ export function useMetronome() {
   const nextNoteTimeRef = useRef(0);
   const beatRef = useRef(0);
 
+  // Use refs to avoid stale closures in the interval callback
+  const bpmRef = useRef(bpm);
+  const timeSignatureRef = useRef(timeSignature);
+
+  // Keep refs in sync with state
+  useEffect(() => {
+    bpmRef.current = bpm;
+  }, [bpm]);
+
+  useEffect(() => {
+    timeSignatureRef.current = timeSignature;
+  }, [timeSignature]);
+
   const start = useCallback(() => {
     if (isRunning) return;
 
@@ -197,14 +210,15 @@ export function useMetronome() {
     beatRef.current = 0;
 
     const scheduleNote = () => {
-      const secondsPerBeat = 60 / bpm;
+      // Read from refs to get current values (avoids stale closure)
+      const secondsPerBeat = 60 / bpmRef.current;
       const ctx = getAudioContext();
 
       while (nextNoteTimeRef.current < ctx.currentTime + 0.1) {
-        const beat = beatRef.current % timeSignature[0];
+        const beat = beatRef.current % timeSignatureRef.current[0];
         playMetronomeClick(beat === 0);
 
-        beatRef.current = (beatRef.current + 1) % timeSignature[0];
+        beatRef.current = (beatRef.current + 1) % timeSignatureRef.current[0];
         setCurrentBeat(beatRef.current);
         nextNoteTimeRef.current += secondsPerBeat;
       }
@@ -212,7 +226,7 @@ export function useMetronome() {
 
     nextNoteTimeRef.current = getAudioContext().currentTime;
     intervalRef.current = window.setInterval(scheduleNote, 25);
-  }, [isRunning, bpm, timeSignature]);
+  }, [isRunning]);
 
   const stop = useCallback(() => {
     setIsRunning(false);
