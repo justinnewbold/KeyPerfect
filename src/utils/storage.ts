@@ -673,15 +673,18 @@ export function claimGoalReward(goalId: string): number {
   const goal = goals.find(g => g.id === goalId);
   if (!goal || !goal.completed || !goal.reward) return 0;
 
+  // Store reward value before clearing it
+  const reward = goal.reward;
+
   // Add XP reward
   const stats = getUserStats();
-  updateUserStats({ totalXP: stats.totalXP + goal.reward });
+  updateUserStats({ totalXP: stats.totalXP + reward });
 
   // Mark reward as claimed by removing it
   goal.reward = 0;
   setItem(STORAGE_KEYS.GOALS, goals);
 
-  return goal.reward;
+  return reward;
 }
 
 // Achievements

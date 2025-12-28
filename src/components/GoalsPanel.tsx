@@ -29,17 +29,20 @@ export function GoalsPanel({ onXPClaimed }: GoalsPanelProps) {
   const handleClaim = async (goalId: string) => {
     setClaimingId(goalId);
 
-    // Animate the claim
-    await new Promise(resolve => setTimeout(resolve, 500));
+    try {
+      // Animate the claim
+      await new Promise(resolve => setTimeout(resolve, 500));
 
-    const reward = claimGoalReward(goalId);
-    if (reward > 0 && onXPClaimed) {
-      onXPClaimed(reward);
+      const reward = claimGoalReward(goalId);
+      if (reward > 0 && onXPClaimed) {
+        onXPClaimed(reward);
+      }
+
+      // Refresh goals
+      setGoals(getGoals());
+    } finally {
+      setClaimingId(null);
     }
-
-    // Refresh goals
-    setGoals(getGoals());
-    setClaimingId(null);
   };
 
   const activeGoals = goals.filter(g => !g.completed);
