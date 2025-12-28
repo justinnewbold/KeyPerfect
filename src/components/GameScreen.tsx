@@ -8,6 +8,7 @@ import { Button } from './ui/Button';
 import { Progress } from './ui/Progress';
 import { Badge, StreakBadge, XPBadge } from './ui/Badge';
 import { WaveformVisualizer } from './WaveformVisualizer';
+import { StaffDisplay } from './StaffDisplay';
 import { useAudio } from '../hooks/useAudio';
 import { useGameKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { triggerHapticFeedback } from '../utils/haptics';
@@ -185,36 +186,61 @@ export function GameScreen({
             {question.prompt}
           </h2>
 
-          {/* Play Button */}
-          <div className="flex justify-center">
-            <button
-              onClick={playQuestionAudio}
-              disabled={audio.isPlaying}
-              className={`w-20 h-20 rounded-full flex items-center justify-center transition-all duration-300 ${
-                audio.isPlaying
-                  ? 'bg-purple-500 animate-pulse'
-                  : hasPlayed
-                  ? 'bg-white/20 hover:bg-white/30'
-                  : 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 shadow-lg shadow-purple-500/30'
-              }`}
-            >
-              {audio.isPlaying ? (
-                <Volume2 className="w-8 h-8 animate-pulse" />
-              ) : (
-                <Play className="w-8 h-8 ml-1" />
+          {/* Note Reading - Show Staff Instead of Play Button */}
+          {question.type === 'notereading' ? (
+            <div className="flex flex-col items-center">
+              <StaffDisplay
+                note={question.audioData.type}
+                clef="treble"
+                size="lg"
+              />
+              <button
+                onClick={playQuestionAudio}
+                disabled={audio.isPlaying}
+                className="mt-4 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-sm flex items-center gap-2"
+              >
+                {audio.isPlaying ? (
+                  <Volume2 className="w-4 h-4 animate-pulse" />
+                ) : (
+                  <Play className="w-4 h-4" />
+                )}
+                Hear the note
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* Play Button */}
+              <div className="flex justify-center">
+                <button
+                  onClick={playQuestionAudio}
+                  disabled={audio.isPlaying}
+                  className={`w-20 h-20 rounded-full flex items-center justify-center transition-all duration-300 ${
+                    audio.isPlaying
+                      ? 'bg-purple-500 animate-pulse'
+                      : hasPlayed
+                      ? 'bg-white/20 hover:bg-white/30'
+                      : 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 shadow-lg shadow-purple-500/30'
+                  }`}
+                >
+                  {audio.isPlaying ? (
+                    <Volume2 className="w-8 h-8 animate-pulse" />
+                  ) : (
+                    <Play className="w-8 h-8 ml-1" />
+                  )}
+                </button>
+              </div>
+
+              {/* Audio Visualizer */}
+              <div className="mt-4">
+                <WaveformVisualizer isPlaying={audio.isPlaying} height={40} barCount={24} />
+              </div>
+
+              {!hasPlayed && (
+                <p className="text-center text-sm text-white/60 mt-3">
+                  Tap to play the sound
+                </p>
               )}
-            </button>
-          </div>
-
-          {/* Audio Visualizer */}
-          <div className="mt-4">
-            <WaveformVisualizer isPlaying={audio.isPlaying} height={40} barCount={24} />
-          </div>
-
-          {!hasPlayed && (
-            <p className="text-center text-sm text-white/60 mt-3">
-              Tap to play the sound
-            </p>
+            </>
           )}
         </Card>
 

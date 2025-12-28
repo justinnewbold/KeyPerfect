@@ -1,6 +1,6 @@
 export type GameModeType =
   | 'chords' | 'scales' | 'intervals' | 'progressions'
-  | 'inversions' | 'reverse' | 'melodic';
+  | 'inversions' | 'reverse' | 'melodic' | 'notereading';
 
 export type ChallengeModeType =
   | 'daily' | 'speedrun' | 'survival' | 'timeattack';
@@ -79,6 +79,14 @@ export const GAME_MODES: Record<GameModeType, GameMode> = {
     icon: '📝',
     color: 'from-teal-500 to-cyan-600',
     instructions: 'Listen to the melody and play it back note by note.',
+  },
+  notereading: {
+    id: 'notereading',
+    name: 'Note Reading',
+    description: 'Read notes on the staff',
+    icon: '🎼',
+    color: 'from-indigo-500 to-blue-600',
+    instructions: 'Identify the note shown on the musical staff.',
   },
 };
 
