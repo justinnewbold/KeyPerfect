@@ -7,6 +7,7 @@ import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { Progress } from './ui/Progress';
 import { Badge, StreakBadge, XPBadge } from './ui/Badge';
+import { WaveformVisualizer } from './WaveformVisualizer';
 import { useAudio } from '../hooks/useAudio';
 import { useGameKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { triggerHapticFeedback } from '../utils/haptics';
@@ -203,6 +204,11 @@ export function GameScreen({
                 <Play className="w-8 h-8 ml-1" />
               )}
             </button>
+          </div>
+
+          {/* Audio Visualizer */}
+          <div className="mt-4">
+            <WaveformVisualizer isPlaying={audio.isPlaying} height={40} barCount={24} />
           </div>
 
           {!hasPlayed && (

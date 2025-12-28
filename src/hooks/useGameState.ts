@@ -20,6 +20,7 @@ import {
   updateGameModeStats,
 } from '../utils/storage';
 import { calculateQuestionXP, getLevelFromXP } from '../types/stats';
+import { updateReviewItem } from '../utils/spacedRepetition';
 
 interface UseGameStateReturn {
   gameState: GameState | null;
@@ -101,10 +102,11 @@ export function useGameState(): UseGameStateReturn {
     }
 
     // Convert challenge modes to game modes for question generation
-    const gameMode: GameModeType =
-      mode === 'daily' || mode === 'speedrun' || mode === 'survival' || mode === 'timeattack'
-        ? 'chords'
-        : mode;
+    // Challenge modes use mixed content (chords, scales, intervals)
+    const isChallengeMode = mode === 'daily' || mode === 'speedrun' || mode === 'survival' || mode === 'timeattack';
+    const gameMode: GameModeType = isChallengeMode
+      ? (['chords', 'scales', 'intervals'][Math.floor(Math.random() * 3)] as GameModeType)
+      : mode;
 
     const questions = generateGameQuestions(level, gameMode, totalQuestions);
 
@@ -154,10 +156,13 @@ export function useGameState(): UseGameStateReturn {
     // Update stats based on question type
     if (question.type === 'chords') {
       updateChordStats(question.correctAnswer, isCorrect);
+      updateReviewItem('chord', question.correctAnswer, isCorrect, timeToAnswer, gameState.streak);
     } else if (question.type === 'scales') {
       updateScaleStats(question.correctAnswer, isCorrect);
+      updateReviewItem('scale', question.correctAnswer, isCorrect, timeToAnswer, gameState.streak);
     } else if (question.type === 'intervals') {
       updateIntervalStats(question.correctAnswer, isCorrect);
+      updateReviewItem('interval', question.correctAnswer, isCorrect, timeToAnswer, gameState.streak);
     }
 
     // Update game state
