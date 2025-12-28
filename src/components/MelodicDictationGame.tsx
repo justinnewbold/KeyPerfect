@@ -38,11 +38,16 @@ function generateMelody(length: number, difficulty: number): number[] {
     const interval = intervals[Math.floor(Math.random() * intervals.length)];
     let newNote = lastNote + interval;
 
-    // Keep notes in playable range (C4 to C6)
-    while (newNote < 48 || newNote > 72) {
+    // Keep notes in playable range (C3 to C6) with max iterations to prevent infinite loop
+    let attempts = 0;
+    while ((newNote < 48 || newNote > 84) && attempts < 50) {
       const newInterval = intervals[Math.floor(Math.random() * intervals.length)];
       newNote = lastNote + newInterval;
+      attempts++;
     }
+    // If still out of range after max attempts, clamp to valid range
+    if (newNote < 48) newNote = 48;
+    if (newNote > 84) newNote = 84;
 
     melody.push(newNote);
   }

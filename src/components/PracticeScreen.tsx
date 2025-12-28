@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Play, Volume2, RefreshCw, ChevronLeft, Music } from 'lucide-react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
@@ -27,6 +27,7 @@ export function PracticeScreen({ onBack }: PracticeScreenProps) {
   const [showAnswer, setShowAnswer] = useState(false);
   const [rootNote, setRootNote] = useState(60); // Middle C
   const audio = useAudio();
+  const playTimeoutRef = useRef<number | null>(null);
 
   const practiceTypes: { id: PracticeType; name: string; icon: string }[] = [
     { id: 'chords', name: 'Chords', icon: '🎹' },
@@ -50,6 +51,9 @@ export function PracticeScreen({ onBack }: PracticeScreenProps) {
     }
   }, [currentItem, practiceType, rootNote, audio]);
 
+  // Track if we should auto-play after generating new item
+  const shouldAutoPlayRef = useRef(false);
+
   const generateNew = useCallback(() => {
     setShowAnswer(false);
 
@@ -57,24 +61,41 @@ export function PracticeScreen({ onBack }: PracticeScreenProps) {
     const newRoot = 48 + Math.floor(Math.random() * 24); // C3 to B4
     setRootNote(newRoot);
 
+    let newItem: string | null = null;
     if (practiceType === 'chords') {
       const chordTypes = Object.keys(CHORD_TYPES) as ChordQuality[];
-      setCurrentItem(randomElement(chordTypes));
+      newItem = randomElement(chordTypes);
     } else if (practiceType === 'scales') {
       const scaleTypes = Object.keys(SCALE_TYPES) as ScaleType[];
-      setCurrentItem(randomElement(scaleTypes));
+      newItem = randomElement(scaleTypes);
     } else if (practiceType === 'intervals') {
       const intervalTypes = Object.keys(INTERVALS) as IntervalType[];
-      setCurrentItem(randomElement(intervalTypes));
+      newItem = randomElement(intervalTypes);
     }
 
-    // Auto-play after a short delay
-    setTimeout(() => {
-      if (practiceType !== 'freeplay') {
-        playCurrentItem();
+    setCurrentItem(newItem);
+    shouldAutoPlayRef.current = practiceType !== 'freeplay';
+  }, [practiceType]);
+
+  // Auto-play when currentItem changes and shouldAutoPlay is true
+  useEffect(() => {
+    if (shouldAutoPlayRef.current && currentItem) {
+      // Clear any pending timeout
+      if (playTimeoutRef.current) {
+        clearTimeout(playTimeoutRef.current);
       }
-    }, 300);
-  }, [practiceType, playCurrentItem]);
+      // Play after a short delay
+      playTimeoutRef.current = window.setTimeout(() => {
+        playCurrentItem();
+        shouldAutoPlayRef.current = false;
+      }, 300);
+    }
+    return () => {
+      if (playTimeoutRef.current) {
+        clearTimeout(playTimeoutRef.current);
+      }
+    };
+  }, [currentItem, playCurrentItem]);
 
   const getDisplayName = (type: string): string => {
     if (practiceType === 'chords') {
