@@ -1,12 +1,16 @@
 import React, { useState, useMemo } from 'react';
-import { Trophy, Medal, Crown, User, Calendar, TrendingUp } from 'lucide-react';
+import { Trophy, Medal, Crown, User, Calendar, TrendingUp, ArrowLeft } from 'lucide-react';
 import { Card } from './ui/Card';
 import { Badge } from './ui/Badge';
 import { generateLeaderboard, LeaderboardEntry, getUsername, setUsername } from '../utils/social';
 
 type LeaderboardTab = 'daily' | 'weekly' | 'allTime';
 
-export function Leaderboard() {
+interface LeaderboardProps {
+  onBack?: () => void;
+}
+
+export function Leaderboard({ onBack }: LeaderboardProps) {
   const [activeTab, setActiveTab] = useState<LeaderboardTab>('daily');
   const [username, setUsernameState] = useState(getUsername());
   const [editingName, setEditingName] = useState(false);
@@ -54,6 +58,14 @@ export function Leaderboard() {
   return (
     <div className="min-h-screen pb-24 px-4 pt-6">
       <div className="flex items-center gap-3 mb-6">
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+        )}
         <Trophy className="w-6 h-6 text-yellow-400" />
         <h1 className="text-2xl font-bold">Leaderboard</h1>
       </div>

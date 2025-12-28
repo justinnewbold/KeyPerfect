@@ -132,6 +132,7 @@ export function SettingsScreen() {
     { id: 'dark', name: 'Dark', color: 'from-gray-800 to-gray-900' },
     { id: 'purple', name: 'Purple', color: 'from-purple-800 to-indigo-900' },
     { id: 'blue', name: 'Blue', color: 'from-blue-800 to-cyan-900' },
+    { id: 'light', name: 'Light', color: 'from-gray-200 to-gray-300 text-gray-900' },
   ] as const;
 
   return (

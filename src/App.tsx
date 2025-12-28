@@ -1,15 +1,15 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import {
-  Navigation,
-  HomeScreen,
-  LevelSelect,
-  GameScreen,
-  ResultScreen,
-  StatsScreen,
-  GuitarTools,
-  LearnScreen,
-  SettingsScreen,
-} from './components';
+import React, { useState, useCallback, useEffect, lazy, Suspense } from 'react';
+import { Navigation, HomeScreen, GameScreen, ResultScreen } from './components';
+
+// Lazy load less frequently used screens
+const LevelSelect = lazy(() => import('./components/LevelSelect').then(m => ({ default: m.LevelSelect })));
+const StatsScreen = lazy(() => import('./components/StatsScreen').then(m => ({ default: m.StatsScreen })));
+const GuitarTools = lazy(() => import('./components/GuitarTools').then(m => ({ default: m.GuitarTools })));
+const LearnScreen = lazy(() => import('./components/LearnScreen').then(m => ({ default: m.LearnScreen })));
+const SettingsScreen = lazy(() => import('./components/SettingsScreen').then(m => ({ default: m.SettingsScreen })));
+const ReverseModeGame = lazy(() => import('./components/ReverseModeGame').then(m => ({ default: m.ReverseModeGame })));
+const MelodicDictationGame = lazy(() => import('./components/MelodicDictationGame').then(m => ({ default: m.MelodicDictationGame })));
+const Leaderboard = lazy(() => import('./components/Leaderboard').then(m => ({ default: m.Leaderboard })));
 import type { Screen } from './components';
 import { LevelConfig, LEVELS } from './types/levels';
 import { GameModeType, ChallengeModeType, GameResult, AnswerRecord } from './types/gameModes';
@@ -21,12 +21,24 @@ import {
   PRACTICE_PRESETS,
   PracticePresetId,
   CustomPreset,
+  getSettings,
 } from './utils/storage';
+
+// Theme background gradients
+const THEME_BACKGROUNDS = {
+  dark: 'from-[#0f0c29] via-[#302b63] to-[#24243e]',
+  purple: 'from-[#1a0a2e] via-[#4a1a6b] to-[#2d1a47]',
+  blue: 'from-[#0a1628] via-[#1a3a5c] to-[#0d2137]',
+  light: 'from-[#e8e8e8] via-[#d4d4d4] to-[#c0c0c0]',
+} as const;
 
 type AppState =
   | { screen: 'home' }
   | { screen: 'levelSelect' }
   | { screen: 'game'; level: LevelConfig }
+  | { screen: 'reverseMode' }
+  | { screen: 'melodicMode' }
+  | { screen: 'leaderboard' }
   | { screen: 'result'; result: GameResult }
   | { screen: 'learn' }
   | { screen: 'stats' }
@@ -36,6 +48,21 @@ type AppState =
 function App() {
   const [appState, setAppState] = useState<AppState>({ screen: 'home' });
   const [currentNavScreen, setCurrentNavScreen] = useState<Screen>('home');
+  const [theme, setTheme] = useState<keyof typeof THEME_BACKGROUNDS>(() => getSettings().theme);
+
+  // Listen for theme changes from settings
+  useEffect(() => {
+    const checkTheme = () => {
+      const newTheme = getSettings().theme;
+      if (newTheme !== theme) {
+        setTheme(newTheme);
+      }
+    };
+    // Check theme when returning from settings
+    if (appState.screen !== 'settings') {
+      checkTheme();
+    }
+  }, [appState.screen, theme]);
   const {
     gameState,
     startGame,
@@ -104,6 +131,15 @@ function App() {
 
   // Start specific game mode
   const handleStartGameMode = useCallback((mode: GameModeType) => {
+    // Special handling for modes that have dedicated components
+    if (mode === 'reverse') {
+      setAppState({ screen: 'reverseMode' });
+      return;
+    }
+    if (mode === 'melodic') {
+      setAppState({ screen: 'melodicMode' });
+      return;
+    }
     startGame(mode, 1);
     setAppState({ screen: 'game', level: LEVELS[0] });
   }, [startGame]);
@@ -176,6 +212,30 @@ function App() {
     setCurrentNavScreen('home');
   }, []);
 
+  // Handle completion of special game modes (Reverse, Melodic)
+  const handleSpecialModeComplete = useCallback((score: number, accuracy: number) => {
+    const result: GameResult = {
+      mode: 'chords', // Default, as these modes don't use standard tracking
+      level: 1,
+      score,
+      totalQuestions: 10,
+      correctAnswers: Math.round((accuracy / 100) * 10),
+      accuracy,
+      totalXPEarned: score,
+      longestStreak: 0,
+      totalTime: 0,
+      averageResponseTime: 0,
+      newAchievements: [],
+      answers: [],
+    };
+    setAppState({ screen: 'result', result });
+  }, []);
+
+  // Open leaderboard
+  const handleOpenLeaderboard = useCallback(() => {
+    setAppState({ screen: 'leaderboard' });
+  }, []);
+
   // Render current screen
   const renderScreen = () => {
     switch (appState.screen) {
@@ -187,6 +247,7 @@ function App() {
             onStartGameMode={handleStartGameMode}
             onStartPreset={handleStartPreset}
             onStartCustomPreset={handleStartCustomPreset}
+            onOpenLeaderboard={handleOpenLeaderboard}
           />
         );
 
@@ -218,6 +279,25 @@ function App() {
           />
         );
 
+      case 'reverseMode':
+        return (
+          <ReverseModeGame
+            onComplete={handleSpecialModeComplete}
+            onExit={handleGoHome}
+          />
+        );
+
+      case 'melodicMode':
+        return (
+          <MelodicDictationGame
+            onComplete={handleSpecialModeComplete}
+            onExit={handleGoHome}
+          />
+        );
+
+      case 'leaderboard':
+        return <Leaderboard onBack={handleGoHome} />;
+
       case 'result':
         return (
           <ResultScreen
@@ -240,16 +320,25 @@ function App() {
         return <SettingsScreen />;
 
       default:
-        return <HomeScreen onStartLevel={handleStartLevel} onStartChallenge={handleStartChallenge} onStartGameMode={handleStartGameMode} onStartPreset={handleStartPreset} onStartCustomPreset={handleStartCustomPreset} />;
+        return <HomeScreen onStartLevel={handleStartLevel} onStartChallenge={handleStartChallenge} onStartGameMode={handleStartGameMode} onStartPreset={handleStartPreset} onStartCustomPreset={handleStartCustomPreset} onOpenLeaderboard={handleOpenLeaderboard} />;
     }
   };
 
   // Don't show navigation during game
-  const showNavigation = appState.screen !== 'game' && appState.screen !== 'result';
+  const showNavigation = !['game', 'result', 'reverseMode', 'melodicMode', 'leaderboard'].includes(appState.screen);
+
+  // Loading fallback for lazy components
+  const LoadingFallback = () => (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="animate-pulse text-lg">Loading...</div>
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] text-white">
-      {renderScreen()}
+    <div className={`min-h-screen bg-gradient-to-br ${THEME_BACKGROUNDS[theme]} ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>
+      <Suspense fallback={<LoadingFallback />}>
+        {renderScreen()}
+      </Suspense>
       {showNavigation && (
         <Navigation
           currentScreen={currentNavScreen}

@@ -22,6 +22,7 @@ import {
   addSessionToHistory,
 } from '../utils/storage';
 import { calculateQuestionXP, getLevelFromXP } from '../types/stats';
+import { GAME_CONFIG } from '../constants/gameConfig';
 
 interface UseGameStateReturn {
   gameState: GameState | null;
@@ -96,11 +97,11 @@ export function useGameState(): UseGameStateReturn {
 
     // Adjust for challenge modes
     if (mode === 'daily') {
-      totalQuestions = 10;
+      totalQuestions = GAME_CONFIG.QUESTIONS.DAILY_CHALLENGE;
     } else if (mode === 'speedrun') {
-      totalQuestions = 50; // Max possible in time limit
+      totalQuestions = GAME_CONFIG.QUESTIONS.SPEED_RUN_MAX;
     } else if (mode === 'survival') {
-      totalQuestions = 100; // Unlimited, but cap at 100
+      totalQuestions = GAME_CONFIG.QUESTIONS.SURVIVAL_MAX;
     }
 
     // Convert challenge modes to game modes for question generation
@@ -119,8 +120,8 @@ export function useGameState(): UseGameStateReturn {
       totalQuestions,
       score: 0,
       streak: 0,
-      lives: mode === 'survival' ? 3 : 0,
-      timeRemaining: mode === 'speedrun' ? 60 : mode === 'timeattack' ? 30 : 0,
+      lives: mode === 'survival' ? GAME_CONFIG.LIVES.SURVIVAL_START : 0,
+      timeRemaining: mode === 'speedrun' ? GAME_CONFIG.TIME_LIMITS.SPEED_RUN : mode === 'timeattack' ? GAME_CONFIG.TIME_LIMITS.TIME_ATTACK_START : 0,
       questions,
       answers: [],
       gameStartTime: now,

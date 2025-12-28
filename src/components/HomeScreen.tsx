@@ -9,6 +9,7 @@ import {
   Brain,
   Target,
   Settings2,
+  Trophy,
 } from 'lucide-react';
 import { Card, CardContent } from './ui/Card';
 import { Button } from './ui/Button';
@@ -27,9 +28,10 @@ interface HomeScreenProps {
   onStartGameMode: (mode: GameModeType) => void;
   onStartPreset?: (presetId: PracticePresetId) => void;
   onStartCustomPreset?: (preset: CustomPreset) => void;
+  onOpenLeaderboard?: () => void;
 }
 
-export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, onStartPreset, onStartCustomPreset }: HomeScreenProps) {
+export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, onStartPreset, onStartCustomPreset, onOpenLeaderboard }: HomeScreenProps) {
   const [showCustomBuilder, setShowCustomBuilder] = useState(false);
   const [showGoals, setShowGoals] = useState(false);
 
@@ -61,6 +63,14 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
             <p className="text-sm text-white/60">Master your musical ear</p>
           </div>
           <div className="flex items-center gap-2">
+            {onOpenLeaderboard && (
+              <button
+                onClick={onOpenLeaderboard}
+                className="p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
+              >
+                <Trophy className="w-5 h-5 text-yellow-400" />
+              </button>
+            )}
             {dailyStats.currentStreak > 0 && (
               <StreakBadge streak={dailyStats.currentStreak} />
             )}
