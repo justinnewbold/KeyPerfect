@@ -3,11 +3,7 @@ import { InstrumentType, INSTRUMENTS } from '../types/instruments';
 // Audio context singleton
 let audioContext: AudioContext | null = null;
 let masterGain: GainNode | null = null;
-let reverbNode: ConvolverNode | null = null;
 let compressor: DynamicsCompressorNode | null = null;
-
-// Sound effect buffers
-const soundEffects: Map<string, AudioBuffer> = new Map();
 
 // Active sounds for cleanup
 const activeSounds: Set<{ stop: () => void }> = new Set();
@@ -41,27 +37,6 @@ function setupMasterChain() {
   // Connect chain
   compressor.connect(masterGain);
   masterGain.connect(audioContext.destination);
-
-  // Create reverb impulse
-  createReverbImpulse();
-}
-
-function createReverbImpulse() {
-  if (!audioContext) return;
-
-  const sampleRate = audioContext.sampleRate;
-  const length = sampleRate * 2; // 2 seconds
-  const impulse = audioContext.createBuffer(2, length, sampleRate);
-
-  for (let channel = 0; channel < 2; channel++) {
-    const channelData = impulse.getChannelData(channel);
-    for (let i = 0; i < length; i++) {
-      channelData[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 2);
-    }
-  }
-
-  reverbNode = audioContext.createConvolver();
-  reverbNode.buffer = impulse;
 }
 
 export function setMasterVolume(volume: number) {
@@ -588,7 +563,6 @@ export function cleanup() {
     audioContext.close();
     audioContext = null;
     masterGain = null;
-    reverbNode = null;
     compressor = null;
   }
 }

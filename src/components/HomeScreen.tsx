@@ -5,10 +5,6 @@ import {
   Calendar,
   Heart,
   Timer,
-  Music,
-  Layers,
-  TrendingUp,
-  Award,
   ChevronRight,
 } from 'lucide-react';
 import { Card, CardContent } from './ui/Card';

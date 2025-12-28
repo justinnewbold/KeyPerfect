@@ -114,7 +114,7 @@ export function LevelSelect({ onSelectLevel, onBack }: LevelSelectProps) {
                 {unlocked && progress && (
                   <div className="text-right">
                     <div className="text-lg font-bold text-purple-400">
-                      {Math.round((progress.questionsCompleted / level.questionsToComplete) * 100)}%
+                      {Math.min(100, Math.round((progress.questionsCompleted / level.questionsToComplete) * 100))}%
                     </div>
                     <div className="text-xs text-white/60">Complete</div>
                   </div>

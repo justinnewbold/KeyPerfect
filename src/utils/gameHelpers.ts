@@ -68,114 +68,144 @@ export function getIntervalNotes(rootMidi: number, intervalType: IntervalType): 
   return [rootMidi, rootMidi + interval.semitones];
 }
 
-// Generate questions for a level
+// Calculate difficulty modifier based on question progress
+function getDifficultyModifier(questionIndex: number, totalQuestions: number): number {
+  // Returns 0-1, where 0 is easiest and 1 is hardest
+  return Math.min(1, questionIndex / Math.max(1, totalQuestions - 1));
+}
+
+// Generate questions for a level with progressive difficulty
 export function generateQuestion(
   level: LevelConfig,
   mode: GameModeType,
-  questionIndex: number
+  questionIndex: number,
+  totalQuestions: number = 20
 ): GameQuestion {
   const id = `${mode}-${level.id}-${questionIndex}-${Date.now()}`;
+  const difficultyModifier = getDifficultyModifier(questionIndex, totalQuestions);
 
   switch (mode) {
     case 'chords':
-      return generateChordQuestion(id, level);
+      return generateChordQuestion(id, level, difficultyModifier);
     case 'scales':
-      return generateScaleQuestion(id, level);
+      return generateScaleQuestion(id, level, difficultyModifier);
     case 'intervals':
-      return generateIntervalQuestion(id, level);
+      return generateIntervalQuestion(id, level, difficultyModifier);
     case 'inversions':
       return generateInversionQuestion(id, level);
     case 'progressions':
       return generateProgressionQuestion(id, level);
     default:
-      return generateChordQuestion(id, level);
+      return generateChordQuestion(id, level, difficultyModifier);
   }
 }
 
-function generateChordQuestion(id: string, level: LevelConfig): GameQuestion {
+function generateChordQuestion(id: string, level: LevelConfig, difficultyModifier: number = 0.5): GameQuestion {
   const rootNote = randomElement(NOTE_NAMES);
-  const rootMidi = getMidiFromNote(rootNote, 4);
+
+  // Vary octave based on difficulty (harder = wider range)
+  const octaveVariation = difficultyModifier > 0.5 ? randomInt(-1, 1) : 0;
+  const rootMidi = getMidiFromNote(rootNote, (4 + octaveVariation) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8);
   const quality = randomElement(level.chords);
   const notes = getChordNotes(rootMidi, quality);
 
-  const options = shuffleArray([
-    quality,
-    ...level.chords.filter(c => c !== quality).slice(0, 3),
-  ]);
+  // Ensure we have at least 4 options - use all available chords from the level
+  const otherChords = level.chords.filter(c => c !== quality);
+  // If we don't have enough options, just use what we have (minimum 2 options)
+  const allOptions = shuffleArray([quality, ...otherChords]);
+
+  // Adjust duration based on difficulty (harder = shorter playback)
+  const baseDuration = 1.5;
+  const duration = baseDuration - (difficultyModifier * 0.5); // 1.5s to 1.0s
 
   return {
     id,
     type: 'chords',
     prompt: `What type of chord is this?`,
     correctAnswer: quality,
-    options: options.slice(0, 4),
+    options: allOptions.slice(0, Math.min(4, allOptions.length)),
     audioData: {
       notes,
       rootNote: rootMidi,
       type: quality,
       playbackMode: 'chord',
-      duration: 1.5,
+      duration,
     },
     difficulty: level.id,
-    xpValue: 10 + level.id * 2,
+    xpValue: 10 + level.id * 2 + Math.floor(difficultyModifier * 5),
   };
 }
 
-function generateScaleQuestion(id: string, level: LevelConfig): GameQuestion {
+function generateScaleQuestion(id: string, level: LevelConfig, difficultyModifier: number = 0.5): GameQuestion {
   const rootNote = randomElement(NOTE_NAMES);
-  const rootMidi = getMidiFromNote(rootNote, 4);
+
+  // Vary octave based on difficulty
+  const octaveVariation = difficultyModifier > 0.5 ? randomInt(-1, 1) : 0;
+  const rootMidi = getMidiFromNote(rootNote, (4 + octaveVariation) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8);
   const scaleType = randomElement(level.scales);
   const notes = getScaleNotes(rootMidi, scaleType);
 
-  const options = shuffleArray([
-    scaleType,
-    ...level.scales.filter(s => s !== scaleType).slice(0, 3),
-  ]);
+  // Ensure we have at least 4 options - use all available scales from the level
+  const otherScales = level.scales.filter(s => s !== scaleType);
+  // If we don't have enough options, just use what we have (minimum 2 options)
+  const allOptions = shuffleArray([scaleType, ...otherScales]);
+
+  // Adjust note delay based on difficulty (harder = faster playback)
+  const baseDelay = 0.35;
+  const noteDelay = baseDelay - (difficultyModifier * 0.15); // 0.35s to 0.2s per note
 
   return {
     id,
     type: 'scales',
     prompt: `What scale is this?`,
     correctAnswer: scaleType,
-    options: options.slice(0, 4),
+    options: allOptions.slice(0, Math.min(4, allOptions.length)),
     audioData: {
       notes,
       rootNote: rootMidi,
       type: scaleType,
       playbackMode: 'scale',
-      duration: 0.3,
+      duration: noteDelay,
     },
     difficulty: level.id,
-    xpValue: 10 + level.id * 2,
+    xpValue: 10 + level.id * 2 + Math.floor(difficultyModifier * 5),
   };
 }
 
-function generateIntervalQuestion(id: string, level: LevelConfig): GameQuestion {
+function generateIntervalQuestion(id: string, level: LevelConfig, difficultyModifier: number = 0.5): GameQuestion {
   const rootNote = randomElement(NOTE_NAMES);
-  const rootMidi = getMidiFromNote(rootNote, 4);
+
+  // Vary octave based on difficulty
+  const octaveVariation = difficultyModifier > 0.5 ? randomInt(-1, 1) : 0;
+  const rootMidi = getMidiFromNote(rootNote, (4 + octaveVariation) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8);
   const intervalType = randomElement(level.intervals);
   const notes = getIntervalNotes(rootMidi, intervalType);
 
-  const options = shuffleArray([
-    intervalType,
-    ...level.intervals.filter(i => i !== intervalType).slice(0, 3),
-  ]);
+  // Ensure we have at least 4 options - use all available intervals from the level
+  const otherIntervals = level.intervals.filter(i => i !== intervalType);
+  // If we don't have enough options, just use what we have (minimum 2 options)
+  const allOptions = shuffleArray([intervalType, ...otherIntervals]);
+
+  // At higher difficulty, play notes simultaneously instead of sequentially
+  const playSimultaneously = difficultyModifier > 0.7;
 
   return {
     id,
     type: 'intervals',
-    prompt: `What interval is this?`,
+    prompt: playSimultaneously
+      ? `What interval is this? (played together)`
+      : `What interval is this?`,
     correctAnswer: intervalType,
-    options: options.slice(0, 4),
+    options: allOptions.slice(0, Math.min(4, allOptions.length)),
     audioData: {
       notes,
       rootNote: rootMidi,
       type: intervalType,
       playbackMode: 'interval',
-      duration: 1,
+      duration: 1 - (difficultyModifier * 0.3), // 1s to 0.7s
     },
     difficulty: level.id,
-    xpValue: 10 + level.id * 2,
+    xpValue: 10 + level.id * 2 + Math.floor(difficultyModifier * 5),
   };
 }
 
@@ -268,14 +298,14 @@ function getProgressionChords(rootMidi: number, progression: ProgressionType): n
   });
 }
 
-// Generate questions for a game session
+// Generate questions for a game session with progressive difficulty
 export function generateGameQuestions(
   level: LevelConfig,
   mode: GameModeType,
   count: number
 ): GameQuestion[] {
   return Array.from({ length: count }, (_, i) =>
-    generateQuestion(level, mode, i)
+    generateQuestion(level, mode, i, count)
   );
 }
 

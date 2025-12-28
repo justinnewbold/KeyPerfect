@@ -141,7 +141,9 @@ export const NOTE_NAMES: NoteName[] = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G'
 
 export function getNoteFromMidi(midi: number): Note {
   const name = NOTE_NAMES[midi % 12];
-  const octave = Math.floor(midi / 12) - 1 as Octave;
+  // Clamp octave to valid range 1-8
+  const rawOctave = Math.floor(midi / 12) - 1;
+  const octave = Math.max(1, Math.min(8, rawOctave)) as Octave;
   const frequency = 440 * Math.pow(2, (midi - 69) / 12);
   return { name, octave, midi, frequency };
 }

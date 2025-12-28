@@ -168,7 +168,8 @@ export interface GameState {
   timeRemaining: number;
   questions: GameQuestion[];
   answers: AnswerRecord[];
-  startTime: number;
+  gameStartTime: number; // When the entire game started (for total time calculation)
+  startTime: number; // When current question started (for response time)
   isComplete: boolean;
 }
 
