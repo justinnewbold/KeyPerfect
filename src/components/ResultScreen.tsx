@@ -1,11 +1,12 @@
-import React from 'react';
-import { Trophy, Target, Zap, Clock, TrendingUp, Home, RotateCcw, Award } from 'lucide-react';
+import React, { useState } from 'react';
+import { Trophy, Target, Zap, Clock, TrendingUp, Home, RotateCcw, Award, Share2, Check } from 'lucide-react';
 import { GameResult } from '../types/gameModes';
 import { Card, CardContent } from './ui/Card';
 import { Button } from './ui/Button';
 import { Progress, CircularProgress } from './ui/Progress';
 import { Badge, XPBadge } from './ui/Badge';
 import { ACHIEVEMENTS } from '../types/stats';
+import { shareResult, saveToLeaderboard } from '../utils/social';
 
 interface ResultScreenProps {
   result: GameResult;
@@ -14,6 +15,21 @@ interface ResultScreenProps {
 }
 
 export function ResultScreen({ result, onPlayAgain, onHome }: ResultScreenProps) {
+  const [shareStatus, setShareStatus] = useState<'idle' | 'shared'>('idle');
+
+  // Save result to leaderboard on mount
+  React.useEffect(() => {
+    saveToLeaderboard(result);
+  }, [result]);
+
+  const handleShare = async () => {
+    const success = await shareResult(result);
+    if (success) {
+      setShareStatus('shared');
+      setTimeout(() => setShareStatus('idle'), 2000);
+    }
+  };
+
   const getGrade = (accuracy: number): { grade: string; color: string; message: string } => {
     if (accuracy >= 95) return { grade: 'S', color: 'text-yellow-400', message: 'Perfect!' };
     if (accuracy >= 90) return { grade: 'A+', color: 'text-green-400', message: 'Excellent!' };
@@ -171,15 +187,26 @@ export function ResultScreen({ result, onPlayAgain, onHome }: ResultScreenProps)
         >
           Play Again
         </Button>
-        <Button
-          variant="secondary"
-          size="lg"
-          fullWidth
-          onClick={onHome}
-          icon={<Home className="w-5 h-5" />}
-        >
-          Back to Home
-        </Button>
+        <div className="grid grid-cols-2 gap-3">
+          <Button
+            variant="secondary"
+            size="lg"
+            fullWidth
+            onClick={handleShare}
+            icon={shareStatus === 'shared' ? <Check className="w-5 h-5 text-green-400" /> : <Share2 className="w-5 h-5" />}
+          >
+            {shareStatus === 'shared' ? 'Copied!' : 'Share'}
+          </Button>
+          <Button
+            variant="secondary"
+            size="lg"
+            fullWidth
+            onClick={onHome}
+            icon={<Home className="w-5 h-5" />}
+          >
+            Home
+          </Button>
+        </div>
       </div>
     </div>
   );
