@@ -21,6 +21,7 @@ const STORAGE_KEYS = {
   GAME_MODE_STATS: 'keyperfect_game_mode_stats',
   ACHIEVEMENTS: 'keyperfect_achievements',
   SETTINGS: 'keyperfect_settings',
+  SESSION_HISTORY: 'keyperfect_session_history',
 } as const;
 
 // Default values
@@ -62,6 +63,75 @@ export interface AppSettings {
   playMode: 'chord' | 'arpeggio';
   theme: 'dark' | 'light' | 'purple' | 'blue';
   notifications: boolean;
+  lastPreset?: PracticePresetId;
+}
+
+// Practice Presets
+export type PracticePresetId = 'quick' | 'standard' | 'deep' | 'random';
+
+export interface PracticePreset {
+  id: PracticePresetId;
+  name: string;
+  description: string;
+  icon: string;
+  questionCount: number;
+  difficulty: 'easy' | 'medium' | 'hard' | 'progressive';
+  timeLimit?: number; // in seconds, undefined = no limit
+  modes: ('chords' | 'scales' | 'intervals')[];
+}
+
+export const PRACTICE_PRESETS: Record<PracticePresetId, PracticePreset> = {
+  quick: {
+    id: 'quick',
+    name: 'Quick Practice',
+    description: '5 questions, easy difficulty',
+    icon: '⚡',
+    questionCount: 5,
+    difficulty: 'easy',
+    timeLimit: 120,
+    modes: ['chords'],
+  },
+  standard: {
+    id: 'standard',
+    name: 'Standard Session',
+    description: '10 questions, progressive difficulty',
+    icon: '📚',
+    questionCount: 10,
+    difficulty: 'progressive',
+    modes: ['chords', 'scales'],
+  },
+  deep: {
+    id: 'deep',
+    name: 'Deep Focus',
+    description: '25 questions, harder content',
+    icon: '🧠',
+    questionCount: 25,
+    difficulty: 'hard',
+    modes: ['chords', 'scales', 'intervals'],
+  },
+  random: {
+    id: 'random',
+    name: 'Random Mix',
+    description: 'All modes shuffled together',
+    icon: '🎲',
+    questionCount: 15,
+    difficulty: 'progressive',
+    modes: ['chords', 'scales', 'intervals'],
+  },
+};
+
+// Practice Session History
+export interface PracticeSession {
+  id: string;
+  date: string;
+  mode: string;
+  score: number;
+  totalQuestions: number;
+  correctAnswers: number;
+  accuracy: number;
+  duration: number; // in seconds
+  xpEarned: number;
+  streak: number;
 }
 
 function getDefaultSettings(): AppSettings {
@@ -296,6 +366,130 @@ export function updateGameModeStats(mode: string, score: number, time?: number):
 
   setItem(STORAGE_KEYS.GAME_MODE_STATS, stats);
   return stats;
+}
+
+// Session History
+const MAX_SESSION_HISTORY = 50; // Keep last 50 sessions
+
+export function getSessionHistory(): PracticeSession[] {
+  return getItem(STORAGE_KEYS.SESSION_HISTORY, []);
+}
+
+export function addSessionToHistory(session: Omit<PracticeSession, 'id'>): PracticeSession[] {
+  const history = getSessionHistory();
+  const newSession: PracticeSession = {
+    ...session,
+    id: `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+  };
+
+  // Add to beginning, limit to max
+  const updated = [newSession, ...history].slice(0, MAX_SESSION_HISTORY);
+  setItem(STORAGE_KEYS.SESSION_HISTORY, updated);
+  return updated;
+}
+
+// Practice Insights derived from session history
+export interface PracticeInsights {
+  totalSessions: number;
+  totalPracticeTime: number; // in seconds
+  averageAccuracy: number;
+  bestStreak: number;
+  weeklyProgress: {
+    date: string;
+    sessions: number;
+    accuracy: number;
+    xp: number;
+  }[];
+  recentTrend: 'improving' | 'steady' | 'declining';
+  strongestMode: string | null;
+  weakestMode: string | null;
+  practiceConsistency: number; // days practiced in last 7 days
+}
+
+export function getPracticeInsights(): PracticeInsights {
+  const history = getSessionHistory();
+  const now = new Date();
+  const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  // Calculate total stats
+  const totalSessions = history.length;
+  const totalPracticeTime = history.reduce((sum, s) => sum + s.duration, 0);
+  const averageAccuracy = totalSessions > 0
+    ? history.reduce((sum, s) => sum + s.accuracy, 0) / totalSessions
+    : 0;
+  const bestStreak = Math.max(0, ...history.map(s => s.streak));
+
+  // Calculate weekly progress (last 7 days)
+  const weeklyProgress: PracticeInsights['weeklyProgress'] = [];
+  for (let i = 6; i >= 0; i--) {
+    const date = new Date(now);
+    date.setDate(date.getDate() - i);
+    const dateStr = date.toISOString().split('T')[0];
+    const daySessions = history.filter(s => s.date === dateStr);
+    weeklyProgress.push({
+      date: dateStr,
+      sessions: daySessions.length,
+      accuracy: daySessions.length > 0
+        ? daySessions.reduce((sum, s) => sum + s.accuracy, 0) / daySessions.length
+        : 0,
+      xp: daySessions.reduce((sum, s) => sum + s.xpEarned, 0),
+    });
+  }
+
+  // Calculate trend (compare first half vs second half of recent sessions)
+  let recentTrend: PracticeInsights['recentTrend'] = 'steady';
+  if (history.length >= 6) {
+    const recent = history.slice(0, 3);
+    const older = history.slice(3, 6);
+    const recentAvg = recent.reduce((sum, s) => sum + s.accuracy, 0) / 3;
+    const olderAvg = older.reduce((sum, s) => sum + s.accuracy, 0) / 3;
+    if (recentAvg > olderAvg + 5) recentTrend = 'improving';
+    else if (recentAvg < olderAvg - 5) recentTrend = 'declining';
+  }
+
+  // Find strongest and weakest modes
+  const modeStats = new Map<string, { total: number; correct: number }>();
+  history.forEach(s => {
+    const current = modeStats.get(s.mode) || { total: 0, correct: 0 };
+    current.total += s.totalQuestions;
+    current.correct += s.correctAnswers;
+    modeStats.set(s.mode, current);
+  });
+
+  let strongestMode: string | null = null;
+  let weakestMode: string | null = null;
+  let highestAccuracy = 0;
+  let lowestAccuracy = 100;
+
+  modeStats.forEach((stats, mode) => {
+    if (stats.total >= 5) { // Minimum 5 questions to count
+      const acc = (stats.correct / stats.total) * 100;
+      if (acc > highestAccuracy) {
+        highestAccuracy = acc;
+        strongestMode = mode;
+      }
+      if (acc < lowestAccuracy) {
+        lowestAccuracy = acc;
+        weakestMode = mode;
+      }
+    }
+  });
+
+  // Calculate practice consistency (unique days in last 7)
+  const recentSessions = history.filter(s => new Date(s.date) >= oneWeekAgo);
+  const uniqueDays = new Set(recentSessions.map(s => s.date)).size;
+
+  return {
+    totalSessions,
+    totalPracticeTime,
+    averageAccuracy: Math.round(averageAccuracy * 10) / 10,
+    bestStreak,
+    weeklyProgress,
+    recentTrend,
+    strongestMode,
+    weakestMode,
+    practiceConsistency: uniqueDays,
+  };
 }
 
 // Achievements

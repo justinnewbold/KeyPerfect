@@ -5,6 +5,7 @@ import {
   playChord,
   playScale,
   playInterval,
+  playRhythm,
   stopAllSounds,
   playSuccessSound,
   playErrorSound,
@@ -22,6 +23,7 @@ interface UseAudioReturn {
   playChord: (notes: number[], arpeggio?: boolean) => void;
   playScale: (notes: number[]) => void;
   playInterval: (note1: number, note2: number, sequential?: boolean) => void;
+  playRhythmPattern: (pattern: number[], midi?: number) => void;
   playSuccess: () => void;
   playError: () => void;
   playClick: () => void;
@@ -99,6 +101,14 @@ export function useAudio(): UseAudioReturn {
     setTimeout(() => setIsPlaying(false), duration * 1000);
   }, [instrument, stopCurrentSound]);
 
+  const handlePlayRhythm = useCallback((pattern: number[], midi: number = 60) => {
+    stopCurrentSound();
+    setIsPlaying(true);
+    const totalDuration = pattern.reduce((sum, dur) => sum + dur, 0);
+    currentSound.current = playRhythm(pattern, instrument, midi);
+    setTimeout(() => setIsPlaying(false), totalDuration + 200);
+  }, [instrument, stopCurrentSound]);
+
   const handlePlaySuccess = useCallback(() => {
     const settings = getSettings();
     if (settings.soundEffects) {
@@ -153,6 +163,7 @@ export function useAudio(): UseAudioReturn {
     playChord: handlePlayChord,
     playScale: handlePlayScale,
     playInterval: handlePlayInterval,
+    playRhythmPattern: handlePlayRhythm,
     playSuccess: handlePlaySuccess,
     playError: handlePlayError,
     playClick: handlePlayClick,

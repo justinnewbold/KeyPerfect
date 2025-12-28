@@ -7,6 +7,7 @@ import {
   GameModeType,
   ChallengeModeType,
 } from '../types/gameModes';
+import { PracticePreset } from '../utils/storage';
 import { LevelConfig, LEVELS } from '../types/levels';
 import { generateGameQuestions } from '../utils/gameHelpers';
 import {
@@ -18,12 +19,14 @@ import {
   updateLevelProgress,
   checkAndUnlockAchievements,
   updateGameModeStats,
+  addSessionToHistory,
 } from '../utils/storage';
 import { calculateQuestionXP, getLevelFromXP } from '../types/stats';
 
 interface UseGameStateReturn {
   gameState: GameState | null;
   startGame: (mode: GameModeType | ChallengeModeType, levelId?: number) => void;
+  startWithPreset: (preset: PracticePreset) => void;
   submitAnswer: (answer: string) => AnswerRecord;
   nextQuestion: () => void;
   endGame: () => GameResult;
@@ -108,6 +111,7 @@ export function useGameState(): UseGameStateReturn {
 
     const questions = generateGameQuestions(level, gameMode, totalQuestions);
 
+    const now = Date.now();
     setGameState({
       mode,
       level: levelId,
@@ -119,7 +123,57 @@ export function useGameState(): UseGameStateReturn {
       timeRemaining: mode === 'speedrun' ? 60 : mode === 'timeattack' ? 30 : 0,
       questions,
       answers: [],
-      startTime: Date.now(),
+      gameStartTime: now,
+      startTime: now,
+      isComplete: false,
+    });
+  }, []);
+
+  // Start game with a preset configuration
+  const startWithPreset = useCallback((preset: PracticePreset) => {
+    setTimeExpired(false);
+    const level = LEVELS[0]; // Use level 1 as base
+    const totalQuestions = preset.questionCount;
+
+    // Generate questions from each mode in the preset, mixed together
+    const questionsPerMode = Math.ceil(totalQuestions / preset.modes.length);
+    let allQuestions: GameQuestion[] = [];
+
+    preset.modes.forEach(mode => {
+      const modeQuestions = generateGameQuestions(level, mode, questionsPerMode);
+      allQuestions = [...allQuestions, ...modeQuestions];
+    });
+
+    // Shuffle and trim to exact question count
+    allQuestions = allQuestions
+      .sort(() => Math.random() - 0.5)
+      .slice(0, totalQuestions);
+
+    // Adjust difficulty based on preset
+    if (preset.difficulty !== 'progressive') {
+      const difficultyMultiplier = preset.difficulty === 'easy' ? 0.3 : preset.difficulty === 'medium' ? 0.5 : 0.8;
+      allQuestions = allQuestions.map(q => ({
+        ...q,
+        difficulty: difficultyMultiplier,
+      }));
+    }
+
+    const now = Date.now();
+    const primaryMode = preset.modes[0] as GameModeType;
+
+    setGameState({
+      mode: primaryMode,
+      level: 1,
+      currentQuestion: 0,
+      totalQuestions,
+      score: 0,
+      streak: 0,
+      lives: 0,
+      timeRemaining: preset.timeLimit || 0,
+      questions: allQuestions,
+      answers: [],
+      gameStartTime: now,
+      startTime: now,
       isComplete: false,
     });
   }, []);
@@ -264,6 +318,19 @@ export function useGameState(): UseGameStateReturn {
     // Update game mode stats
     updateGameModeStats(gameState.mode, gameState.score, totalTime);
 
+    // Save session to history
+    addSessionToHistory({
+      date: new Date().toISOString().split('T')[0],
+      mode: gameState.mode,
+      score: gameState.score,
+      totalQuestions: gameState.answers.length,
+      correctAnswers,
+      accuracy,
+      duration: Math.round(totalTime),
+      xpEarned: totalXPEarned,
+      streak: longestStreak,
+    });
+
     // Check for new achievements
     const newAchievements = checkAndUnlockAchievements(updatedStats);
 
@@ -294,6 +361,7 @@ export function useGameState(): UseGameStateReturn {
   return {
     gameState,
     startGame,
+    startWithPreset,
     submitAnswer,
     nextQuestion,
     endGame,

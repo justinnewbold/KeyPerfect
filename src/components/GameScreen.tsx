@@ -51,7 +51,7 @@ export function GameScreen({
   }, [question.id]);
 
   const playQuestionAudio = useCallback(() => {
-    const { notes, playbackMode } = question.audioData;
+    const { notes, playbackMode, rhythmPattern } = question.audioData;
 
     if (playbackMode === 'chord') {
       audio.playChord(notes);
@@ -59,6 +59,8 @@ export function GameScreen({
       audio.playScale(notes);
     } else if (playbackMode === 'interval') {
       audio.playInterval(notes[0], notes[1]);
+    } else if (playbackMode === 'rhythm' && rhythmPattern) {
+      audio.playRhythmPattern(rhythmPattern, notes[0]);
     }
 
     setHasPlayed(true);

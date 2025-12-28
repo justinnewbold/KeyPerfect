@@ -1,6 +1,6 @@
 export type GameModeType =
   | 'chords' | 'scales' | 'intervals' | 'progressions'
-  | 'inversions' | 'reverse' | 'melodic';
+  | 'inversions' | 'reverse' | 'melodic' | 'notereading' | 'rhythm';
 
 export type ChallengeModeType =
   | 'daily' | 'speedrun' | 'survival' | 'timeattack';
@@ -80,6 +80,22 @@ export const GAME_MODES: Record<GameModeType, GameMode> = {
     color: 'from-teal-500 to-cyan-600',
     instructions: 'Listen to the melody and play it back note by note.',
   },
+  notereading: {
+    id: 'notereading',
+    name: 'Note Reading',
+    description: 'Read notes on the staff',
+    icon: '🎼',
+    color: 'from-indigo-500 to-blue-600',
+    instructions: 'Identify the note shown on the musical staff.',
+  },
+  rhythm: {
+    id: 'rhythm',
+    name: 'Rhythm Training',
+    description: 'Identify rhythm patterns',
+    icon: '🥁',
+    color: 'from-rose-500 to-red-600',
+    instructions: 'Listen to the rhythm pattern and identify its time signature or pattern type.',
+  },
 };
 
 export const CHALLENGE_MODES: Record<ChallengeModeType, ChallengeMode> = {
@@ -153,8 +169,9 @@ export interface AudioQuestionData {
   notes: number[]; // MIDI note numbers
   rootNote: number;
   type: string;
-  playbackMode: 'chord' | 'arpeggio' | 'scale' | 'interval';
+  playbackMode: 'chord' | 'arpeggio' | 'scale' | 'interval' | 'rhythm';
   duration: number;
+  rhythmPattern?: number[]; // Beat timings for rhythm mode (in ms)
 }
 
 export interface GameState {
@@ -168,7 +185,8 @@ export interface GameState {
   timeRemaining: number;
   questions: GameQuestion[];
   answers: AnswerRecord[];
-  startTime: number;
+  gameStartTime: number; // When the entire game started (for total time calculation)
+  startTime: number; // When current question started (for response time)
   isComplete: boolean;
 }
 
