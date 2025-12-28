@@ -22,6 +22,8 @@ const STORAGE_KEYS = {
   ACHIEVEMENTS: 'keyperfect_achievements',
   SETTINGS: 'keyperfect_settings',
   SESSION_HISTORY: 'keyperfect_session_history',
+  CUSTOM_PRESETS: 'keyperfect_custom_presets',
+  GOALS: 'keyperfect_goals',
 } as const;
 
 // Default values
@@ -69,8 +71,9 @@ export interface AppSettings {
 // Practice Presets
 export type PracticePresetId = 'quick' | 'standard' | 'deep' | 'random';
 
-export interface PracticePreset {
-  id: PracticePresetId;
+// Base preset interface for common properties
+export interface BasePracticePreset {
+  id: string;
   name: string;
   description: string;
   icon: string;
@@ -78,6 +81,10 @@ export interface PracticePreset {
   difficulty: 'easy' | 'medium' | 'hard' | 'progressive';
   timeLimit?: number; // in seconds, undefined = no limit
   modes: ('chords' | 'scales' | 'intervals')[];
+}
+
+export interface PracticePreset extends BasePracticePreset {
+  id: PracticePresetId;
 }
 
 export const PRACTICE_PRESETS: Record<PracticePresetId, PracticePreset> = {
@@ -490,6 +497,191 @@ export function getPracticeInsights(): PracticeInsights {
     weakestMode,
     practiceConsistency: uniqueDays,
   };
+}
+
+// Custom Practice Presets
+export interface CustomPreset extends BasePracticePreset {
+  specificTypes?: string[]; // Specific chord/scale/interval types to include
+  createdAt: string;
+}
+
+export function getCustomPresets(): CustomPreset[] {
+  return getItem(STORAGE_KEYS.CUSTOM_PRESETS, []);
+}
+
+export function saveCustomPreset(preset: Omit<CustomPreset, 'id' | 'createdAt'>): CustomPreset {
+  const presets = getCustomPresets();
+  const newPreset: CustomPreset = {
+    ...preset,
+    id: `custom_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    createdAt: new Date().toISOString(),
+  };
+  presets.push(newPreset);
+  setItem(STORAGE_KEYS.CUSTOM_PRESETS, presets);
+  return newPreset;
+}
+
+export function deleteCustomPreset(id: string): void {
+  const presets = getCustomPresets().filter(p => p.id !== id);
+  setItem(STORAGE_KEYS.CUSTOM_PRESETS, presets);
+}
+
+export function updateCustomPreset(id: string, updates: Partial<CustomPreset>): CustomPreset | null {
+  const presets = getCustomPresets();
+  const index = presets.findIndex(p => p.id === id);
+  if (index === -1) return null;
+  presets[index] = { ...presets[index], ...updates };
+  setItem(STORAGE_KEYS.CUSTOM_PRESETS, presets);
+  return presets[index];
+}
+
+// Goals System
+export type GoalType = 'weekly_sessions' | 'weekly_accuracy' | 'skill_mastery' | 'daily_streak';
+
+export interface Goal {
+  id: string;
+  type: GoalType;
+  name: string;
+  description: string;
+  target: number;
+  current: number;
+  startDate: string;
+  endDate?: string; // undefined = ongoing
+  completed: boolean;
+  completedDate?: string;
+  reward?: number; // Bonus XP
+}
+
+export function getGoals(): Goal[] {
+  return getItem(STORAGE_KEYS.GOALS, getDefaultGoals());
+}
+
+function getDefaultGoals(): Goal[] {
+  const today = new Date().toISOString().split('T')[0];
+  const weekEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+  return [
+    {
+      id: 'weekly_practice',
+      type: 'weekly_sessions',
+      name: 'Weekly Warrior',
+      description: 'Complete 5 practice sessions this week',
+      target: 5,
+      current: 0,
+      startDate: today,
+      endDate: weekEnd,
+      completed: false,
+      reward: 100,
+    },
+    {
+      id: 'accuracy_goal',
+      type: 'weekly_accuracy',
+      name: 'Sharp Ears',
+      description: 'Maintain 80% accuracy across 20 questions',
+      target: 80,
+      current: 0,
+      startDate: today,
+      completed: false,
+      reward: 150,
+    },
+    {
+      id: 'streak_goal',
+      type: 'daily_streak',
+      name: 'Consistency King',
+      description: 'Practice for 7 days in a row',
+      target: 7,
+      current: 0,
+      startDate: today,
+      completed: false,
+      reward: 200,
+    },
+  ];
+}
+
+export function updateGoalProgress(): Goal[] {
+  const goals = getGoals();
+  const sessions = getSessionHistory();
+  const dailyStats = getDailyStats();
+  const today = new Date().toISOString().split('T')[0];
+  const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+  goals.forEach(goal => {
+    if (goal.completed) return;
+
+    // Check if goal has expired
+    if (goal.endDate && goal.endDate < today) {
+      // Reset weekly goals
+      if (goal.type === 'weekly_sessions') {
+        goal.current = 0;
+        goal.startDate = today;
+        goal.endDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      }
+      return;
+    }
+
+    switch (goal.type) {
+      case 'weekly_sessions':
+        // Count sessions in the last week
+        goal.current = sessions.filter(s => s.date >= oneWeekAgo).length;
+        break;
+
+      case 'weekly_accuracy':
+        // Calculate average accuracy of recent sessions (at least 20 questions)
+        const recentSessions = sessions.filter(s => s.date >= oneWeekAgo);
+        const totalQuestions = recentSessions.reduce((sum, s) => sum + s.totalQuestions, 0);
+        if (totalQuestions >= 20) {
+          const totalCorrect = recentSessions.reduce((sum, s) => sum + s.correctAnswers, 0);
+          goal.current = Math.round((totalCorrect / totalQuestions) * 100);
+        }
+        break;
+
+      case 'daily_streak':
+        goal.current = dailyStats.currentStreak;
+        break;
+
+      case 'skill_mastery':
+        // This would need specific skill tracking
+        break;
+    }
+
+    // Check if goal is completed
+    if (goal.current >= goal.target) {
+      goal.completed = true;
+      goal.completedDate = today;
+    }
+  });
+
+  setItem(STORAGE_KEYS.GOALS, goals);
+  return goals;
+}
+
+export function addCustomGoal(goal: Omit<Goal, 'id' | 'current' | 'completed'>): Goal {
+  const goals = getGoals();
+  const newGoal: Goal = {
+    ...goal,
+    id: `goal_${Date.now()}`,
+    current: 0,
+    completed: false,
+  };
+  goals.push(newGoal);
+  setItem(STORAGE_KEYS.GOALS, goals);
+  return newGoal;
+}
+
+export function claimGoalReward(goalId: string): number {
+  const goals = getGoals();
+  const goal = goals.find(g => g.id === goalId);
+  if (!goal || !goal.completed || !goal.reward) return 0;
+
+  // Add XP reward
+  const stats = getUserStats();
+  updateUserStats({ totalXP: stats.totalXP + goal.reward });
+
+  // Mark reward as claimed by removing it
+  goal.reward = 0;
+  setItem(STORAGE_KEYS.GOALS, goals);
+
+  return goal.reward;
 }
 
 // Achievements

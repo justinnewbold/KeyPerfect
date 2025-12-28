@@ -21,3 +21,5 @@ export { AnalyticsDashboard } from './AnalyticsDashboard';
 export { CustomPractice } from './CustomPractice';
 export { ShareButton } from './ShareButton';
 export { Leaderboard } from './Leaderboard';
+export { CustomPracticeBuilder } from './CustomPracticeBuilder';
+export { GoalsPanel } from './GoalsPanel';

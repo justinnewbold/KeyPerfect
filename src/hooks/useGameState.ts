@@ -7,7 +7,7 @@ import {
   GameModeType,
   ChallengeModeType,
 } from '../types/gameModes';
-import { PracticePreset } from '../utils/storage';
+import { BasePracticePreset } from '../utils/storage';
 import { LevelConfig, LEVELS } from '../types/levels';
 import { generateGameQuestions } from '../utils/gameHelpers';
 import {
@@ -26,7 +26,7 @@ import { calculateQuestionXP, getLevelFromXP } from '../types/stats';
 interface UseGameStateReturn {
   gameState: GameState | null;
   startGame: (mode: GameModeType | ChallengeModeType, levelId?: number) => void;
-  startWithPreset: (preset: PracticePreset) => void;
+  startWithPreset: (preset: BasePracticePreset) => void;
   submitAnswer: (answer: string) => AnswerRecord;
   nextQuestion: () => void;
   endGame: () => GameResult;
@@ -130,7 +130,7 @@ export function useGameState(): UseGameStateReturn {
   }, []);
 
   // Start game with a preset configuration
-  const startWithPreset = useCallback((preset: PracticePreset) => {
+  const startWithPreset = useCallback((preset: BasePracticePreset) => {
     setTimeExpired(false);
     const level = LEVELS[0]; // Use level 1 as base
     const totalQuestions = preset.questionCount;

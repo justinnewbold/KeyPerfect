@@ -20,6 +20,7 @@ import {
   checkAndUpdateDailyStreak,
   PRACTICE_PRESETS,
   PracticePresetId,
+  CustomPreset,
 } from './utils/storage';
 
 type AppState =
@@ -114,6 +115,12 @@ function App() {
     setAppState({ screen: 'game', level: LEVELS[0] });
   }, [startWithPreset]);
 
+  // Start with a custom preset
+  const handleStartCustomPreset = useCallback((preset: CustomPreset) => {
+    startWithPreset(preset);
+    setAppState({ screen: 'game', level: LEVELS[0] });
+  }, [startWithPreset]);
+
   // Handle answer submission
   const handleAnswer = useCallback((answer: string): AnswerRecord => {
     return submitAnswer(answer);
@@ -179,6 +186,7 @@ function App() {
             onStartChallenge={handleStartChallenge}
             onStartGameMode={handleStartGameMode}
             onStartPreset={handleStartPreset}
+            onStartCustomPreset={handleStartCustomPreset}
           />
         );
 
@@ -232,7 +240,7 @@ function App() {
         return <SettingsScreen />;
 
       default:
-        return <HomeScreen onStartLevel={handleStartLevel} onStartChallenge={handleStartChallenge} onStartGameMode={handleStartGameMode} onStartPreset={handleStartPreset} />;
+        return <HomeScreen onStartLevel={handleStartLevel} onStartChallenge={handleStartChallenge} onStartGameMode={handleStartGameMode} onStartPreset={handleStartPreset} onStartCustomPreset={handleStartCustomPreset} />;
     }
   };
 

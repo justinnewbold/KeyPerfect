@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Play,
   Zap,
@@ -7,24 +7,32 @@ import {
   Timer,
   ChevronRight,
   Brain,
+  Target,
+  Settings2,
 } from 'lucide-react';
 import { Card, CardContent } from './ui/Card';
 import { Button } from './ui/Button';
 import { Progress, CircularProgress } from './ui/Progress';
 import { Badge, LevelBadge, XPBadge, StreakBadge } from './ui/Badge';
-import { getUserStats, getDailyStats, getUnlockedAchievements, PRACTICE_PRESETS, PracticePresetId, updateSettings } from '../utils/storage';
+import { getUserStats, getDailyStats, getUnlockedAchievements, PRACTICE_PRESETS, PracticePresetId, updateSettings, getGoals, updateGoalProgress, CustomPreset } from '../utils/storage';
 import { getLevelFromXP, getXPProgress, ACHIEVEMENTS } from '../types/stats';
 import { GAME_MODES, CHALLENGE_MODES, GameModeType, ChallengeModeType } from '../types/gameModes';
 import { getPracticeRecommendation, getLearningProgress } from '../utils/spacedRepetition';
+import { CustomPracticeBuilder } from './CustomPracticeBuilder';
+import { GoalsPanel } from './GoalsPanel';
 
 interface HomeScreenProps {
   onStartLevel: () => void;
   onStartChallenge: (mode: ChallengeModeType) => void;
   onStartGameMode: (mode: GameModeType) => void;
   onStartPreset?: (presetId: PracticePresetId) => void;
+  onStartCustomPreset?: (preset: CustomPreset) => void;
 }
 
-export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, onStartPreset }: HomeScreenProps) {
+export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, onStartPreset, onStartCustomPreset }: HomeScreenProps) {
+  const [showCustomBuilder, setShowCustomBuilder] = useState(false);
+  const [showGoals, setShowGoals] = useState(false);
+
   const userStats = getUserStats();
   const dailyStats = getDailyStats();
   const unlockedAchievements = getUnlockedAchievements();
@@ -32,6 +40,9 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
   const userLevel = getLevelFromXP(userStats.totalXP);
   const recommendation = getPracticeRecommendation();
   const learningProgress = getLearningProgress();
+  const goals = updateGoalProgress();
+  const activeGoals = goals.filter(g => !g.completed);
+  const completedWithReward = goals.filter(g => g.completed && g.reward && g.reward > 0);
 
   const today = new Date().toISOString().split('T')[0];
   const canPlayDaily = dailyStats.lastPlayedDate !== today || !dailyStats.completed;
@@ -279,6 +290,69 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
           </div>
         </div>
 
+        {/* Goals Progress */}
+        {(activeGoals.length > 0 || completedWithReward.length > 0) && (
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <Target className="w-5 h-5 text-purple-400" />
+                Goals
+              </h2>
+              <button
+                onClick={() => setShowGoals(true)}
+                className="text-sm text-purple-400 hover:text-purple-300"
+              >
+                View All
+              </button>
+            </div>
+            <div className="space-y-2">
+              {completedWithReward.length > 0 && (
+                <Card className="p-3 border-2 border-yellow-500/50 bg-yellow-500/5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">🎁</span>
+                      <span className="text-sm">{completedWithReward.length} reward{completedWithReward.length > 1 ? 's' : ''} to claim!</span>
+                    </div>
+                    <button
+                      onClick={() => setShowGoals(true)}
+                      className="px-3 py-1 rounded-lg bg-yellow-500 text-black text-sm font-medium"
+                    >
+                      Claim
+                    </button>
+                  </div>
+                </Card>
+              )}
+              {activeGoals.slice(0, 2).map(goal => (
+                <Card key={goal.id} className="p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium">{goal.name}</span>
+                    <span className="text-xs text-white/60">{goal.current}/{goal.target}</span>
+                  </div>
+                  <Progress value={goal.current} max={goal.target} size="sm" color="purple" />
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Custom Practice Button */}
+        <Card
+          hover
+          onClick={() => setShowCustomBuilder(true)}
+          className="p-4"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+              <Settings2 className="w-6 h-6" />
+            </div>
+            <div className="flex-1">
+              <h4 className="font-semibold">Custom Practice</h4>
+              <p className="text-xs text-white/60">Create your own practice sessions</p>
+            </div>
+            <ChevronRight className="w-5 h-5 text-white/40" />
+          </div>
+        </Card>
+
         {/* Recent Achievements */}
         {unlockedAchievements.length > 0 && (
           <div>
@@ -296,6 +370,40 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
           </div>
         )}
       </div>
+
+      {/* Custom Practice Builder Modal */}
+      {showCustomBuilder && (
+        <CustomPracticeBuilder
+          onClose={() => setShowCustomBuilder(false)}
+          onStartCustom={(preset) => {
+            setShowCustomBuilder(false);
+            if (onStartCustomPreset) {
+              onStartCustomPreset(preset);
+            } else {
+              // Fallback: start with first mode
+              onStartGameMode(preset.modes[0]);
+            }
+          }}
+        />
+      )}
+
+      {/* Goals Modal */}
+      {showGoals && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+          <div className="w-full max-w-lg max-h-[80vh] overflow-y-auto bg-gradient-to-br from-[#1a1635] to-[#0f0c29] rounded-2xl border border-white/10 p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold">Your Goals</h2>
+              <button
+                onClick={() => setShowGoals(false)}
+                className="p-2 rounded-lg hover:bg-white/10"
+              >
+                ✕
+              </button>
+            </div>
+            <GoalsPanel />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
