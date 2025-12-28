@@ -277,7 +277,7 @@ export function useGameState(): UseGameStateReturn {
 
     const correctAnswers = gameState.answers.filter(a => a.isCorrect).length;
     const totalXPEarned = gameState.answers.reduce((sum, a) => sum + a.xpEarned, 0);
-    const totalTime = (Date.now() - gameState.startTime) / 1000;
+    const totalTime = (Date.now() - gameState.gameStartTime) / 1000;
     const accuracy = gameState.answers.length > 0
       ? (correctAnswers / gameState.answers.length) * 100
       : 0;

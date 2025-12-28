@@ -34,9 +34,11 @@ export function generateShareText(result: GameResult): string {
 export function generateDailyShareText(result: GameResult, streakDays: number): string {
   const date = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
-  // Generate visual score representation
+  // Generate visual score representation (scale to 10 boxes based on percentage)
+  const scoreRatio = result.totalQuestions > 0 ? result.correctAnswers / result.totalQuestions : 0;
+  const filledBoxes = Math.round(scoreRatio * 10);
   const boxes = Array(10).fill('⬜').map((_, i) =>
-    i < Math.ceil(result.correctAnswers) ? '🟩' : '⬜'
+    i < filledBoxes ? '🟩' : '⬜'
   ).join('');
 
   return `KeyPerfect Daily ${date}\n` +

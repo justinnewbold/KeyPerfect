@@ -74,19 +74,6 @@ function getDifficultyModifier(questionIndex: number, totalQuestions: number): n
   return Math.min(1, questionIndex / Math.max(1, totalQuestions - 1));
 }
 
-// Apply difficulty curve to available options
-function applyDifficultyCurve<T>(items: T[], questionIndex: number, totalQuestions: number): T[] {
-  const difficulty = getDifficultyModifier(questionIndex, totalQuestions);
-
-  // Early questions use fewer, easier options (first part of the array)
-  // Later questions use all options
-  const minItems = Math.min(2, items.length);
-  const maxItems = items.length;
-  const numItems = Math.floor(minItems + (maxItems - minItems) * difficulty);
-
-  return items.slice(0, Math.max(minItems, numItems));
-}
-
 // Generate questions for a level with progressive difficulty
 export function generateQuestion(
   level: LevelConfig,
