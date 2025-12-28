@@ -407,9 +407,25 @@ export function exportData(): string {
     gameModeStats: getGameModeStats(),
     achievements: getItem<string[]>(STORAGE_KEYS.ACHIEVEMENTS, []),
     settings: getSettings(),
+    srsData: getItem('keyperfect_srs', {}),
     exportDate: new Date().toISOString(),
+    version: '2.0', // Backup version for compatibility
   };
   return JSON.stringify(data, null, 2);
+}
+
+// Download backup as file
+export function downloadBackup(): void {
+  const data = exportData();
+  const blob = new Blob([data], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `keyperfect-backup-${new Date().toISOString().split('T')[0]}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 // Import data
@@ -426,9 +442,24 @@ export function importData(jsonString: string): boolean {
     if (data.gameModeStats) setItem(STORAGE_KEYS.GAME_MODE_STATS, data.gameModeStats);
     if (data.achievements) setItem(STORAGE_KEYS.ACHIEVEMENTS, data.achievements);
     if (data.settings) setItem(STORAGE_KEYS.SETTINGS, data.settings);
+    if (data.srsData) setItem('keyperfect_srs', data.srsData);
 
     return true;
   } catch {
     return false;
   }
+}
+
+// Get backup info for display
+export function getBackupInfo(): { lastBackup: string | null; dataSize: number } {
+  const data = exportData();
+  return {
+    lastBackup: localStorage.getItem('keyperfect_last_backup'),
+    dataSize: new Blob([data]).size,
+  };
+}
+
+// Mark backup as complete
+export function markBackupComplete(): void {
+  localStorage.setItem('keyperfect_last_backup', new Date().toISOString());
 }

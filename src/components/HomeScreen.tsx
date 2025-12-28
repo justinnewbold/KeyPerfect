@@ -6,6 +6,7 @@ import {
   Heart,
   Timer,
   ChevronRight,
+  Brain,
 } from 'lucide-react';
 import { Card, CardContent } from './ui/Card';
 import { Button } from './ui/Button';
@@ -14,6 +15,7 @@ import { Badge, LevelBadge, XPBadge, StreakBadge } from './ui/Badge';
 import { getUserStats, getDailyStats, getUnlockedAchievements } from '../utils/storage';
 import { getLevelFromXP, getXPProgress, ACHIEVEMENTS } from '../types/stats';
 import { GAME_MODES, CHALLENGE_MODES, GameModeType, ChallengeModeType } from '../types/gameModes';
+import { getPracticeRecommendation, getLearningProgress } from '../utils/spacedRepetition';
 
 interface HomeScreenProps {
   onStartLevel: () => void;
@@ -27,6 +29,8 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode }: 
   const unlockedAchievements = getUnlockedAchievements();
   const xpProgress = getXPProgress(userStats.totalXP);
   const userLevel = getLevelFromXP(userStats.totalXP);
+  const recommendation = getPracticeRecommendation();
+  const learningProgress = getLearningProgress();
 
   const today = new Date().toISOString().split('T')[0];
   const canPlayDaily = dailyStats.lastPlayedDate !== today || !dailyStats.completed;
@@ -115,6 +119,36 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode }: 
             <ChevronRight className="w-6 h-6 text-white/40" />
           </div>
         </Card>
+
+        {/* Smart Practice Recommendation */}
+        {userStats.totalQuestionsAnswered >= 10 && (
+          <Card
+            hover
+            onClick={() => onStartGameMode(recommendation.type === 'chord' ? 'chords' : recommendation.type === 'scale' ? 'scales' : 'intervals')}
+            className="p-4 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border-cyan-500/30"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center">
+                <Brain className="w-6 h-6" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <h4 className="font-semibold">Smart Practice</h4>
+                  <Badge variant="info" size="sm">AI</Badge>
+                </div>
+                <p className="text-xs text-white/60">{recommendation.reason}</p>
+              </div>
+              <ChevronRight className="w-5 h-5 text-white/40" />
+            </div>
+            {learningProgress.struggling > 0 && (
+              <div className="mt-3 flex gap-2 text-xs">
+                <Badge variant="success" size="sm">{learningProgress.mastered} mastered</Badge>
+                <Badge variant="purple" size="sm">{learningProgress.learning} learning</Badge>
+                <Badge variant="warning" size="sm">{learningProgress.struggling} need work</Badge>
+              </div>
+            )}
+          </Card>
+        )}
 
         {/* Challenge Modes */}
         <div>
