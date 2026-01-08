@@ -1,13 +1,16 @@
 {
   "name": "keyperfect",
-  "version": "12.0.0",
+  "version": "13.0.0",
   "description": "Music theory ear training app - Learn chords, scales, intervals, and more",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "repository": {
     "type": "git",
@@ -29,5 +32,12 @@
     "tailwindcss": "^4.1.17",
     "typescript": "^5.9.3",
     "vite": "^7.2.7"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.0",
+    "@testing-library/react": "^16.0.0",
+    "@testing-library/jest-dom": "^6.5.0",
+    "jsdom": "^25.0.0",
+    "@vitest/coverage-v8": "^2.1.0"
   }
 }

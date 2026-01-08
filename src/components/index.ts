@@ -21,3 +21,8 @@ export { AnalyticsDashboard } from './AnalyticsDashboard';
 export { CustomPractice } from './CustomPractice';
 export { ShareButton } from './ShareButton';
 export { Leaderboard } from './Leaderboard';
+// v13 components
+export { CustomPracticeBuilder } from './CustomPracticeBuilder';
+export type { CustomPracticeSet } from './CustomPracticeBuilder';
+export { SongAnalysis } from './SongAnalysis';
+export { PitchDetector } from './PitchDetector';
