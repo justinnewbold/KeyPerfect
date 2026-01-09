@@ -274,7 +274,7 @@ export function SongAnalysis({ onClose }: SongAnalysisProps) {
                       <>
                         <Button
                           size="sm"
-                          variant="outline"
+                          variant="secondary"
                           onClick={isPlaying ? stopPlayback : playSequence}
                         >
                           {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
@@ -363,11 +363,11 @@ export function SongAnalysis({ onClose }: SongAnalysisProps) {
                         <h4 className="font-medium">{song.name}</h4>
                         <p className="text-sm text-white/60">{song.artist}</p>
                       </div>
-                      <Badge variant="outline">Key: {song.key}</Badge>
+                      <Badge variant="info">Key: {song.key}</Badge>
                     </div>
                     <div className="mt-2 flex gap-1 flex-wrap">
                       {song.chords.map((c, i) => (
-                        <Badge key={i} variant="outline" className="text-xs">
+                        <Badge key={i} variant="purple" className="text-xs">
                           {c.root}{CHORD_TYPES[c.chord].shortName}
                         </Badge>
                       ))}

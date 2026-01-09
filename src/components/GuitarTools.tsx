@@ -1,26 +1,32 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Play, Pause, Plus, Minus, Mic, MicOff, Volume2 } from 'lucide-react';
+import { Play, Pause, Plus, Minus, Mic, MicOff, Volume2, Music2, Sliders } from 'lucide-react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { useMetronome } from '../hooks/useAudio';
 import { createPitchDetector, getAudioContext } from '../utils/audioEngine';
+import { PitchDetector } from './PitchDetector';
+import { SongAnalysis } from './SongAnalysis';
+import { CustomPracticeBuilder } from './CustomPracticeBuilder';
 
-type ToolType = 'tuner' | 'metronome';
+type ToolType = 'tuner' | 'metronome' | 'singback' | 'songanalysis' | 'custompractice';
 
 export function GuitarTools() {
   const [activeTool, setActiveTool] = useState<ToolType>('metronome');
+
+  const [showSongAnalysis, setShowSongAnalysis] = useState(false);
+  const [showCustomPractice, setShowCustomPractice] = useState(false);
 
   return (
     <div className="min-h-screen pb-24">
       {/* Header */}
       <div className="sticky top-0 z-40 bg-gradient-to-b from-[#0f0c29] via-[#0f0c29] to-transparent pb-4 px-4 pt-6">
-        <h1 className="text-2xl font-bold mb-4">Guitar Tools</h1>
+        <h1 className="text-2xl font-bold mb-4">Music Tools</h1>
 
-        {/* Tab Selector */}
-        <div className="flex gap-2">
+        {/* Tab Selector - scrollable for more tabs */}
+        <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4">
           <button
             onClick={() => setActiveTool('metronome')}
-            className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all ${
+            className={`py-3 px-4 rounded-xl font-medium transition-all whitespace-nowrap ${
               activeTool === 'metronome'
                 ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
                 : 'bg-white/10 text-white/60'
@@ -30,7 +36,7 @@ export function GuitarTools() {
           </button>
           <button
             onClick={() => setActiveTool('tuner')}
-            className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all ${
+            className={`py-3 px-4 rounded-xl font-medium transition-all whitespace-nowrap ${
               activeTool === 'tuner'
                 ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
                 : 'bg-white/10 text-white/60'
@@ -38,13 +44,40 @@ export function GuitarTools() {
           >
             🎸 Tuner
           </button>
+          <button
+            onClick={() => setActiveTool('singback')}
+            className={`py-3 px-4 rounded-xl font-medium transition-all whitespace-nowrap ${
+              activeTool === 'singback'
+                ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                : 'bg-white/10 text-white/60'
+            }`}
+          >
+            🎤 Sing-Back
+          </button>
+          <button
+            onClick={() => setShowSongAnalysis(true)}
+            className="py-3 px-4 rounded-xl font-medium transition-all whitespace-nowrap bg-white/10 text-white/60 hover:bg-white/20"
+          >
+            🎼 Song Analysis
+          </button>
+          <button
+            onClick={() => setShowCustomPractice(true)}
+            className="py-3 px-4 rounded-xl font-medium transition-all whitespace-nowrap bg-white/10 text-white/60 hover:bg-white/20"
+          >
+            ⚙️ Custom Practice
+          </button>
         </div>
       </div>
 
       <div className="px-4">
         {activeTool === 'metronome' && <Metronome />}
         {activeTool === 'tuner' && <Tuner />}
+        {activeTool === 'singback' && <PitchDetector mode="singback" />}
       </div>
+
+      {/* Modal Tools */}
+      {showSongAnalysis && <SongAnalysis onClose={() => setShowSongAnalysis(false)} />}
+      {showCustomPractice && <CustomPracticeBuilder onClose={() => setShowCustomPractice(false)} />}
     </div>
   );
 }

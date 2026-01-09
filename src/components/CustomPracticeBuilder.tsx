@@ -16,10 +16,10 @@ export interface CustomPracticeSet {
 
 interface CustomPracticeBuilderProps {
   onClose: () => void;
-  onStartPractice: (set: CustomPracticeSet) => void;
-  savedSets: CustomPracticeSet[];
-  onSaveSet: (set: CustomPracticeSet) => void;
-  onDeleteSet: (id: string) => void;
+  onStartPractice?: (set: CustomPracticeSet) => void;
+  savedSets?: CustomPracticeSet[];
+  onSaveSet?: (set: CustomPracticeSet) => void;
+  onDeleteSet?: (id: string) => void;
 }
 
 const CHORD_CATEGORIES = {
@@ -43,7 +43,7 @@ const SCALE_CATEGORIES = {
 export function CustomPracticeBuilder({
   onClose,
   onStartPractice,
-  savedSets,
+  savedSets = [],
   onSaveSet,
   onDeleteSet,
 }: CustomPracticeBuilderProps) {
@@ -102,7 +102,7 @@ export function CustomPracticeBuilder({
       createdAt: new Date().toISOString(),
     };
 
-    onSaveSet(newSet);
+    onSaveSet?.(newSet);
     setName('');
     setDescription('');
     setSelectedChords([]);
@@ -124,7 +124,7 @@ export function CustomPracticeBuilder({
       createdAt: new Date().toISOString(),
     };
 
-    onStartPractice(quickSet);
+    onStartPractice?.(quickSet);
   };
 
   return (
@@ -242,7 +242,7 @@ export function CustomPracticeBuilder({
                         >
                           <span className="font-medium">{category}</span>
                           <div className="flex items-center gap-2">
-                            <Badge variant={selectedCount > 0 ? 'default' : 'outline'}>
+                            <Badge variant={selectedCount > 0 ? 'purple' : 'default'}>
                               {selectedCount}/{chords.length}
                             </Badge>
                             <button
@@ -298,7 +298,7 @@ export function CustomPracticeBuilder({
                         >
                           <span className="font-medium">{category}</span>
                           <div className="flex items-center gap-2">
-                            <Badge variant={selectedCount > 0 ? 'default' : 'outline'}>
+                            <Badge variant={selectedCount > 0 ? 'info' : 'default'}>
                               {selectedCount}/{scales.length}
                             </Badge>
                             <button
@@ -355,21 +355,21 @@ export function CustomPracticeBuilder({
                         <p className="text-sm text-white/60 mt-1">{set.description}</p>
                       )}
                       <div className="flex gap-2 mt-2">
-                        <Badge variant="outline">{set.chords.length} chords</Badge>
-                        <Badge variant="outline">{set.scales.length} scales</Badge>
-                        <Badge variant="outline">{set.questionCount} questions</Badge>
-                        <Badge variant="outline">{set.difficulty}</Badge>
+                        <Badge>{set.chords.length} chords</Badge>
+                        <Badge>{set.scales.length} scales</Badge>
+                        <Badge>{set.questionCount} questions</Badge>
+                        <Badge>{set.difficulty}</Badge>
                       </div>
                     </div>
                     <div className="flex gap-2 ml-4">
-                      <Button size="sm" onClick={() => onStartPractice(set)}>
+                      <Button size="sm" onClick={() => onStartPractice?.(set)}>
                         <Play className="w-4 h-4 mr-1" />
                         Start
                       </Button>
                       <Button
                         size="sm"
-                        variant="outline"
-                        onClick={() => onDeleteSet(set.id)}
+                        variant="secondary"
+                        onClick={() => onDeleteSet?.(set.id)}
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -385,7 +385,7 @@ export function CustomPracticeBuilder({
         {activeTab === 'create' && (
           <div className="p-4 border-t border-white/10 flex gap-3">
             <Button
-              variant="outline"
+              variant="secondary"
               onClick={handleStartQuick}
               disabled={selectedChords.length === 0 && selectedScales.length === 0}
               className="flex-1"
