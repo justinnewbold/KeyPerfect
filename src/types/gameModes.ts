@@ -1,6 +1,7 @@
 export type GameModeType =
   | 'chords' | 'scales' | 'intervals' | 'progressions'
-  | 'inversions' | 'reverse' | 'melodic' | 'notereading' | 'rhythm';
+  | 'inversions' | 'reverse' | 'melodic' | 'notereading' | 'rhythm'
+  | 'harmony' | 'genre_jazz' | 'genre_classical' | 'genre_blues' | 'genre_pop';
 
 export type ChallengeModeType =
   | 'daily' | 'speedrun' | 'survival' | 'timeattack';
@@ -95,6 +96,46 @@ export const GAME_MODES: Record<GameModeType, GameMode> = {
     icon: '🥁',
     color: 'from-rose-500 to-red-600',
     instructions: 'Listen to the rhythm pattern and identify its time signature or pattern type.',
+  },
+  harmony: {
+    id: 'harmony',
+    name: 'Voice Leading',
+    description: 'Identify voice movements in harmony',
+    icon: '🎭',
+    color: 'from-amber-500 to-yellow-600',
+    instructions: 'Listen to the chord progression and identify the voice leading or harmonic movement.',
+  },
+  genre_jazz: {
+    id: 'genre_jazz',
+    name: 'Jazz Training',
+    description: 'Jazz-specific ear training',
+    icon: '🎷',
+    color: 'from-amber-500 to-orange-600',
+    instructions: 'Practice with jazz chords, scales, and progressions.',
+  },
+  genre_classical: {
+    id: 'genre_classical',
+    name: 'Classical Training',
+    description: 'Classical music ear training',
+    icon: '🎻',
+    color: 'from-purple-500 to-indigo-600',
+    instructions: 'Practice with classical harmony and voice leading.',
+  },
+  genre_blues: {
+    id: 'genre_blues',
+    name: 'Blues Training',
+    description: 'Blues-specific ear training',
+    icon: '🎸',
+    color: 'from-blue-500 to-indigo-600',
+    instructions: 'Practice with blues chords, scales, and progressions.',
+  },
+  genre_pop: {
+    id: 'genre_pop',
+    name: 'Pop Training',
+    description: 'Pop music ear training',
+    icon: '🎤',
+    color: 'from-pink-500 to-purple-600',
+    instructions: 'Practice with common pop chord progressions and patterns.',
   },
 };
 

@@ -9,10 +9,35 @@ import {
   CHORD_TYPES,
   SCALE_TYPES,
   INTERVALS,
+  PROGRESSIONS,
   getMidiFromNote,
 } from '../types/music';
 import { LevelConfig } from '../types/levels';
 import { GameQuestion, AudioQuestionData, GameModeType } from '../types/gameModes';
+
+// Genre-specific content configurations
+export const GENRE_CONTENT = {
+  jazz: {
+    chords: ['major7', 'minor7', 'dominant7', 'half_diminished7', 'diminished7', 'dominant9', 'major9', 'minor9', 'dominant11', 'dominant13', '6', 'minor6', '69', 'dominant7sharp9', 'dominant7flat9', 'minorMajor7', 'dominant7alt'] as ChordQuality[],
+    scales: ['dorian', 'mixolydian', 'lydian', 'melodic_minor', 'bebop_dominant', 'bebop_major', 'whole_tone', 'altered', 'lydian_dominant'] as ScaleType[],
+    progressions: ['ii-V-I', 'ii-V-I-VI', 'I-VI-ii-V', 'iii-VI-ii-V', 'I-vi-ii-V', 'ii-bII-I', 'I-IV-iii-VI'] as ProgressionType[],
+  },
+  classical: {
+    chords: ['major', 'minor', 'diminished', 'augmented', 'major7', 'diminished7'] as ChordQuality[],
+    scales: ['major', 'natural_minor', 'harmonic_minor', 'melodic_minor'] as ScaleType[],
+    progressions: ['I-IV-V-I', 'I-IV-V-V', 'I-ii-V-I', 'I-V-vi-iii'] as ProgressionType[],
+  },
+  blues: {
+    chords: ['major', 'minor', 'dominant7', 'dominant9', 'dominant7sharp9'] as ChordQuality[],
+    scales: ['blues', 'pentatonic_minor', 'pentatonic_major', 'mixolydian'] as ScaleType[],
+    progressions: ['I-IV-I-V', 'I7-IV7-V7', 'I-bVII-IV-I'] as ProgressionType[],
+  },
+  pop: {
+    chords: ['major', 'minor', 'sus2', 'sus4', 'add9', 'major7', 'minor7'] as ChordQuality[],
+    scales: ['major', 'natural_minor', 'pentatonic_major', 'pentatonic_minor'] as ScaleType[],
+    progressions: ['I-V-vi-IV', 'I-vi-IV-V', 'I-IV-vi-V', 'vi-IV-I-V'] as ProgressionType[],
+  },
+} as const;
 
 // Random helpers
 export function randomInt(min: number, max: number): number {
@@ -112,6 +137,16 @@ export function generateQuestion(
       return generateNoteReadingQuestion(id, level, difficultyModifier);
     case 'rhythm':
       return generateRhythmQuestion(id, level, difficultyModifier);
+    case 'harmony':
+      return generateHarmonyQuestion(id, level, difficultyModifier);
+    case 'genre_jazz':
+      return generateGenreQuestion(id, 'jazz', difficultyModifier);
+    case 'genre_classical':
+      return generateGenreQuestion(id, 'classical', difficultyModifier);
+    case 'genre_blues':
+      return generateGenreQuestion(id, 'blues', difficultyModifier);
+    case 'genre_pop':
+      return generateGenreQuestion(id, 'pop', difficultyModifier);
     default:
       return generateChordQuestion(id, level, difficultyModifier);
   }
@@ -418,6 +453,192 @@ function generateRhythmQuestion(id: string, level: LevelConfig, difficultyModifi
     difficulty: level.id,
     xpValue: 10 + level.id * 2 + Math.floor(difficultyModifier * 5),
   };
+}
+
+// Harmony/Voice Leading question types
+const VOICE_LEADING_TYPES = [
+  { name: 'Parallel Motion', description: 'Voices move in same direction by same interval' },
+  { name: 'Contrary Motion', description: 'Voices move in opposite directions' },
+  { name: 'Oblique Motion', description: 'One voice stays, other moves' },
+  { name: 'Similar Motion', description: 'Voices move in same direction by different intervals' },
+];
+
+const CADENCE_TYPES = [
+  { name: 'Perfect Authentic', pattern: 'V-I', description: 'Strongest resolution' },
+  { name: 'Imperfect Authentic', pattern: 'V-I (inverted)', description: 'Softer resolution' },
+  { name: 'Half Cadence', pattern: 'any-V', description: 'Unresolved, pauses on V' },
+  { name: 'Plagal Cadence', pattern: 'IV-I', description: 'Amen cadence' },
+  { name: 'Deceptive Cadence', pattern: 'V-vi', description: 'Unexpected resolution' },
+];
+
+function generateHarmonyQuestion(id: string, level: LevelConfig, difficultyModifier: number = 0.5): GameQuestion {
+  const rootNote = randomElement(NOTE_NAMES);
+  const rootMidi = getMidiFromNote(rootNote, 4);
+
+  // Randomly choose between cadence identification and voice leading
+  const questionType = Math.random() > 0.5 ? 'cadence' : 'voiceLeading';
+
+  if (questionType === 'cadence') {
+    const cadence = randomElement(CADENCE_TYPES);
+    const otherCadences = CADENCE_TYPES.filter(c => c.name !== cadence.name);
+    const options = shuffleArray([cadence.name, ...otherCadences.map(c => c.name)]).slice(0, 4);
+
+    // Generate chord notes for the cadence
+    let notes: number[] = [];
+    if (cadence.pattern === 'V-I') {
+      const vChord = getChordNotes(rootMidi + 7, 'major');
+      const iChord = getChordNotes(rootMidi, 'major');
+      notes = [...vChord, ...iChord];
+    } else if (cadence.pattern === 'IV-I') {
+      const ivChord = getChordNotes(rootMidi + 5, 'major');
+      const iChord = getChordNotes(rootMidi, 'major');
+      notes = [...ivChord, ...iChord];
+    } else if (cadence.pattern === 'V-vi') {
+      const vChord = getChordNotes(rootMidi + 7, 'major');
+      const viChord = getChordNotes(rootMidi + 9, 'minor');
+      notes = [...vChord, ...viChord];
+    } else {
+      const anyChord = getChordNotes(rootMidi, 'major');
+      const vChord = getChordNotes(rootMidi + 7, 'major');
+      notes = [...anyChord, ...vChord];
+    }
+
+    return {
+      id,
+      type: 'harmony',
+      prompt: 'What type of cadence do you hear?',
+      correctAnswer: cadence.name,
+      options,
+      audioData: {
+        notes,
+        rootNote: rootMidi,
+        type: cadence.name,
+        playbackMode: 'chord',
+        duration: 1.5,
+      },
+      difficulty: level.id,
+      xpValue: 15 + level.id * 2 + Math.floor(difficultyModifier * 5),
+    };
+  } else {
+    const voiceLeading = randomElement(VOICE_LEADING_TYPES);
+    const otherTypes = VOICE_LEADING_TYPES.filter(v => v.name !== voiceLeading.name);
+    const options = shuffleArray([voiceLeading.name, ...otherTypes.map(v => v.name)]).slice(0, 4);
+
+    // Generate two chords demonstrating the voice leading
+    const chord1 = getChordNotes(rootMidi, 'major');
+    let chord2: number[];
+
+    if (voiceLeading.name === 'Parallel Motion') {
+      chord2 = chord1.map(n => n + 2); // Move all voices up by whole step
+    } else if (voiceLeading.name === 'Contrary Motion') {
+      chord2 = [chord1[0] - 2, chord1[1], chord1[2] + 2]; // Bass down, treble up
+    } else if (voiceLeading.name === 'Oblique Motion') {
+      chord2 = [chord1[0], chord1[1] + 1, chord1[2] + 2]; // Bass stays
+    } else {
+      chord2 = [chord1[0] + 2, chord1[1] + 1, chord1[2] + 4]; // Same direction, different intervals
+    }
+
+    return {
+      id,
+      type: 'harmony',
+      prompt: 'What type of voice leading do you hear?',
+      correctAnswer: voiceLeading.name,
+      options,
+      audioData: {
+        notes: [...chord1, ...chord2],
+        rootNote: rootMidi,
+        type: voiceLeading.name,
+        playbackMode: 'chord',
+        duration: 1.5,
+      },
+      difficulty: level.id,
+      xpValue: 15 + level.id * 2 + Math.floor(difficultyModifier * 5),
+    };
+  }
+}
+
+function generateGenreQuestion(
+  id: string,
+  genre: 'jazz' | 'classical' | 'blues' | 'pop',
+  difficultyModifier: number = 0.5
+): GameQuestion {
+  const content = GENRE_CONTENT[genre];
+  const rootNote = randomElement(NOTE_NAMES);
+  const rootMidi = getMidiFromNote(rootNote, 4);
+
+  // Randomly choose content type: chord, scale, or progression
+  const contentTypes = ['chord', 'scale', 'progression'];
+  const selectedType = randomElement(contentTypes);
+
+  if (selectedType === 'chord') {
+    const chord = randomElement(content.chords);
+    const notes = getChordNotes(rootMidi, chord);
+    const otherChords = content.chords.filter(c => c !== chord);
+    const options = shuffleArray([chord, ...otherChords]).slice(0, 4);
+
+    return {
+      id,
+      type: `genre_${genre}` as GameModeType,
+      prompt: `What ${genre} chord is this?`,
+      correctAnswer: chord,
+      options,
+      audioData: {
+        notes,
+        rootNote: rootMidi,
+        type: chord,
+        playbackMode: 'chord',
+        duration: 1.5,
+      },
+      difficulty: 1,
+      xpValue: 12 + Math.floor(difficultyModifier * 8),
+    };
+  } else if (selectedType === 'scale') {
+    const scale = randomElement(content.scales);
+    const notes = getScaleNotes(rootMidi, scale);
+    const otherScales = content.scales.filter(s => s !== scale);
+    const options = shuffleArray([scale, ...otherScales]).slice(0, 4);
+
+    return {
+      id,
+      type: `genre_${genre}` as GameModeType,
+      prompt: `What ${genre} scale is this?`,
+      correctAnswer: scale,
+      options,
+      audioData: {
+        notes,
+        rootNote: rootMidi,
+        type: scale,
+        playbackMode: 'scale',
+        duration: 0.3,
+      },
+      difficulty: 1,
+      xpValue: 12 + Math.floor(difficultyModifier * 8),
+    };
+  } else {
+    const progression = randomElement(content.progressions);
+    const progressionData = PROGRESSIONS[progression];
+    const chordMidis = getProgressionChords(rootMidi, progression);
+    const notes = chordMidis.flat();
+    const otherProgressions = content.progressions.filter(p => p !== progression);
+    const options = shuffleArray([progression, ...otherProgressions]).slice(0, 4);
+
+    return {
+      id,
+      type: `genre_${genre}` as GameModeType,
+      prompt: `What ${genre} progression is this?`,
+      correctAnswer: progression,
+      options,
+      audioData: {
+        notes,
+        rootNote: rootMidi,
+        type: progression,
+        playbackMode: 'chord',
+        duration: 1,
+      },
+      difficulty: 1,
+      xpValue: 15 + Math.floor(difficultyModifier * 10),
+    };
+  }
 }
 
 // Generate questions for a game session with progressive difficulty
