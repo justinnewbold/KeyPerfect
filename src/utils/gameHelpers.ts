@@ -161,11 +161,9 @@ function generateChordQuestion(id: string, level: LevelConfig, difficultyModifie
   const quality = randomElement(level.chords);
   const notes = getChordNotes(rootMidi, quality);
 
-  // Ensure we have at least 4 options by repeating from level.chords if needed
+  // Get unique options from level chords (no duplicates)
   const otherChords = level.chords.filter(c => c !== quality);
-  const neededOptions = Math.max(0, 3 - otherChords.length);
-  const additionalOptions = neededOptions > 0 ? otherChords.slice(0, neededOptions) : [];
-  const allOptions = shuffleArray([quality, ...otherChords, ...additionalOptions]);
+  const allOptions = shuffleArray([quality, ...otherChords]);
 
   // Adjust duration based on difficulty (harder = shorter playback)
   const baseDuration = 1.5;
@@ -198,11 +196,9 @@ function generateScaleQuestion(id: string, level: LevelConfig, difficultyModifie
   const scaleType = randomElement(level.scales);
   const notes = getScaleNotes(rootMidi, scaleType);
 
-  // Ensure we have at least 4 options by repeating from level.scales if needed
+  // Get unique options from level scales (no duplicates)
   const otherScales = level.scales.filter(s => s !== scaleType);
-  const neededOptions = Math.max(0, 3 - otherScales.length);
-  const additionalOptions = neededOptions > 0 ? otherScales.slice(0, neededOptions) : [];
-  const allOptions = shuffleArray([scaleType, ...otherScales, ...additionalOptions]);
+  const allOptions = shuffleArray([scaleType, ...otherScales]);
 
   // Adjust note delay based on difficulty (harder = faster playback)
   const baseDelay = 0.35;
@@ -235,11 +231,9 @@ function generateIntervalQuestion(id: string, level: LevelConfig, difficultyModi
   const intervalType = randomElement(level.intervals);
   const notes = getIntervalNotes(rootMidi, intervalType);
 
-  // Ensure we have at least 4 options by repeating from level.intervals if needed
+  // Get unique options from level intervals (no duplicates)
   const otherIntervals = level.intervals.filter(i => i !== intervalType);
-  const neededOptions = Math.max(0, 3 - otherIntervals.length);
-  const additionalOptions = neededOptions > 0 ? otherIntervals.slice(0, neededOptions) : [];
-  const allOptions = shuffleArray([intervalType, ...otherIntervals, ...additionalOptions]);
+  const allOptions = shuffleArray([intervalType, ...otherIntervals]);
 
   // At higher difficulty, play notes simultaneously instead of sequentially
   const playSimultaneously = difficultyModifier > 0.7;
