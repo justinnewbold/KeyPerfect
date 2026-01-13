@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Play, Volume2, Check, X, ChevronRight, Keyboard } from 'lucide-react';
 import { GameQuestion, AnswerRecord } from '../types/gameModes';
 import { LevelConfig } from '../types/levels';
@@ -42,12 +42,14 @@ export function GameScreen({
   const [result, setResult] = useState<AnswerRecord | null>(null);
   const [hasPlayed, setHasPlayed] = useState(false);
   const audio = useAudio();
+  const hasAutoPlayed = useRef(false);
 
-  // Play audio when question changes
+  // Reset state when question changes
   useEffect(() => {
     setSelectedAnswer(null);
     setResult(null);
     setHasPlayed(false);
+    hasAutoPlayed.current = false;
   }, [question.id]);
 
   const playQuestionAudio = useCallback(() => {
@@ -64,15 +66,33 @@ export function GameScreen({
     }
 
     setHasPlayed(true);
-  }, [question, audio]);
+  }, [question.audioData, audio]);
 
-  // Auto-play on first load
+  // Auto-play once on first load of each question
   useEffect(() => {
+    if (hasAutoPlayed.current) return;
+
+    const { notes, playbackMode, rhythmPattern } = question.audioData;
+
     const timer = setTimeout(() => {
-      playQuestionAudio();
+      if (hasAutoPlayed.current) return;
+      hasAutoPlayed.current = true;
+
+      if (playbackMode === 'chord') {
+        audio.playChord(notes);
+      } else if (playbackMode === 'scale') {
+        audio.playScale(notes);
+      } else if (playbackMode === 'interval') {
+        audio.playInterval(notes[0], notes[1]);
+      } else if (playbackMode === 'rhythm' && rhythmPattern) {
+        audio.playRhythmPattern(rhythmPattern, notes[0]);
+      }
+
+      setHasPlayed(true);
     }, 500);
+
     return () => clearTimeout(timer);
-  }, [question.id, playQuestionAudio]);
+  }, [question.id]); // Only depend on question.id to prevent re-triggering
 
   const handleAnswer = useCallback((answer: string) => {
     if (result) return;
