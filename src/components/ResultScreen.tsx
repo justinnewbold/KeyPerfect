@@ -1,19 +1,31 @@
 import React from 'react';
-import { Trophy, Target, Zap, Clock, TrendingUp, Home, RotateCcw, Award } from 'lucide-react';
+import { Trophy, Target, Zap, Clock, TrendingUp, Home, RotateCcw, Award, ChevronRight, Lock } from 'lucide-react';
 import { GameResult } from '../types/gameModes';
 import { Card, CardContent } from './ui/Card';
 import { Button } from './ui/Button';
 import { Progress, CircularProgress } from './ui/Progress';
 import { Badge, XPBadge } from './ui/Badge';
 import { ACHIEVEMENTS } from '../types/stats';
+import { LEVELS, getNextLevel, LevelConfig } from '../types/levels';
+import { getUserStats } from '../utils/storage';
 
 interface ResultScreenProps {
   result: GameResult;
   onPlayAgain: () => void;
   onHome: () => void;
+  onNextLevel?: (levelId: number) => void;
 }
 
-export function ResultScreen({ result, onPlayAgain, onHome }: ResultScreenProps) {
+export function ResultScreen({ result, onPlayAgain, onHome, onNextLevel }: ResultScreenProps) {
+  const userStats = getUserStats();
+  const currentLevel = LEVELS.find(l => l.id === result.level);
+  const nextLevel = result.level ? getNextLevel(result.level) : undefined;
+
+  // Check if user can access next level (has enough XP after this game)
+  const totalXPAfterGame = userStats.totalXP; // Already updated by the time we get here
+  const canAccessNextLevel = nextLevel ? totalXPAfterGame >= nextLevel.unlockRequirement : false;
+  const xpNeededForNextLevel = nextLevel ? Math.max(0, nextLevel.unlockRequirement - totalXPAfterGame) : 0;
+
   const getGrade = (accuracy: number): { grade: string; color: string; message: string } => {
     if (accuracy >= 95) return { grade: 'S', color: 'text-yellow-400', message: 'Perfect!' };
     if (accuracy >= 90) return { grade: 'A+', color: 'text-green-400', message: 'Excellent!' };
@@ -159,6 +171,59 @@ export function ResultScreen({ result, onPlayAgain, onHome }: ResultScreenProps)
           <span>Finish</span>
         </div>
       </Card>
+
+      {/* Next Level Prompt */}
+      {nextLevel && onNextLevel && (
+        <Card className={`p-4 mb-6 ${canAccessNextLevel ? 'bg-gradient-to-r from-green-500/20 to-emerald-500/20 border-green-500/30' : 'bg-gradient-to-r from-gray-500/20 to-slate-500/20 border-gray-500/30'}`}>
+          <div className="flex items-center gap-4">
+            <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${nextLevel.color} flex items-center justify-center`}>
+              {canAccessNextLevel ? (
+                <span className="text-2xl">{nextLevel.icon}</span>
+              ) : (
+                <Lock className="w-6 h-6" />
+              )}
+            </div>
+            <div className="flex-1">
+              <h4 className="font-semibold">
+                {canAccessNextLevel ? 'Continue to Next Level?' : 'Next Level Locked'}
+              </h4>
+              <p className="text-sm text-white/60">
+                {canAccessNextLevel
+                  ? `Level ${nextLevel.id}: ${nextLevel.name}`
+                  : `Need ${xpNeededForNextLevel.toLocaleString()} more XP to unlock`
+                }
+              </p>
+            </div>
+            {canAccessNextLevel && (
+              <ChevronRight className="w-5 h-5 text-white/40" />
+            )}
+          </div>
+          {canAccessNextLevel ? (
+            <Button
+              variant="primary"
+              size="md"
+              fullWidth
+              className="mt-4"
+              onClick={() => onNextLevel(nextLevel.id)}
+              icon={<ChevronRight className="w-5 h-5" />}
+            >
+              Start Level {nextLevel.id}
+            </Button>
+          ) : (
+            <div className="mt-4">
+              <Progress
+                value={totalXPAfterGame}
+                max={nextLevel.unlockRequirement}
+                size="sm"
+                color="purple"
+              />
+              <p className="text-xs text-white/60 mt-2 text-center">
+                {totalXPAfterGame.toLocaleString()} / {nextLevel.unlockRequirement.toLocaleString()} XP
+              </p>
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* Action Buttons */}
       <div className="space-y-3">
