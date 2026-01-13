@@ -169,6 +169,15 @@ function App() {
     setCurrentNavScreen('home');
   }, []);
 
+  // Start next level
+  const handleNextLevel = useCallback((levelId: number) => {
+    const level = LEVELS.find(l => l.id === levelId);
+    if (level) {
+      startGame('chords', level.id);
+      setAppState({ screen: 'game', level });
+    }
+  }, [startGame]);
+
   // Render current screen
   const renderScreen = () => {
     switch (appState.screen) {
@@ -216,6 +225,7 @@ function App() {
             result={appState.result}
             onPlayAgain={handlePlayAgain}
             onHome={handleGoHome}
+            onNextLevel={handleNextLevel}
           />
         );
 
