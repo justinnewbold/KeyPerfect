@@ -137,9 +137,9 @@ export interface SessionData {
   questionsAnswered: number;
 }
 
-// XP calculation
+// XP calculation (reduced by 50% for faster progression)
 export function calculateXPForLevel(level: number): number {
-  return Math.floor(100 * Math.pow(level, 1.5));
+  return Math.floor(50 * Math.pow(level, 1.5));
 }
 
 export function getLevelFromXP(totalXP: number): number {
