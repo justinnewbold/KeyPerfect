@@ -170,8 +170,8 @@ export function getXPProgress(totalXP: number): { current: number; needed: numbe
 
 export function calculateQuestionXP(correct: boolean, streak: number, difficulty: number): number {
   if (!correct) return 0;
-  const baseXP = 10;
-  const streakBonus = Math.min(streak, 10) * 2; // Max +20 from streak
-  const difficultyBonus = difficulty * 5; // +5 per difficulty level
+  const baseXP = 20; // Doubled from 10
+  const streakBonus = Math.min(streak, 10) * 4; // Max +40 from streak (doubled from +20)
+  const difficultyBonus = difficulty * 10; // +10 per difficulty level (doubled from +5)
   return baseXP + streakBonus + difficultyBonus;
 }
