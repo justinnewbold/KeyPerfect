@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Play, Pause, Plus, Minus, Mic, MicOff, Volume2, Music2, Sliders } from 'lucide-react';
+import { Play, Pause, Plus, Minus, Mic, MicOff, Volume2, Music2, Sliders, ChevronDown, Guitar } from 'lucide-react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { useMetronome } from '../hooks/useAudio';
@@ -7,6 +7,13 @@ import { createPitchDetector, getAudioContext } from '../utils/audioEngine';
 import { PitchDetector } from './PitchDetector';
 import { SongAnalysis } from './SongAnalysis';
 import { CustomPracticeBuilder } from './CustomPracticeBuilder';
+import {
+  GuitarTuning,
+  GUITAR_TUNINGS_6,
+  GUITAR_TUNINGS_7,
+  BASS_TUNINGS,
+  getTuningById,
+} from '../types/instruments';
 
 type ToolType = 'tuner' | 'metronome' | 'singback' | 'songanalysis' | 'custompractice';
 
@@ -220,6 +227,8 @@ function Metronome() {
   );
 }
 
+type InstrumentCategory = '6-string' | '7-string' | 'bass';
+
 function Tuner() {
   const [isListening, setIsListening] = useState(false);
   const [frequency, setFrequency] = useState<number | null>(null);
@@ -227,14 +236,32 @@ function Tuner() {
   const [cents, setCents] = useState(0);
   const [detector, setDetector] = useState<{ start: () => Promise<void>; stop: () => void } | null>(null);
 
-  const standardTuning = [
-    { string: 'E2', frequency: 82.41 },
-    { string: 'A2', frequency: 110.0 },
-    { string: 'D3', frequency: 146.83 },
-    { string: 'G3', frequency: 196.0 },
-    { string: 'B3', frequency: 246.94 },
-    { string: 'E4', frequency: 329.63 },
-  ];
+  // Tuning selection state
+  const [instrumentCategory, setInstrumentCategory] = useState<InstrumentCategory>('6-string');
+  const [selectedTuning, setSelectedTuning] = useState<GuitarTuning>(GUITAR_TUNINGS_6[0]);
+  const [showTuningSelector, setShowTuningSelector] = useState(false);
+
+  // Get tunings based on instrument category
+  const getAvailableTunings = (): GuitarTuning[] => {
+    switch (instrumentCategory) {
+      case '6-string':
+        return GUITAR_TUNINGS_6;
+      case '7-string':
+        return GUITAR_TUNINGS_7;
+      case 'bass':
+        return BASS_TUNINGS;
+      default:
+        return GUITAR_TUNINGS_6;
+    }
+  };
+
+  // Update selected tuning when category changes
+  useEffect(() => {
+    const tunings = getAvailableTunings();
+    if (tunings.length > 0) {
+      setSelectedTuning(tunings[0]);
+    }
+  }, [instrumentCategory]);
 
   useEffect(() => {
     const pitchDetector = createPitchDetector((freq, noteName, centsValue) => {
@@ -281,8 +308,127 @@ function Tuner() {
     return 'text-red-400';
   };
 
+  // Check if detected note matches any string in the current tuning
+  const isNoteInTuning = (detectedNote: string): boolean => {
+    return selectedTuning.notes.some(s => s.note === detectedNote);
+  };
+
+  // Group tunings by category for display
+  const groupTuningsByCategory = (tunings: GuitarTuning[]) => {
+    const grouped: Record<string, GuitarTuning[]> = {};
+    tunings.forEach(tuning => {
+      if (!grouped[tuning.category]) {
+        grouped[tuning.category] = [];
+      }
+      grouped[tuning.category].push(tuning);
+    });
+    return grouped;
+  };
+
+  const categoryLabels: Record<string, string> = {
+    standard: 'Standard Tunings',
+    drop: 'Drop Tunings',
+    open: 'Open Tunings',
+    alternate: 'Alternate Tunings',
+    extended: 'Extended Range',
+  };
+
   return (
     <div className="space-y-6 animate-in">
+      {/* Instrument Type Selector */}
+      <Card className="p-4">
+        <h3 className="text-sm font-medium text-white/60 mb-3">Instrument</h3>
+        <div className="grid grid-cols-3 gap-2">
+          <button
+            onClick={() => setInstrumentCategory('6-string')}
+            className={`py-3 px-4 rounded-xl font-medium transition-all flex flex-col items-center gap-1 ${
+              instrumentCategory === '6-string'
+                ? 'bg-purple-500/30 text-purple-300 border border-purple-500/50'
+                : 'bg-white/10 hover:bg-white/20'
+            }`}
+          >
+            <Guitar className="w-5 h-5" />
+            <span className="text-sm">6-String</span>
+          </button>
+          <button
+            onClick={() => setInstrumentCategory('7-string')}
+            className={`py-3 px-4 rounded-xl font-medium transition-all flex flex-col items-center gap-1 ${
+              instrumentCategory === '7-string'
+                ? 'bg-purple-500/30 text-purple-300 border border-purple-500/50'
+                : 'bg-white/10 hover:bg-white/20'
+            }`}
+          >
+            <Guitar className="w-5 h-5" />
+            <span className="text-sm">7-String</span>
+          </button>
+          <button
+            onClick={() => setInstrumentCategory('bass')}
+            className={`py-3 px-4 rounded-xl font-medium transition-all flex flex-col items-center gap-1 ${
+              instrumentCategory === 'bass'
+                ? 'bg-purple-500/30 text-purple-300 border border-purple-500/50'
+                : 'bg-white/10 hover:bg-white/20'
+            }`}
+          >
+            <Guitar className="w-5 h-5" />
+            <span className="text-sm">Bass</span>
+          </button>
+        </div>
+      </Card>
+
+      {/* Tuning Selector */}
+      <Card className="p-4">
+        <h3 className="text-sm font-medium text-white/60 mb-3">Tuning</h3>
+        <button
+          onClick={() => setShowTuningSelector(!showTuningSelector)}
+          className="w-full p-4 bg-white/10 rounded-xl flex items-center justify-between hover:bg-white/15 transition-colors"
+        >
+          <div className="text-left">
+            <div className="font-medium">{selectedTuning.name}</div>
+            <div className="text-sm text-white/60">
+              {selectedTuning.notes.map(s => s.note.replace(/[0-9]/g, '')).join(' - ')}
+            </div>
+          </div>
+          <ChevronDown className={`w-5 h-5 transition-transform ${showTuningSelector ? 'rotate-180' : ''}`} />
+        </button>
+
+        {/* Tuning Dropdown */}
+        {showTuningSelector && (
+          <div className="mt-3 max-h-80 overflow-y-auto space-y-4">
+            {Object.entries(groupTuningsByCategory(getAvailableTunings())).map(([category, tunings]) => (
+              <div key={category}>
+                <h4 className="text-xs font-medium text-white/40 uppercase tracking-wide mb-2">
+                  {categoryLabels[category] || category}
+                </h4>
+                <div className="space-y-1">
+                  {tunings.map(tuning => (
+                    <button
+                      key={tuning.id}
+                      onClick={() => {
+                        setSelectedTuning(tuning);
+                        setShowTuningSelector(false);
+                      }}
+                      className={`w-full p-3 rounded-lg text-left transition-colors ${
+                        selectedTuning.id === tuning.id
+                          ? 'bg-purple-500/30 border border-purple-500/50'
+                          : 'bg-white/5 hover:bg-white/10'
+                      }`}
+                    >
+                      <div className="font-medium text-sm">{tuning.name}</div>
+                      <div className="text-xs text-white/50">
+                        {tuning.notes.map(s => s.note).join(' - ')}
+                      </div>
+                      {tuning.description && (
+                        <div className="text-xs text-white/40 mt-1">{tuning.description}</div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
       {/* Main Tuner Display */}
       <Card className="p-6 text-center">
         <div className="text-7xl font-bold mb-2">{note}</div>
@@ -333,24 +479,28 @@ function Tuner() {
         </p>
       </Card>
 
-      {/* Standard Guitar Tuning Reference */}
+      {/* Selected Tuning Reference */}
       <Card className="p-4">
-        <h3 className="text-sm font-medium text-white/60 mb-3">Standard Guitar Tuning</h3>
+        <h3 className="text-sm font-medium text-white/60 mb-3">
+          {selectedTuning.name} Tuning
+        </h3>
         <div className="space-y-2">
-          {standardTuning.map((string, i) => (
+          {selectedTuning.notes.map((string, i) => (
             <div
-              key={string.string}
-              className={`flex items-center justify-between p-3 rounded-xl ${
-                note === string.string ? 'bg-green-500/20 border border-green-500/30' : 'bg-white/5'
+              key={`${string.note}-${i}`}
+              className={`flex items-center justify-between p-3 rounded-xl transition-all ${
+                note === string.note
+                  ? 'bg-green-500/20 border border-green-500/30'
+                  : 'bg-white/5'
               }`}
             >
               <div className="flex items-center gap-3">
                 <span className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-sm">
-                  {6 - i}
+                  {selectedTuning.notes.length - i}
                 </span>
-                <span className="font-medium">{string.string}</span>
+                <span className="font-medium">{string.note}</span>
               </div>
-              <span className="text-white/60">{string.frequency} Hz</span>
+              <span className="text-white/60">{string.frequency.toFixed(2)} Hz</span>
             </div>
           ))}
         </div>
@@ -364,6 +514,9 @@ function Tuner() {
           <li>• Wait for the note to stabilize</li>
           <li>• Green indicator means you're in tune</li>
           <li>• Tune in a quiet environment for best results</li>
+          {instrumentCategory === '7-string' && (
+            <li>• For 7-string, start with the low B string</li>
+          )}
         </ul>
       </Card>
     </div>
