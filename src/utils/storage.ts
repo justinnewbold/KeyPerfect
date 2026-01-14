@@ -4,6 +4,7 @@ import {
   ChordStats,
   ScaleStats,
   IntervalStats,
+  KeyStats,
   DailyStats,
   GameModeStats,
   Achievement,
@@ -17,6 +18,8 @@ const STORAGE_KEYS = {
   CHORD_STATS: 'keyperfect_chord_stats',
   SCALE_STATS: 'keyperfect_scale_stats',
   INTERVAL_STATS: 'keyperfect_interval_stats',
+  KEY_STATS: 'keyperfect_key_stats',
+  MUSIC_KEYS_PROGRESS: 'keyperfect_music_keys_progress',
   DAILY_STATS: 'keyperfect_daily_stats',
   GAME_MODE_STATS: 'keyperfect_game_mode_stats',
   ACHIEVEMENTS: 'keyperfect_achievements',
@@ -290,6 +293,69 @@ export function updateIntervalStats(intervalType: string, correct: boolean): Int
 
   setItem(STORAGE_KEYS.INTERVAL_STATS, stats);
   return stats;
+}
+
+// Key Stats (Music Keys mode)
+export function getKeyStats(): KeyStats[] {
+  return getItem(STORAGE_KEYS.KEY_STATS, []);
+}
+
+export function updateKeyStats(keyType: string, correct: boolean): KeyStats[] {
+  const stats = getKeyStats();
+  const index = stats.findIndex(s => s.keyType === keyType);
+  const today = new Date().toISOString().split('T')[0];
+
+  if (index >= 0) {
+    stats[index].attempts += 1;
+    if (correct) stats[index].correct += 1;
+    stats[index].lastAttempted = today;
+  } else {
+    stats.push({
+      keyType,
+      attempts: 1,
+      correct: correct ? 1 : 0,
+      lastAttempted: today,
+    });
+  }
+
+  setItem(STORAGE_KEYS.KEY_STATS, stats);
+  return stats;
+}
+
+// Music Keys Level Progress
+export interface MusicKeysLevelProgress {
+  levelId: number;
+  questionsCompleted: number;
+  questionsRequired: number;
+  bestScore: number;
+  timesCompleted: number;
+  lastPlayedDate: string;
+}
+
+export function getMusicKeysProgress(): MusicKeysLevelProgress[] {
+  return getItem(STORAGE_KEYS.MUSIC_KEYS_PROGRESS, []);
+}
+
+export function updateMusicKeysProgress(levelId: number, updates: Partial<MusicKeysLevelProgress>): MusicKeysLevelProgress[] {
+  const progress = getMusicKeysProgress();
+  const index = progress.findIndex(p => p.levelId === levelId);
+
+  if (index >= 0) {
+    progress[index] = { ...progress[index], ...updates };
+  } else {
+    progress.push({
+      levelId,
+      questionsCompleted: 0,
+      questionsRequired: 15,
+      bestScore: 0,
+      timesCompleted: 0,
+      lastPlayedDate: new Date().toISOString().split('T')[0],
+      ...updates,
+    });
+  }
+
+  setItem(STORAGE_KEYS.MUSIC_KEYS_PROGRESS, progress);
+  return progress;
 }
 
 // Daily Stats

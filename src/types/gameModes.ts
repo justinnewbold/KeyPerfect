@@ -1,7 +1,8 @@
 export type GameModeType =
   | 'chords' | 'scales' | 'intervals' | 'progressions'
   | 'inversions' | 'reverse' | 'melodic' | 'notereading' | 'rhythm'
-  | 'harmony' | 'genre_jazz' | 'genre_classical' | 'genre_blues' | 'genre_pop';
+  | 'harmony' | 'genre_jazz' | 'genre_classical' | 'genre_blues' | 'genre_pop'
+  | 'musickeys';
 
 export type ChallengeModeType =
   | 'daily' | 'speedrun' | 'survival' | 'timeattack';
@@ -136,6 +137,14 @@ export const GAME_MODES: Record<GameModeType, GameMode> = {
     icon: '🎤',
     color: 'from-pink-500 to-purple-600',
     instructions: 'Practice with common pop chord progressions and patterns.',
+  },
+  musickeys: {
+    id: 'musickeys',
+    name: 'Music Keys',
+    description: 'Identify musical keys by ear',
+    icon: '🔑',
+    color: 'from-emerald-500 to-teal-600',
+    instructions: 'Listen to the scale or progression and identify which musical key is being played.',
   },
 };
 

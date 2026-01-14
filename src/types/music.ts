@@ -250,6 +250,339 @@ export const PROGRESSIONS: Record<ProgressionType, Progression> = {
   'I7-IV7-V7': { name: '12-Bar Essence', numerals: ['I7', 'IV7', 'V7'], description: 'Essential blues chords', genre: 'blues' },
 };
 
+// Music Key types for key identification training
+export type MusicKeyType =
+  | 'C' | 'G' | 'D' | 'A' | 'E' | 'B' | 'F#' | 'Gb'
+  | 'F' | 'Bb' | 'Eb' | 'Ab' | 'Db'
+  | 'Am' | 'Em' | 'Bm' | 'F#m' | 'C#m' | 'G#m'
+  | 'Dm' | 'Gm' | 'Cm' | 'Fm' | 'Bbm' | 'Ebm';
+
+export interface MusicKey {
+  name: string;
+  shortName: string;
+  type: 'major' | 'minor';
+  sharpsFlats: number; // positive = sharps, negative = flats
+  relativeKey: string; // relative major or minor
+  rootNote: NoteName;
+  scaleNotes: NoteName[];
+  difficulty: 'easy' | 'medium' | 'hard' | 'expert';
+  description: string;
+}
+
+export const MUSIC_KEYS: Record<MusicKeyType, MusicKey> = {
+  // Major Keys - Easy (0-1 sharps/flats)
+  'C': {
+    name: 'C Major',
+    shortName: 'C',
+    type: 'major',
+    sharpsFlats: 0,
+    relativeKey: 'Am',
+    rootNote: 'C',
+    scaleNotes: ['C', 'D', 'E', 'F', 'G', 'A', 'B'],
+    difficulty: 'easy',
+    description: 'No sharps or flats - the natural key',
+  },
+  'G': {
+    name: 'G Major',
+    shortName: 'G',
+    type: 'major',
+    sharpsFlats: 1,
+    relativeKey: 'Em',
+    rootNote: 'G',
+    scaleNotes: ['G', 'A', 'B', 'C', 'D', 'E', 'F#'],
+    difficulty: 'easy',
+    description: 'One sharp (F#) - guitar-friendly key',
+  },
+  'F': {
+    name: 'F Major',
+    shortName: 'F',
+    type: 'major',
+    sharpsFlats: -1,
+    relativeKey: 'Dm',
+    rootNote: 'F',
+    scaleNotes: ['F', 'G', 'A', 'A#', 'C', 'D', 'E'],
+    difficulty: 'easy',
+    description: 'One flat (Bb) - warm, mellow key',
+  },
+
+  // Major Keys - Medium (2-3 sharps/flats)
+  'D': {
+    name: 'D Major',
+    shortName: 'D',
+    type: 'major',
+    sharpsFlats: 2,
+    relativeKey: 'Bm',
+    rootNote: 'D',
+    scaleNotes: ['D', 'E', 'F#', 'G', 'A', 'B', 'C#'],
+    difficulty: 'medium',
+    description: 'Two sharps - bright, popular guitar key',
+  },
+  'A': {
+    name: 'A Major',
+    shortName: 'A',
+    type: 'major',
+    sharpsFlats: 3,
+    relativeKey: 'F#m',
+    rootNote: 'A',
+    scaleNotes: ['A', 'B', 'C#', 'D', 'E', 'F#', 'G#'],
+    difficulty: 'medium',
+    description: 'Three sharps - energetic rock key',
+  },
+  'Bb': {
+    name: 'Bb Major',
+    shortName: 'Bb',
+    type: 'major',
+    sharpsFlats: -2,
+    relativeKey: 'Gm',
+    rootNote: 'A#',
+    scaleNotes: ['A#', 'C', 'D', 'D#', 'F', 'G', 'A'],
+    difficulty: 'medium',
+    description: 'Two flats - common jazz/brass key',
+  },
+  'Eb': {
+    name: 'Eb Major',
+    shortName: 'Eb',
+    type: 'major',
+    sharpsFlats: -3,
+    relativeKey: 'Cm',
+    rootNote: 'D#',
+    scaleNotes: ['D#', 'F', 'G', 'G#', 'A#', 'C', 'D'],
+    difficulty: 'medium',
+    description: 'Three flats - classic jazz key',
+  },
+
+  // Major Keys - Hard (4-5 sharps/flats)
+  'E': {
+    name: 'E Major',
+    shortName: 'E',
+    type: 'major',
+    sharpsFlats: 4,
+    relativeKey: 'C#m',
+    rootNote: 'E',
+    scaleNotes: ['E', 'F#', 'G#', 'A', 'B', 'C#', 'D#'],
+    difficulty: 'hard',
+    description: 'Four sharps - powerful guitar key',
+  },
+  'B': {
+    name: 'B Major',
+    shortName: 'B',
+    type: 'major',
+    sharpsFlats: 5,
+    relativeKey: 'G#m',
+    rootNote: 'B',
+    scaleNotes: ['B', 'C#', 'D#', 'E', 'F#', 'G#', 'A#'],
+    difficulty: 'hard',
+    description: 'Five sharps - challenging key',
+  },
+  'Ab': {
+    name: 'Ab Major',
+    shortName: 'Ab',
+    type: 'major',
+    sharpsFlats: -4,
+    relativeKey: 'Fm',
+    rootNote: 'G#',
+    scaleNotes: ['G#', 'A#', 'C', 'C#', 'D#', 'F', 'G'],
+    difficulty: 'hard',
+    description: 'Four flats - romantic, expressive key',
+  },
+  'Db': {
+    name: 'Db Major',
+    shortName: 'Db',
+    type: 'major',
+    sharpsFlats: -5,
+    relativeKey: 'Bbm',
+    rootNote: 'C#',
+    scaleNotes: ['C#', 'D#', 'F', 'F#', 'G#', 'A#', 'C'],
+    difficulty: 'hard',
+    description: 'Five flats - rich, dramatic key',
+  },
+
+  // Major Keys - Expert (6 sharps/flats)
+  'F#': {
+    name: 'F# Major',
+    shortName: 'F#',
+    type: 'major',
+    sharpsFlats: 6,
+    relativeKey: 'D#m',
+    rootNote: 'F#',
+    scaleNotes: ['F#', 'G#', 'A#', 'B', 'C#', 'D#', 'F'],
+    difficulty: 'expert',
+    description: 'Six sharps - enharmonic with Gb',
+  },
+  'Gb': {
+    name: 'Gb Major',
+    shortName: 'Gb',
+    type: 'major',
+    sharpsFlats: -6,
+    relativeKey: 'Ebm',
+    rootNote: 'F#',
+    scaleNotes: ['F#', 'G#', 'A#', 'B', 'C#', 'D#', 'F'],
+    difficulty: 'expert',
+    description: 'Six flats - enharmonic with F#',
+  },
+
+  // Minor Keys - Easy
+  'Am': {
+    name: 'A Minor',
+    shortName: 'Am',
+    type: 'minor',
+    sharpsFlats: 0,
+    relativeKey: 'C',
+    rootNote: 'A',
+    scaleNotes: ['A', 'B', 'C', 'D', 'E', 'F', 'G'],
+    difficulty: 'easy',
+    description: 'Natural minor - no sharps or flats',
+  },
+  'Em': {
+    name: 'E Minor',
+    shortName: 'Em',
+    type: 'minor',
+    sharpsFlats: 1,
+    relativeKey: 'G',
+    rootNote: 'E',
+    scaleNotes: ['E', 'F#', 'G', 'A', 'B', 'C', 'D'],
+    difficulty: 'easy',
+    description: 'One sharp - popular guitar minor key',
+  },
+  'Dm': {
+    name: 'D Minor',
+    shortName: 'Dm',
+    type: 'minor',
+    sharpsFlats: -1,
+    relativeKey: 'F',
+    rootNote: 'D',
+    scaleNotes: ['D', 'E', 'F', 'G', 'A', 'A#', 'C'],
+    difficulty: 'easy',
+    description: 'One flat - melancholic key',
+  },
+
+  // Minor Keys - Medium
+  'Bm': {
+    name: 'B Minor',
+    shortName: 'Bm',
+    type: 'minor',
+    sharpsFlats: 2,
+    relativeKey: 'D',
+    rootNote: 'B',
+    scaleNotes: ['B', 'C#', 'D', 'E', 'F#', 'G', 'A'],
+    difficulty: 'medium',
+    description: 'Two sharps - dramatic minor key',
+  },
+  'F#m': {
+    name: 'F# Minor',
+    shortName: 'F#m',
+    type: 'minor',
+    sharpsFlats: 3,
+    relativeKey: 'A',
+    rootNote: 'F#',
+    scaleNotes: ['F#', 'G#', 'A', 'B', 'C#', 'D', 'E'],
+    difficulty: 'medium',
+    description: 'Three sharps - introspective key',
+  },
+  'Gm': {
+    name: 'G Minor',
+    shortName: 'Gm',
+    type: 'minor',
+    sharpsFlats: -2,
+    relativeKey: 'Bb',
+    rootNote: 'G',
+    scaleNotes: ['G', 'A', 'A#', 'C', 'D', 'D#', 'F'],
+    difficulty: 'medium',
+    description: 'Two flats - classical minor key',
+  },
+  'Cm': {
+    name: 'C Minor',
+    shortName: 'Cm',
+    type: 'minor',
+    sharpsFlats: -3,
+    relativeKey: 'Eb',
+    rootNote: 'C',
+    scaleNotes: ['C', 'D', 'D#', 'F', 'G', 'G#', 'A#'],
+    difficulty: 'medium',
+    description: 'Three flats - Beethovens favorite',
+  },
+
+  // Minor Keys - Hard
+  'C#m': {
+    name: 'C# Minor',
+    shortName: 'C#m',
+    type: 'minor',
+    sharpsFlats: 4,
+    relativeKey: 'E',
+    rootNote: 'C#',
+    scaleNotes: ['C#', 'D#', 'E', 'F#', 'G#', 'A', 'B'],
+    difficulty: 'hard',
+    description: 'Four sharps - emotional key',
+  },
+  'G#m': {
+    name: 'G# Minor',
+    shortName: 'G#m',
+    type: 'minor',
+    sharpsFlats: 5,
+    relativeKey: 'B',
+    rootNote: 'G#',
+    scaleNotes: ['G#', 'A#', 'B', 'C#', 'D#', 'E', 'F#'],
+    difficulty: 'hard',
+    description: 'Five sharps - challenging minor',
+  },
+  'Fm': {
+    name: 'F Minor',
+    shortName: 'Fm',
+    type: 'minor',
+    sharpsFlats: -4,
+    relativeKey: 'Ab',
+    rootNote: 'F',
+    scaleNotes: ['F', 'G', 'G#', 'A#', 'C', 'C#', 'D#'],
+    difficulty: 'hard',
+    description: 'Four flats - deeply expressive',
+  },
+  'Bbm': {
+    name: 'Bb Minor',
+    shortName: 'Bbm',
+    type: 'minor',
+    sharpsFlats: -5,
+    relativeKey: 'Db',
+    rootNote: 'A#',
+    scaleNotes: ['A#', 'C', 'C#', 'D#', 'F', 'F#', 'G#'],
+    difficulty: 'hard',
+    description: 'Five flats - dark and intense',
+  },
+
+  // Minor Keys - Expert
+  'Ebm': {
+    name: 'Eb Minor',
+    shortName: 'Ebm',
+    type: 'minor',
+    sharpsFlats: -6,
+    relativeKey: 'Gb',
+    rootNote: 'D#',
+    scaleNotes: ['D#', 'F', 'F#', 'G#', 'A#', 'B', 'C#'],
+    difficulty: 'expert',
+    description: 'Six flats - extremely challenging',
+  },
+};
+
+// Helper to get keys by difficulty
+export function getKeysByDifficulty(difficulty: 'easy' | 'medium' | 'hard' | 'expert'): MusicKeyType[] {
+  return (Object.keys(MUSIC_KEYS) as MusicKeyType[]).filter(
+    key => MUSIC_KEYS[key].difficulty === difficulty
+  );
+}
+
+// Helper to get major keys only
+export function getMajorKeys(): MusicKeyType[] {
+  return (Object.keys(MUSIC_KEYS) as MusicKeyType[]).filter(
+    key => MUSIC_KEYS[key].type === 'major'
+  );
+}
+
+// Helper to get minor keys only
+export function getMinorKeys(): MusicKeyType[] {
+  return (Object.keys(MUSIC_KEYS) as MusicKeyType[]).filter(
+    key => MUSIC_KEYS[key].type === 'minor'
+  );
+}
+
 // Note constants
 export const NOTE_NAMES: NoteName[] = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 

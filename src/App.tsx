@@ -3,6 +3,7 @@ import {
   Navigation,
   HomeScreen,
   LevelSelect,
+  MusicKeysLevelSelect,
   GameScreen,
   ResultScreen,
   StatsScreen,
@@ -12,6 +13,7 @@ import {
 } from './components';
 import type { Screen } from './components';
 import { LevelConfig, LEVELS } from './types/levels';
+import { MusicKeysLevelConfig, MUSIC_KEYS_LEVELS } from './types/musicKeysLevels';
 import { GameModeType, ChallengeModeType, GameResult, AnswerRecord } from './types/gameModes';
 import { useGameState } from './hooks/useGameState';
 import {
@@ -25,7 +27,9 @@ import {
 type AppState =
   | { screen: 'home' }
   | { screen: 'levelSelect' }
+  | { screen: 'musicKeysSelect' }
   | { screen: 'game'; level: LevelConfig }
+  | { screen: 'musicKeysGame'; musicKeysLevel: MusicKeysLevelConfig }
   | { screen: 'result'; result: GameResult }
   | { screen: 'learn' }
   | { screen: 'stats' }
@@ -89,6 +93,18 @@ function App() {
   const handleSelectLevel = useCallback((level: LevelConfig) => {
     startGame('chords', level.id);
     setAppState({ screen: 'game', level });
+  }, [startGame]);
+
+  // Start Music Keys training
+  const handleStartMusicKeys = useCallback(() => {
+    setAppState({ screen: 'musicKeysSelect' });
+    setCurrentNavScreen('play');
+  }, []);
+
+  // Select and start a Music Keys level
+  const handleSelectMusicKeysLevel = useCallback((level: MusicKeysLevelConfig) => {
+    startGame('musickeys', level.id);
+    setAppState({ screen: 'musicKeysGame', musicKeysLevel: level });
   }, [startGame]);
 
   // Start challenge mode
@@ -188,6 +204,7 @@ function App() {
             onStartChallenge={handleStartChallenge}
             onStartGameMode={handleStartGameMode}
             onStartPreset={handleStartPreset}
+            onStartMusicKeys={handleStartMusicKeys}
           />
         );
 
@@ -196,6 +213,34 @@ function App() {
           <LevelSelect
             onSelectLevel={handleSelectLevel}
             onBack={handleGoHome}
+          />
+        );
+
+      case 'musicKeysSelect':
+        return (
+          <MusicKeysLevelSelect
+            onSelectLevel={handleSelectMusicKeysLevel}
+            onBack={handleGoHome}
+          />
+        );
+
+      case 'musicKeysGame':
+        if (!gameState) {
+          return <div>Loading...</div>;
+        }
+        return (
+          <GameScreen
+            level={LEVELS[0]} // Use default level for display purposes
+            question={gameState.questions[gameState.currentQuestion]}
+            questionNumber={gameState.currentQuestion + 1}
+            totalQuestions={gameState.totalQuestions}
+            score={gameState.score}
+            streak={gameState.streak}
+            lives={gameState.lives > 0 ? gameState.lives : undefined}
+            timeRemaining={gameState.timeRemaining > 0 ? gameState.timeRemaining : undefined}
+            onAnswer={handleAnswer}
+            onNext={handleNext}
+            onExit={handleExitGame}
           />
         );
 
@@ -242,12 +287,12 @@ function App() {
         return <SettingsScreen />;
 
       default:
-        return <HomeScreen onStartLevel={handleStartLevel} onStartChallenge={handleStartChallenge} onStartGameMode={handleStartGameMode} onStartPreset={handleStartPreset} />;
+        return <HomeScreen onStartLevel={handleStartLevel} onStartChallenge={handleStartChallenge} onStartGameMode={handleStartGameMode} onStartPreset={handleStartPreset} onStartMusicKeys={handleStartMusicKeys} />;
     }
   };
 
   // Don't show navigation during game
-  const showNavigation = appState.screen !== 'game' && appState.screen !== 'result';
+  const showNavigation = appState.screen !== 'game' && appState.screen !== 'musicKeysGame' && appState.screen !== 'result';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] text-white">

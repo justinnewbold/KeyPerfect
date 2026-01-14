@@ -9,14 +9,17 @@ import {
 } from '../types/gameModes';
 import { PracticePreset } from '../utils/storage';
 import { LevelConfig, LEVELS } from '../types/levels';
-import { generateGameQuestions } from '../utils/gameHelpers';
+import { MUSIC_KEYS_LEVELS } from '../types/musicKeysLevels';
+import { generateGameQuestions, generateMusicKeyQuestions } from '../utils/gameHelpers';
 import {
   getUserStats,
   updateUserStats,
   updateChordStats,
   updateScaleStats,
   updateIntervalStats,
+  updateKeyStats,
   updateLevelProgress,
+  updateMusicKeysProgress,
   checkAndUnlockAchievements,
   updateGameModeStats,
   addSessionToHistory,
@@ -91,25 +94,36 @@ export function useGameState(): UseGameStateReturn {
     levelId: number = 1
   ) => {
     setTimeExpired(false);
-    const level = LEVELS.find(l => l.id === levelId) || LEVELS[0];
-    let totalQuestions = level.questionsToComplete;
 
-    // Adjust for challenge modes
-    if (mode === 'daily') {
-      totalQuestions = 10;
-    } else if (mode === 'speedrun') {
-      totalQuestions = 50; // Max possible in time limit
-    } else if (mode === 'survival') {
-      totalQuestions = 100; // Unlimited, but cap at 100
+    let questions: GameQuestion[];
+    let totalQuestions: number;
+
+    // Handle Music Keys mode separately
+    if (mode === 'musickeys') {
+      const musicKeysLevel = MUSIC_KEYS_LEVELS.find(l => l.id === levelId) || MUSIC_KEYS_LEVELS[0];
+      totalQuestions = musicKeysLevel.questionsToComplete;
+      questions = generateMusicKeyQuestions(musicKeysLevel, totalQuestions);
+    } else {
+      const level = LEVELS.find(l => l.id === levelId) || LEVELS[0];
+      totalQuestions = level.questionsToComplete;
+
+      // Adjust for challenge modes
+      if (mode === 'daily') {
+        totalQuestions = 10;
+      } else if (mode === 'speedrun') {
+        totalQuestions = 50; // Max possible in time limit
+      } else if (mode === 'survival') {
+        totalQuestions = 100; // Unlimited, but cap at 100
+      }
+
+      // Convert challenge modes to game modes for question generation
+      const gameMode: GameModeType =
+        mode === 'daily' || mode === 'speedrun' || mode === 'survival' || mode === 'timeattack'
+          ? 'chords'
+          : mode;
+
+      questions = generateGameQuestions(level, gameMode, totalQuestions);
     }
-
-    // Convert challenge modes to game modes for question generation
-    const gameMode: GameModeType =
-      mode === 'daily' || mode === 'speedrun' || mode === 'survival' || mode === 'timeattack'
-        ? 'chords'
-        : mode;
-
-    const questions = generateGameQuestions(level, gameMode, totalQuestions);
 
     const now = Date.now();
     setGameState({
@@ -210,6 +224,8 @@ export function useGameState(): UseGameStateReturn {
       updateScaleStats(question.correctAnswer, isCorrect);
     } else if (question.type === 'intervals') {
       updateIntervalStats(question.correctAnswer, isCorrect);
+    } else if (question.type === 'musickeys') {
+      updateKeyStats(question.correctAnswer, isCorrect);
     }
 
     // Update game state
@@ -307,12 +323,19 @@ export function useGameState(): UseGameStateReturn {
     });
 
     // Update level progress
-    const level = LEVELS.find(l => l.id === gameState.level);
-    if (level) {
-      updateLevelProgress(gameState.level, {
+    if (gameState.mode === 'musickeys') {
+      updateMusicKeysProgress(gameState.level, {
         questionsCompleted: correctAnswers,
         bestScore: Math.max(0, gameState.score),
       });
+    } else {
+      const level = LEVELS.find(l => l.id === gameState.level);
+      if (level) {
+        updateLevelProgress(gameState.level, {
+          questionsCompleted: correctAnswers,
+          bestScore: Math.max(0, gameState.score),
+        });
+      }
     }
 
     // Update game mode stats
