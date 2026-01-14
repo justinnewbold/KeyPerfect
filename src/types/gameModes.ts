@@ -2,7 +2,7 @@ export type GameModeType =
   | 'chords' | 'scales' | 'intervals' | 'progressions'
   | 'inversions' | 'reverse' | 'melodic' | 'notereading' | 'rhythm'
   | 'harmony' | 'genre_jazz' | 'genre_classical' | 'genre_blues' | 'genre_pop'
-  | 'musickeys';
+  | 'musickeys' | 'notes';
 
 export type ChallengeModeType =
   | 'daily' | 'speedrun' | 'survival' | 'timeattack';
@@ -146,6 +146,14 @@ export const GAME_MODES: Record<GameModeType, GameMode> = {
     color: 'from-emerald-500 to-teal-600',
     instructions: 'Listen to the scale or progression and identify which musical key is being played.',
   },
+  notes: {
+    id: 'notes',
+    name: 'Notes',
+    description: 'Identify individual notes by ear',
+    icon: '🎵',
+    color: 'from-sky-500 to-blue-600',
+    instructions: 'Listen to the note and identify which note is being played.',
+  },
 };
 
 export const CHALLENGE_MODES: Record<ChallengeModeType, ChallengeMode> = {
@@ -219,7 +227,7 @@ export interface AudioQuestionData {
   notes: number[]; // MIDI note numbers
   rootNote: number;
   type: string;
-  playbackMode: 'chord' | 'arpeggio' | 'scale' | 'interval' | 'rhythm';
+  playbackMode: 'chord' | 'arpeggio' | 'scale' | 'interval' | 'rhythm' | 'note';
   duration: number;
   rhythmPattern?: number[]; // Beat timings for rhythm mode (in ms)
 }

@@ -7,6 +7,7 @@ import {
   Timer,
   ChevronRight,
   Key,
+  Music,
 } from 'lucide-react';
 import { Card, CardContent } from './ui/Card';
 import { Button } from './ui/Button';
@@ -22,9 +23,10 @@ interface HomeScreenProps {
   onStartGameMode: (mode: GameModeType) => void;
   onStartPreset?: (presetId: PracticePresetId) => void;
   onStartMusicKeys?: () => void;
+  onStartNotes?: () => void;
 }
 
-export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, onStartPreset, onStartMusicKeys }: HomeScreenProps) {
+export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, onStartPreset, onStartMusicKeys, onStartNotes }: HomeScreenProps) {
   const userStats = getUserStats();
   const dailyStats = getDailyStats();
   const unlockedAchievements = getUnlockedAchievements();
@@ -134,6 +136,24 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
               <div className="flex-1">
                 <h3 className="text-lg font-bold">Music Keys</h3>
                 <p className="text-sm text-white/60">Identify keys by ear (E, A, G, D, B, F...)</p>
+              </div>
+              <ChevronRight className="w-5 h-5 text-white/40" />
+            </div>
+          </Card>
+
+          {/* Notes - INDIVIDUAL NOTE IDENTIFICATION */}
+          <Card
+            hover
+            onClick={onStartNotes}
+            className="p-5 bg-gradient-to-r from-sky-500/20 to-blue-500/20 border-sky-500/30"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-sky-500 to-blue-500 flex items-center justify-center shadow-lg shadow-sky-500/30">
+                <Music className="w-7 h-7" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-bold">Notes</h3>
+                <p className="text-sm text-white/60">Identify individual notes (C, D, E, F#...)</p>
               </div>
               <ChevronRight className="w-5 h-5 text-white/40" />
             </div>

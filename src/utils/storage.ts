@@ -19,7 +19,9 @@ const STORAGE_KEYS = {
   SCALE_STATS: 'keyperfect_scale_stats',
   INTERVAL_STATS: 'keyperfect_interval_stats',
   KEY_STATS: 'keyperfect_key_stats',
+  NOTE_STATS: 'keyperfect_note_stats',
   MUSIC_KEYS_PROGRESS: 'keyperfect_music_keys_progress',
+  NOTES_PROGRESS: 'keyperfect_notes_progress',
   DAILY_STATS: 'keyperfect_daily_stats',
   GAME_MODE_STATS: 'keyperfect_game_mode_stats',
   ACHIEVEMENTS: 'keyperfect_achievements',
@@ -355,6 +357,76 @@ export function updateMusicKeysProgress(levelId: number, updates: Partial<MusicK
   }
 
   setItem(STORAGE_KEYS.MUSIC_KEYS_PROGRESS, progress);
+  return progress;
+}
+
+// Note Stats (Notes mode)
+export interface NoteStats {
+  noteType: string; // e.g., "C4", "F#3"
+  attempts: number;
+  correct: number;
+  lastAttempted: string;
+}
+
+export function getNoteStats(): NoteStats[] {
+  return getItem(STORAGE_KEYS.NOTE_STATS, []);
+}
+
+export function updateNoteStats(noteType: string, correct: boolean): NoteStats[] {
+  const stats = getNoteStats();
+  const index = stats.findIndex(s => s.noteType === noteType);
+  const today = new Date().toISOString().split('T')[0];
+
+  if (index >= 0) {
+    stats[index].attempts += 1;
+    if (correct) stats[index].correct += 1;
+    stats[index].lastAttempted = today;
+  } else {
+    stats.push({
+      noteType,
+      attempts: 1,
+      correct: correct ? 1 : 0,
+      lastAttempted: today,
+    });
+  }
+
+  setItem(STORAGE_KEYS.NOTE_STATS, stats);
+  return stats;
+}
+
+// Notes Level Progress
+export interface NotesLevelProgress {
+  levelId: number;
+  questionsCompleted: number;
+  questionsRequired: number;
+  bestScore: number;
+  timesCompleted: number;
+  lastPlayedDate: string;
+}
+
+export function getNotesProgress(): NotesLevelProgress[] {
+  return getItem(STORAGE_KEYS.NOTES_PROGRESS, []);
+}
+
+export function updateNotesProgress(levelId: number, updates: Partial<NotesLevelProgress>): NotesLevelProgress[] {
+  const progress = getNotesProgress();
+  const index = progress.findIndex(p => p.levelId === levelId);
+
+  if (index >= 0) {
+    progress[index] = { ...progress[index], ...updates };
+  } else {
+    progress.push({
+      levelId,
+      questionsCompleted: 0,
+      questionsRequired: 15,
+      bestScore: 0,
+      timesCompleted: 0,
+      lastPlayedDate: new Date().toISOString().split('T')[0],
+      ...updates,
+    });
+  }
+
+  setItem(STORAGE_KEYS.NOTES_PROGRESS, progress);
   return progress;
 }
 

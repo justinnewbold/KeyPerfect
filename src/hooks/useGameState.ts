@@ -10,7 +10,8 @@ import {
 import { PracticePreset } from '../utils/storage';
 import { LevelConfig, LEVELS } from '../types/levels';
 import { MUSIC_KEYS_LEVELS } from '../types/musicKeysLevels';
-import { generateGameQuestions, generateMusicKeyQuestions } from '../utils/gameHelpers';
+import { NOTES_LEVELS } from '../types/notesLevels';
+import { generateGameQuestions, generateMusicKeyQuestions, generateNoteQuestions } from '../utils/gameHelpers';
 import {
   getUserStats,
   updateUserStats,
@@ -18,8 +19,10 @@ import {
   updateScaleStats,
   updateIntervalStats,
   updateKeyStats,
+  updateNoteStats,
   updateLevelProgress,
   updateMusicKeysProgress,
+  updateNotesProgress,
   checkAndUnlockAchievements,
   updateGameModeStats,
   addSessionToHistory,
@@ -103,6 +106,10 @@ export function useGameState(): UseGameStateReturn {
       const musicKeysLevel = MUSIC_KEYS_LEVELS.find(l => l.id === levelId) || MUSIC_KEYS_LEVELS[0];
       totalQuestions = musicKeysLevel.questionsToComplete;
       questions = generateMusicKeyQuestions(musicKeysLevel, totalQuestions);
+    } else if (mode === 'notes') {
+      const notesLevel = NOTES_LEVELS.find(l => l.id === levelId) || NOTES_LEVELS[0];
+      totalQuestions = notesLevel.questionsToComplete;
+      questions = generateNoteQuestions(notesLevel, totalQuestions);
     } else {
       const level = LEVELS.find(l => l.id === levelId) || LEVELS[0];
       totalQuestions = level.questionsToComplete;
@@ -226,6 +233,8 @@ export function useGameState(): UseGameStateReturn {
       updateIntervalStats(question.correctAnswer, isCorrect);
     } else if (question.type === 'musickeys') {
       updateKeyStats(question.correctAnswer, isCorrect);
+    } else if (question.type === 'notes') {
+      updateNoteStats(question.correctAnswer, isCorrect);
     }
 
     // Update game state
@@ -325,6 +334,11 @@ export function useGameState(): UseGameStateReturn {
     // Update level progress
     if (gameState.mode === 'musickeys') {
       updateMusicKeysProgress(gameState.level, {
+        questionsCompleted: correctAnswers,
+        bestScore: Math.max(0, gameState.score),
+      });
+    } else if (gameState.mode === 'notes') {
+      updateNotesProgress(gameState.level, {
         questionsCompleted: correctAnswers,
         bestScore: Math.max(0, gameState.score),
       });

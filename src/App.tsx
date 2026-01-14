@@ -4,6 +4,7 @@ import {
   HomeScreen,
   LevelSelect,
   MusicKeysLevelSelect,
+  NotesLevelSelect,
   GameScreen,
   ResultScreen,
   StatsScreen,
@@ -14,6 +15,7 @@ import {
 import type { Screen } from './components';
 import { LevelConfig, LEVELS } from './types/levels';
 import { MusicKeysLevelConfig, MUSIC_KEYS_LEVELS } from './types/musicKeysLevels';
+import { NotesLevelConfig, NOTES_LEVELS } from './types/notesLevels';
 import { GameModeType, ChallengeModeType, GameResult, AnswerRecord } from './types/gameModes';
 import { useGameState } from './hooks/useGameState';
 import {
@@ -28,8 +30,10 @@ type AppState =
   | { screen: 'home' }
   | { screen: 'levelSelect' }
   | { screen: 'musicKeysSelect' }
+  | { screen: 'notesSelect' }
   | { screen: 'game'; level: LevelConfig }
   | { screen: 'musicKeysGame'; musicKeysLevel: MusicKeysLevelConfig }
+  | { screen: 'notesGame'; notesLevel: NotesLevelConfig }
   | { screen: 'result'; result: GameResult }
   | { screen: 'learn' }
   | { screen: 'stats' }
@@ -105,6 +109,18 @@ function App() {
   const handleSelectMusicKeysLevel = useCallback((level: MusicKeysLevelConfig) => {
     startGame('musickeys', level.id);
     setAppState({ screen: 'musicKeysGame', musicKeysLevel: level });
+  }, [startGame]);
+
+  // Start Notes training
+  const handleStartNotes = useCallback(() => {
+    setAppState({ screen: 'notesSelect' });
+    setCurrentNavScreen('play');
+  }, []);
+
+  // Select and start a Notes level
+  const handleSelectNotesLevel = useCallback((level: NotesLevelConfig) => {
+    startGame('notes', level.id);
+    setAppState({ screen: 'notesGame', notesLevel: level });
   }, [startGame]);
 
   // Start challenge mode
@@ -205,6 +221,7 @@ function App() {
             onStartGameMode={handleStartGameMode}
             onStartPreset={handleStartPreset}
             onStartMusicKeys={handleStartMusicKeys}
+            onStartNotes={handleStartNotes}
           />
         );
 
@@ -221,6 +238,34 @@ function App() {
           <MusicKeysLevelSelect
             onSelectLevel={handleSelectMusicKeysLevel}
             onBack={handleGoHome}
+          />
+        );
+
+      case 'notesSelect':
+        return (
+          <NotesLevelSelect
+            onSelectLevel={handleSelectNotesLevel}
+            onBack={handleGoHome}
+          />
+        );
+
+      case 'notesGame':
+        if (!gameState) {
+          return <div>Loading...</div>;
+        }
+        return (
+          <GameScreen
+            level={LEVELS[0]} // Use default level for display purposes
+            question={gameState.questions[gameState.currentQuestion]}
+            questionNumber={gameState.currentQuestion + 1}
+            totalQuestions={gameState.totalQuestions}
+            score={gameState.score}
+            streak={gameState.streak}
+            lives={gameState.lives > 0 ? gameState.lives : undefined}
+            timeRemaining={gameState.timeRemaining > 0 ? gameState.timeRemaining : undefined}
+            onAnswer={handleAnswer}
+            onNext={handleNext}
+            onExit={handleExitGame}
           />
         );
 
@@ -287,12 +332,12 @@ function App() {
         return <SettingsScreen />;
 
       default:
-        return <HomeScreen onStartLevel={handleStartLevel} onStartChallenge={handleStartChallenge} onStartGameMode={handleStartGameMode} onStartPreset={handleStartPreset} onStartMusicKeys={handleStartMusicKeys} />;
+        return <HomeScreen onStartLevel={handleStartLevel} onStartChallenge={handleStartChallenge} onStartGameMode={handleStartGameMode} onStartPreset={handleStartPreset} onStartMusicKeys={handleStartMusicKeys} onStartNotes={handleStartNotes} />;
     }
   };
 
   // Don't show navigation during game
-  const showNavigation = appState.screen !== 'game' && appState.screen !== 'musicKeysGame' && appState.screen !== 'result';
+  const showNavigation = appState.screen !== 'game' && appState.screen !== 'musicKeysGame' && appState.screen !== 'notesGame' && appState.screen !== 'result';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] text-white">

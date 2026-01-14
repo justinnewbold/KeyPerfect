@@ -53,7 +53,7 @@ export function GameScreen({
   }, [question.id]);
 
   const playQuestionAudio = useCallback(() => {
-    const { notes, playbackMode, rhythmPattern } = question.audioData;
+    const { notes, playbackMode, rhythmPattern, duration } = question.audioData;
 
     if (playbackMode === 'chord') {
       audio.playChord(notes);
@@ -63,6 +63,8 @@ export function GameScreen({
       audio.playInterval(notes[0], notes[1]);
     } else if (playbackMode === 'rhythm' && rhythmPattern) {
       audio.playRhythmPattern(rhythmPattern, notes[0]);
+    } else if (playbackMode === 'note') {
+      audio.playNote(notes[0], duration);
     }
 
     setHasPlayed(true);
@@ -72,7 +74,7 @@ export function GameScreen({
   useEffect(() => {
     if (hasAutoPlayed.current) return;
 
-    const { notes, playbackMode, rhythmPattern } = question.audioData;
+    const { notes, playbackMode, rhythmPattern, duration } = question.audioData;
 
     const timer = setTimeout(() => {
       if (hasAutoPlayed.current) return;
@@ -86,6 +88,8 @@ export function GameScreen({
         audio.playInterval(notes[0], notes[1]);
       } else if (playbackMode === 'rhythm' && rhythmPattern) {
         audio.playRhythmPattern(rhythmPattern, notes[0]);
+      } else if (playbackMode === 'note') {
+        audio.playNote(notes[0], duration);
       }
 
       setHasPlayed(true);

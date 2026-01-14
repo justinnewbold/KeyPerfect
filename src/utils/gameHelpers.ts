@@ -16,6 +16,7 @@ import {
 } from '../types/music';
 import { LevelConfig } from '../types/levels';
 import { MusicKeysLevelConfig } from '../types/musicKeysLevels';
+import { NotesLevelConfig } from '../types/notesLevels';
 import { GameQuestion, AudioQuestionData, GameModeType } from '../types/gameModes';
 
 // Genre-specific content configurations
@@ -153,6 +154,9 @@ export function generateQuestion(
     case 'musickeys':
       // Music keys uses its own level config, fallback to basic keys
       return generateMusicKeyQuestion(id, null, difficultyModifier);
+    case 'notes':
+      // Notes uses its own level config, fallback to basic notes
+      return generateNoteQuestion(id, null, difficultyModifier);
     default:
       return generateChordQuestion(id, level, difficultyModifier);
   }
@@ -756,6 +760,120 @@ export function generateMusicKeyQuestions(
     const difficultyModifier = i / Math.max(1, count - 1);
     const id = `musickeys-${keyLevel.id}-${i}-${Date.now()}`;
     return generateMusicKeyQuestion(id, keyLevel, difficultyModifier);
+  });
+}
+
+// Generate Note question for ear training
+function generateNoteQuestion(
+  id: string,
+  notesLevel: NotesLevelConfig | null,
+  difficultyModifier: number = 0.5
+): GameQuestion {
+  // Default configuration if no level provided
+  const defaultNotes: NoteName[] = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+  const defaultOctaveRange: [number, number] = [4, 4];
+  const defaultIncludeOctave = false;
+
+  const availableNotes = notesLevel?.availableNotes || defaultNotes;
+  const octaveRange = notesLevel?.octaveRange || defaultOctaveRange;
+  const includeOctaveInAnswer = notesLevel?.includeOctaveInAnswer ?? defaultIncludeOctave;
+
+  // Select a random note
+  const selectedNote = randomElement(availableNotes);
+
+  // Select a random octave within the range
+  const octave = randomInt(octaveRange[0], octaveRange[1]) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+
+  // Get MIDI note number
+  const midi = getMidiFromNote(selectedNote, octave);
+
+  // Create the answer string (with or without octave)
+  const correctAnswer = includeOctaveInAnswer ? `${selectedNote}${octave}` : selectedNote;
+
+  // Generate wrong options (at least 3 more for 4 total options)
+  let wrongOptions: string[] = [];
+
+  if (includeOctaveInAnswer) {
+    // When including octave, generate options with different notes and/or octaves
+    const otherNotes = availableNotes.filter(n => n !== selectedNote);
+
+    // Add same note in different octaves
+    for (let o = octaveRange[0]; o <= octaveRange[1]; o++) {
+      if (o !== octave) {
+        wrongOptions.push(`${selectedNote}${o}`);
+      }
+    }
+
+    // Add different notes in same octave
+    for (const note of shuffleArray(otherNotes).slice(0, 4)) {
+      wrongOptions.push(`${note}${octave}`);
+    }
+
+    // Add some different notes in different octaves for variety
+    for (const note of shuffleArray(otherNotes).slice(0, 3)) {
+      const randomOctave = randomInt(octaveRange[0], octaveRange[1]);
+      if (`${note}${randomOctave}` !== correctAnswer) {
+        wrongOptions.push(`${note}${randomOctave}`);
+      }
+    }
+  } else {
+    // Simple case: just different note names
+    wrongOptions = availableNotes.filter(n => n !== selectedNote);
+  }
+
+  // Remove duplicates and limit to 3 wrong options
+  wrongOptions = [...new Set(wrongOptions)].filter(opt => opt !== correctAnswer);
+  wrongOptions = shuffleArray(wrongOptions).slice(0, 3);
+
+  // Ensure we have exactly 4 options
+  while (wrongOptions.length < 3) {
+    const fallbackNote = randomElement(availableNotes);
+    const fallbackOctave = randomInt(octaveRange[0], octaveRange[1]);
+    const fallbackAnswer = includeOctaveInAnswer ? `${fallbackNote}${fallbackOctave}` : fallbackNote;
+    if (fallbackAnswer !== correctAnswer && !wrongOptions.includes(fallbackAnswer)) {
+      wrongOptions.push(fallbackAnswer);
+    }
+  }
+
+  // Shuffle all options
+  const allOptions = shuffleArray([correctAnswer, ...wrongOptions]);
+
+  // Calculate XP based on level difficulty
+  const levelId = notesLevel?.id || 1;
+  const baseXP = 12 + levelId * 2;
+
+  // Create prompt
+  const prompt = includeOctaveInAnswer
+    ? 'What note is this? (include octave)'
+    : 'What note is this?';
+
+  return {
+    id,
+    type: 'notes',
+    prompt,
+    correctAnswer,
+    options: allOptions.slice(0, 4),
+    audioData: {
+      notes: [midi],
+      rootNote: midi,
+      type: correctAnswer,
+      playbackMode: 'note',
+      duration: 1.5,
+    },
+    difficulty: levelId,
+    xpValue: baseXP + Math.floor(difficultyModifier * 8),
+  };
+}
+
+// Generate Note questions for a specific level
+export function generateNoteQuestions(
+  notesLevel: NotesLevelConfig,
+  count: number
+): GameQuestion[] {
+  return Array.from({ length: count }, (_, i) => {
+    const difficultyModifier = i / Math.max(1, count - 1);
+    const id = `notes-${notesLevel.id}-${i}-${Date.now()}`;
+    return generateNoteQuestion(id, notesLevel, difficultyModifier);
   });
 }
 
