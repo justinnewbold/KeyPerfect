@@ -3,6 +3,7 @@ export { Navigation, Header } from './Navigation';
 export type { Screen } from './Navigation';
 export { HomeScreen } from './HomeScreen';
 export { LevelSelect } from './LevelSelect';
+export { MusicKeysLevelSelect } from './MusicKeysLevelSelect';
 export { GameScreen } from './GameScreen';
 export { ResultScreen } from './ResultScreen';
 export { StatsScreen } from './StatsScreen';

@@ -6,6 +6,7 @@ import {
   Heart,
   Timer,
   ChevronRight,
+  Key,
 } from 'lucide-react';
 import { Card, CardContent } from './ui/Card';
 import { Button } from './ui/Button';
@@ -20,9 +21,10 @@ interface HomeScreenProps {
   onStartChallenge: (mode: ChallengeModeType) => void;
   onStartGameMode: (mode: GameModeType) => void;
   onStartPreset?: (presetId: PracticePresetId) => void;
+  onStartMusicKeys?: () => void;
 }
 
-export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, onStartPreset }: HomeScreenProps) {
+export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, onStartPreset, onStartMusicKeys }: HomeScreenProps) {
   const userStats = getUserStats();
   const dailyStats = getDailyStats();
   const unlockedAchievements = getUnlockedAchievements();
@@ -99,23 +101,44 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
           </Card>
         </div>
 
-        {/* Main Play Button */}
-        <Card
-          hover
-          onClick={onStartLevel}
-          className="p-6 bg-gradient-to-r from-purple-500/20 to-pink-500/20 border-purple-500/30"
-        >
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/30">
-              <Play className="w-8 h-8" />
+        {/* Main Play Buttons - Two Card Layout */}
+        <div className="grid grid-cols-1 gap-3">
+          {/* Chord Training */}
+          <Card
+            hover
+            onClick={onStartLevel}
+            className="p-5 bg-gradient-to-r from-purple-500/20 to-pink-500/20 border-purple-500/30"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/30">
+                <Play className="w-7 h-7" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-bold">Chord Training</h3>
+                <p className="text-sm text-white/60">Master chord recognition</p>
+              </div>
+              <ChevronRight className="w-5 h-5 text-white/40" />
             </div>
-            <div className="flex-1">
-              <h3 className="text-xl font-bold">Start Training</h3>
-              <p className="text-sm text-white/60">Progressive levels to master ear training</p>
+          </Card>
+
+          {/* Music Keys - NEW PROMINENT SECTION */}
+          <Card
+            hover
+            onClick={onStartMusicKeys}
+            className="p-5 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border-emerald-500/30"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                <Key className="w-7 h-7" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-bold">Music Keys</h3>
+                <p className="text-sm text-white/60">Identify keys by ear (E, A, G, D, B, F...)</p>
+              </div>
+              <ChevronRight className="w-5 h-5 text-white/40" />
             </div>
-            <ChevronRight className="w-6 h-6 text-white/40" />
-          </div>
-        </Card>
+          </Card>
+        </div>
 
         {/* Practice Presets */}
         <div>

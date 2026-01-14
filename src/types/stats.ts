@@ -42,6 +42,13 @@ export interface IntervalStats {
   lastAttempted: string;
 }
 
+export interface KeyStats {
+  keyType: string;
+  attempts: number;
+  correct: number;
+  lastAttempted: string;
+}
+
 export interface DailyStats {
   lastPlayedDate: string;
   currentStreak: number;

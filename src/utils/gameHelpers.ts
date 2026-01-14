@@ -6,13 +6,16 @@ import {
   IntervalType,
   InversionType,
   ProgressionType,
+  MusicKeyType,
   CHORD_TYPES,
   SCALE_TYPES,
   INTERVALS,
   PROGRESSIONS,
+  MUSIC_KEYS,
   getMidiFromNote,
 } from '../types/music';
 import { LevelConfig } from '../types/levels';
+import { MusicKeysLevelConfig } from '../types/musicKeysLevels';
 import { GameQuestion, AudioQuestionData, GameModeType } from '../types/gameModes';
 
 // Genre-specific content configurations
@@ -147,6 +150,9 @@ export function generateQuestion(
       return generateGenreQuestion(id, 'blues', difficultyModifier);
     case 'genre_pop':
       return generateGenreQuestion(id, 'pop', difficultyModifier);
+    case 'musickeys':
+      // Music keys uses its own level config, fallback to basic keys
+      return generateMusicKeyQuestion(id, null, difficultyModifier);
     default:
       return generateChordQuestion(id, level, difficultyModifier);
   }
@@ -633,6 +639,124 @@ function generateGenreQuestion(
       xpValue: 15 + Math.floor(difficultyModifier * 10),
     };
   }
+}
+
+// Generate Music Key question
+function generateMusicKeyQuestion(
+  id: string,
+  keyLevel: MusicKeysLevelConfig | null,
+  difficultyModifier: number = 0.5
+): GameQuestion {
+  // Default keys if no level provided (basic major keys)
+  const defaultKeys: MusicKeyType[] = ['C', 'G', 'F', 'D', 'A', 'Am', 'Em', 'Dm'];
+  const availableKeys = keyLevel?.availableKeys || defaultKeys;
+  const playbackType = keyLevel?.playbackType || 'scale';
+
+  // Select a random key
+  const selectedKey = randomElement(availableKeys);
+  const keyData = MUSIC_KEYS[selectedKey];
+
+  // Get root MIDI note (octave 4)
+  const rootMidi = getMidiFromNote(keyData.rootNote, 4);
+
+  // Generate notes based on playback type
+  let notes: number[] = [];
+  let actualPlaybackMode: 'scale' | 'chord' | 'arpeggio' = 'scale';
+
+  const effectivePlaybackType = playbackType === 'mixed'
+    ? randomElement(['scale', 'chords', 'progression'] as const)
+    : playbackType;
+
+  if (effectivePlaybackType === 'scale') {
+    // Play the scale
+    const scaleIntervals = keyData.type === 'major'
+      ? [0, 2, 4, 5, 7, 9, 11, 12] // Major scale + octave
+      : [0, 2, 3, 5, 7, 8, 10, 12]; // Natural minor scale + octave
+    notes = scaleIntervals.map(interval => rootMidi + interval);
+    actualPlaybackMode = 'scale';
+  } else if (effectivePlaybackType === 'chords') {
+    // Play I-IV-V chord pattern in the key
+    const majorScale = [0, 2, 4, 5, 7, 9, 11];
+    const iChord = [rootMidi, rootMidi + 4, rootMidi + 7]; // I chord
+    const ivChord = [rootMidi + 5, rootMidi + 9, rootMidi + 12]; // IV chord
+    const vChord = [rootMidi + 7, rootMidi + 11, rootMidi + 14]; // V chord
+
+    if (keyData.type === 'minor') {
+      // Adjust for minor: i-iv-v
+      iChord[1] = rootMidi + 3; // Minor third
+      ivChord[1] = rootMidi + 8; // Minor iv
+    }
+
+    notes = [...iChord, ...ivChord, ...vChord, ...iChord];
+    actualPlaybackMode = 'chord';
+  } else {
+    // Play a simple progression
+    const majorScale = [0, 2, 4, 5, 7, 9, 11];
+    if (keyData.type === 'major') {
+      // I-V-vi-IV progression
+      const iChord = getChordNotes(rootMidi, 'major');
+      const vChord = getChordNotes(rootMidi + 7, 'major');
+      const viChord = getChordNotes(rootMidi + 9, 'minor');
+      const ivChord = getChordNotes(rootMidi + 5, 'major');
+      notes = [...iChord, ...vChord, ...viChord, ...ivChord];
+    } else {
+      // i-VI-III-VII for minor
+      const iChord = getChordNotes(rootMidi, 'minor');
+      const viChord = getChordNotes(rootMidi + 8, 'major');
+      const iiiChord = getChordNotes(rootMidi + 3, 'major');
+      const viiChord = getChordNotes(rootMidi + 10, 'major');
+      notes = [...iChord, ...viChord, ...iiiChord, ...viiChord];
+    }
+    actualPlaybackMode = 'chord';
+  }
+
+  // Generate options (other keys from available set)
+  const otherKeys = availableKeys.filter(k => k !== selectedKey);
+  const wrongOptions = shuffleArray(otherKeys).slice(0, 3);
+  const allOptions = shuffleArray([selectedKey, ...wrongOptions]);
+
+  // Calculate XP based on level difficulty
+  const levelId = keyLevel?.id || 1;
+  const baseXP = 15 + levelId * 3;
+
+  // Create prompt based on playback type
+  let prompt = 'What key is this?';
+  if (effectivePlaybackType === 'scale') {
+    prompt = 'What key is this scale in?';
+  } else if (effectivePlaybackType === 'chords') {
+    prompt = 'What key are these chords in?';
+  } else {
+    prompt = 'What key is this progression in?';
+  }
+
+  return {
+    id,
+    type: 'musickeys',
+    prompt,
+    correctAnswer: selectedKey,
+    options: allOptions.slice(0, 4),
+    audioData: {
+      notes,
+      rootNote: rootMidi,
+      type: selectedKey,
+      playbackMode: actualPlaybackMode,
+      duration: effectivePlaybackType === 'scale' ? 0.3 : 1.2,
+    },
+    difficulty: levelId,
+    xpValue: baseXP + Math.floor(difficultyModifier * 10),
+  };
+}
+
+// Generate Music Key questions for a specific level
+export function generateMusicKeyQuestions(
+  keyLevel: MusicKeysLevelConfig,
+  count: number
+): GameQuestion[] {
+  return Array.from({ length: count }, (_, i) => {
+    const difficultyModifier = i / Math.max(1, count - 1);
+    const id = `musickeys-${keyLevel.id}-${i}-${Date.now()}`;
+    return generateMusicKeyQuestion(id, keyLevel, difficultyModifier);
+  });
 }
 
 // Generate questions for a game session with progressive difficulty
