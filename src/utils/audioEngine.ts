@@ -172,6 +172,103 @@ export function playNote(
     osc2.connect(osc2Gain);
     osc2Gain.connect(gainNode);
     oscillators.push(osc2);
+  } else if (instrument === 'electricPiano') {
+    // Rhodes-style bell harmonics
+    const osc2 = ctx.createOscillator();
+    osc2.type = 'sine';
+    osc2.frequency.value = frequency * 2;
+    const osc2Gain = ctx.createGain();
+    osc2Gain.gain.value = 0.5;
+    osc2.connect(osc2Gain);
+    osc2Gain.connect(gainNode);
+    oscillators.push(osc2);
+
+    const osc3 = ctx.createOscillator();
+    osc3.type = 'sine';
+    osc3.frequency.value = frequency * 4;
+    const osc3Gain = ctx.createGain();
+    osc3Gain.gain.value = 0.2;
+    osc3.connect(osc3Gain);
+    osc3Gain.connect(gainNode);
+    oscillators.push(osc3);
+  } else if (instrument === 'cleanElectric') {
+    // Clean electric with slight chorus
+    const osc2 = ctx.createOscillator();
+    osc2.type = 'triangle';
+    osc2.frequency.value = frequency * 1.002;
+    const osc2Gain = ctx.createGain();
+    osc2Gain.gain.value = 0.4;
+    osc2.connect(osc2Gain);
+    osc2Gain.connect(gainNode);
+    oscillators.push(osc2);
+  } else if (instrument === 'metalGuitar') {
+    // Heavy distortion with multiple harmonics
+    const osc2 = ctx.createOscillator();
+    osc2.type = 'square';
+    osc2.frequency.value = frequency;
+    const osc2Gain = ctx.createGain();
+    osc2Gain.gain.value = 0.4;
+    osc2.connect(osc2Gain);
+    osc2Gain.connect(gainNode);
+    oscillators.push(osc2);
+
+    // Sub octave for thickness
+    const sub = ctx.createOscillator();
+    sub.type = 'sawtooth';
+    sub.frequency.value = frequency / 2;
+    const subGain = ctx.createGain();
+    subGain.gain.value = 0.3;
+    sub.connect(subGain);
+    subGain.connect(gainNode);
+    oscillators.push(sub);
+
+    // Upper harmonics for bite
+    const osc3 = ctx.createOscillator();
+    osc3.type = 'sawtooth';
+    osc3.frequency.value = frequency * 2;
+    const osc3Gain = ctx.createGain();
+    osc3Gain.gain.value = 0.2;
+    osc3.connect(osc3Gain);
+    osc3Gain.connect(gainNode);
+    oscillators.push(osc3);
+  } else if (instrument === 'cello') {
+    // Rich cello with vibrato-like detuning
+    const osc2 = ctx.createOscillator();
+    osc2.type = 'sawtooth';
+    osc2.frequency.value = frequency * 1.002;
+    const osc2Gain = ctx.createGain();
+    osc2Gain.gain.value = 0.5;
+    osc2.connect(osc2Gain);
+    osc2Gain.connect(gainNode);
+    oscillators.push(osc2);
+
+    const osc3 = ctx.createOscillator();
+    osc3.type = 'sine';
+    osc3.frequency.value = frequency * 2;
+    const osc3Gain = ctx.createGain();
+    osc3Gain.gain.value = 0.15;
+    osc3.connect(osc3Gain);
+    osc3Gain.connect(gainNode);
+    oscillators.push(osc3);
+  } else if (instrument === 'flute') {
+    // Airy flute with breath-like overtones
+    const osc2 = ctx.createOscillator();
+    osc2.type = 'sine';
+    osc2.frequency.value = frequency * 2;
+    const osc2Gain = ctx.createGain();
+    osc2Gain.gain.value = 0.15;
+    osc2.connect(osc2Gain);
+    osc2Gain.connect(gainNode);
+    oscillators.push(osc2);
+
+    const osc3 = ctx.createOscillator();
+    osc3.type = 'sine';
+    osc3.frequency.value = frequency * 3;
+    const osc3Gain = ctx.createGain();
+    osc3Gain.gain.value = 0.05;
+    osc3.connect(osc3Gain);
+    osc3Gain.connect(gainNode);
+    oscillators.push(osc3);
   }
 
   // Connect main oscillator

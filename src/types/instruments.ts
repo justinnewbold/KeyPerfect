@@ -1,6 +1,7 @@
 export type InstrumentType =
   | 'piano' | 'guitar' | 'strings' | 'synth' | 'organ'
-  | 'bass' | 'drums' | 'brass' | 'woodwind' | 'vocal';
+  | 'bass' | 'drums' | 'brass' | 'woodwind' | 'vocal'
+  | 'electricPiano' | 'cleanElectric' | 'metalGuitar' | 'cello' | 'flute';
 
 export interface InstrumentConfig {
   id: InstrumentType;
@@ -151,6 +152,69 @@ export const INSTRUMENTS: Record<InstrumentType, InstrumentConfig> = {
     envelope: { attack: 0.15, decay: 0.2, sustain: 0.8, release: 0.5 },
     filters: [
       { type: 'bandpass', frequency: 1200, Q: 3 },
+    ],
+  },
+  electricPiano: {
+    id: 'electricPiano',
+    name: 'Electric Piano',
+    icon: '🎹',
+    color: 'from-cyan-600 to-cyan-800',
+    description: 'Rhodes-style electric piano',
+    waveform: 'sine',
+    envelope: { attack: 0.001, decay: 0.4, sustain: 0.3, release: 1.2 },
+    filters: [
+      { type: 'lowpass', frequency: 4000, Q: 1 },
+    ],
+  },
+  cleanElectric: {
+    id: 'cleanElectric',
+    name: 'Clean Electric',
+    icon: '🎸',
+    color: 'from-teal-600 to-teal-800',
+    description: 'Clean electric guitar tone',
+    waveform: 'triangle',
+    envelope: { attack: 0.005, decay: 0.3, sustain: 0.5, release: 0.8 },
+    filters: [
+      { type: 'lowpass', frequency: 3500, Q: 1.5 },
+      { type: 'highpass', frequency: 150, Q: 1 },
+    ],
+  },
+  metalGuitar: {
+    id: 'metalGuitar',
+    name: 'Heavy Metal Guitar',
+    icon: '🎸',
+    color: 'from-red-700 to-black',
+    description: 'High-gain distorted metal guitar',
+    waveform: 'sawtooth',
+    envelope: { attack: 0.001, decay: 0.2, sustain: 0.8, release: 0.3 },
+    filters: [
+      { type: 'lowpass', frequency: 4500, Q: 3 },
+      { type: 'highpass', frequency: 80, Q: 1 },
+    ],
+  },
+  cello: {
+    id: 'cello',
+    name: 'Cello',
+    icon: '🎻',
+    color: 'from-amber-800 to-amber-950',
+    description: 'Solo cello with rich tone',
+    waveform: 'sawtooth',
+    envelope: { attack: 0.15, decay: 0.2, sustain: 0.8, release: 0.6 },
+    filters: [
+      { type: 'lowpass', frequency: 2500, Q: 1 },
+    ],
+  },
+  flute: {
+    id: 'flute',
+    name: 'Winds',
+    icon: '🪈',
+    color: 'from-sky-600 to-sky-800',
+    description: 'Orchestral flute and winds',
+    waveform: 'sine',
+    envelope: { attack: 0.08, decay: 0.1, sustain: 0.9, release: 0.3 },
+    filters: [
+      { type: 'highpass', frequency: 400, Q: 0.5 },
+      { type: 'lowpass', frequency: 6000, Q: 1 },
     ],
   },
 };
