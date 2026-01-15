@@ -27,6 +27,7 @@ const STORAGE_KEYS = {
   ACHIEVEMENTS: 'keyperfect_achievements',
   SETTINGS: 'keyperfect_settings',
   SESSION_HISTORY: 'keyperfect_session_history',
+  USED_INSTRUMENTS: 'keyperfect_used_instruments',
 } as const;
 
 // Default values
@@ -690,6 +691,10 @@ export function checkAndUnlockAchievements(stats: UserStats): Achievement[] {
         const hour = new Date().getHours();
         if (achievement.id === 'night_owl' && hour >= 0 && hour < 5) shouldUnlock = true;
         if (achievement.id === 'early_bird' && hour >= 5 && hour < 6) shouldUnlock = true;
+        if (achievement.id === 'all_instruments') {
+          const usedInstruments = getUsedInstruments();
+          if (usedInstruments.length >= achievement.requirement) shouldUnlock = true;
+        }
         break;
     }
 
@@ -718,6 +723,20 @@ export function updateSettings(updates: Partial<AppSettings>): AppSettings {
   const updated = { ...current, ...updates };
   setItem(STORAGE_KEYS.SETTINGS, updated);
   return updated;
+}
+
+// Instrument usage tracking
+export function getUsedInstruments(): InstrumentType[] {
+  return getItem<InstrumentType[]>(STORAGE_KEYS.USED_INSTRUMENTS, []);
+}
+
+export function trackInstrumentUsage(instrument: InstrumentType): InstrumentType[] {
+  const used = getUsedInstruments();
+  if (!used.includes(instrument)) {
+    used.push(instrument);
+    setItem(STORAGE_KEYS.USED_INSTRUMENTS, used);
+  }
+  return used;
 }
 
 // Reset all data
