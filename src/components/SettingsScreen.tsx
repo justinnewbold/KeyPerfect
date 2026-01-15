@@ -23,6 +23,7 @@ import {
   resetAllData,
   exportData,
   importData,
+  trackInstrumentUsage,
 } from '../utils/storage';
 import { useAudio } from '../hooks/useAudio';
 
@@ -42,6 +43,7 @@ export function SettingsScreen() {
   const handleInstrumentChange = useCallback((instrument: InstrumentType) => {
     setSettings(prev => ({ ...prev, instrument }));
     updateSettings({ instrument });
+    trackInstrumentUsage(instrument);
     audio.setInstrument(instrument);
     // Play a sample chord with the new instrument
     audio.playChord([60, 64, 67]);
