@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   Play,
   Zap,
@@ -8,14 +8,17 @@ import {
   ChevronRight,
   Key,
   Music,
+  ChevronDown,
 } from 'lucide-react';
 import { Card, CardContent } from './ui/Card';
 import { Button } from './ui/Button';
 import { Progress, CircularProgress } from './ui/Progress';
 import { Badge, LevelBadge, XPBadge, StreakBadge } from './ui/Badge';
-import { getUserStats, getDailyStats, getUnlockedAchievements, PRACTICE_PRESETS, PracticePresetId, updateSettings } from '../utils/storage';
+import { getUserStats, getDailyStats, getUnlockedAchievements, PRACTICE_PRESETS, PracticePresetId, updateSettings, getSettings, trackInstrumentUsage } from '../utils/storage';
 import { getLevelFromXP, getXPProgress, ACHIEVEMENTS } from '../types/stats';
 import { GAME_MODES, CHALLENGE_MODES, GameModeType, ChallengeModeType } from '../types/gameModes';
+import { InstrumentType, INSTRUMENTS, getInstrumentList } from '../types/instruments';
+import { useAudio } from '../hooks/useAudio';
 
 interface HomeScreenProps {
   onStartLevel: () => void;
@@ -32,6 +35,20 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
   const unlockedAchievements = getUnlockedAchievements();
   const xpProgress = getXPProgress(userStats.totalXP);
   const userLevel = getLevelFromXP(userStats.totalXP);
+  const audio = useAudio();
+
+  const [currentInstrument, setCurrentInstrument] = useState<InstrumentType>(getSettings().instrument);
+  const [showInstrumentDropdown, setShowInstrumentDropdown] = useState(false);
+  const instruments = getInstrumentList();
+
+  const handleInstrumentChange = useCallback((instrument: InstrumentType) => {
+    setCurrentInstrument(instrument);
+    updateSettings({ instrument });
+    trackInstrumentUsage(instrument);
+    audio.setInstrument(instrument);
+    audio.playChord([60, 64, 67]);
+    setShowInstrumentDropdown(false);
+  }, [audio]);
 
   const today = new Date().toISOString().split('T')[0];
   const canPlayDaily = dailyStats.lastPlayedDate !== today || !dailyStats.completed;
@@ -87,6 +104,46 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
       </div>
 
       <div className="px-4 space-y-6">
+        {/* Instrument Selector */}
+        <div className="relative">
+          <button
+            onClick={() => setShowInstrumentDropdown(!showInstrumentDropdown)}
+            className="w-full p-3 rounded-xl bg-white/10 border border-white/20 flex items-center justify-between"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-xl">{INSTRUMENTS[currentInstrument].icon}</span>
+              <div className="text-left">
+                <div className="text-sm font-medium">{INSTRUMENTS[currentInstrument].name}</div>
+                <div className="text-xs text-white/60">Tap to change instrument</div>
+              </div>
+            </div>
+            <ChevronDown className={`w-5 h-5 text-white/60 transition-transform ${showInstrumentDropdown ? 'rotate-180' : ''}`} />
+          </button>
+
+          {showInstrumentDropdown && (
+            <div className="absolute top-full left-0 right-0 mt-2 bg-[#1a1a2e] border border-white/20 rounded-xl shadow-xl z-50 max-h-64 overflow-y-auto">
+              {instruments.map(inst => (
+                <button
+                  key={inst.id}
+                  onClick={() => handleInstrumentChange(inst.id)}
+                  className={`w-full p-3 flex items-center gap-3 hover:bg-white/10 transition-colors ${
+                    currentInstrument === inst.id ? 'bg-purple-500/20' : ''
+                  }`}
+                >
+                  <span className="text-xl">{inst.icon}</span>
+                  <div className="text-left flex-1">
+                    <div className="text-sm font-medium">{inst.name}</div>
+                    <div className="text-xs text-white/60">{inst.description}</div>
+                  </div>
+                  {currentInstrument === inst.id && (
+                    <div className="w-2 h-2 rounded-full bg-purple-500" />
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Quick Stats */}
         <div className="grid grid-cols-3 gap-3">
           <Card className="p-3 text-center">
