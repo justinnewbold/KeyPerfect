@@ -116,7 +116,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   // Special achievements
   { id: 'night_owl', name: 'Night Owl', description: 'Practice after midnight', icon: '🦉', category: 'special', requirement: 1, xpReward: 100 },
   { id: 'early_bird', name: 'Early Bird', description: 'Practice before 6 AM', icon: '🐦', category: 'special', requirement: 1, xpReward: 100 },
-  { id: 'all_instruments', name: 'Polyglot', description: 'Use all 10 instruments', icon: '🎹', category: 'special', requirement: 10, xpReward: 500 },
+  { id: 'all_instruments', name: 'Polyglot', description: 'Use all 15 instruments', icon: '🎹', category: 'special', requirement: 15, xpReward: 500 },
 ];
 
 export interface AnalyticsData {
