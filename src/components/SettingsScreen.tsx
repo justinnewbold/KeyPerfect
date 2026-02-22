@@ -24,6 +24,8 @@ import {
   exportData,
   importData,
   trackInstrumentUsage,
+  getStreakFreezeData,
+  updateStreakFreezeSettings,
 } from '../utils/storage';
 import { useAudio } from '../hooks/useAudio';
 
@@ -31,6 +33,7 @@ export function SettingsScreen() {
   const [settings, setSettings] = useState<AppSettings>(getSettings());
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [importStatus, setImportStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [streakFreezeEnabled, setStreakFreezeEnabled] = useState(getStreakFreezeData().autoFreezeEnabled);
   const audio = useAudio();
 
   const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -332,6 +335,32 @@ export function SettingsScreen() {
               />
             </button>
           </label>
+
+          <label className="flex items-center justify-between cursor-pointer">
+            <div className="flex items-center gap-3">
+              <span className="text-lg">🛡️</span>
+              <div>
+                <span>Auto Streak Freeze</span>
+                <p className="text-xs text-white/60">Protect your streak once per week</p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                const newValue = !streakFreezeEnabled;
+                setStreakFreezeEnabled(newValue);
+                updateStreakFreezeSettings(newValue);
+              }}
+              className={`w-12 h-6 rounded-full transition-colors ${
+                streakFreezeEnabled ? 'bg-purple-500' : 'bg-white/20'
+              }`}
+            >
+              <div
+                className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform ${
+                  streakFreezeEnabled ? 'translate-x-6' : 'translate-x-0.5'
+                }`}
+              />
+            </button>
+          </label>
         </div>
       </Card>
 
@@ -399,7 +428,7 @@ export function SettingsScreen() {
       <Card className="p-4">
         <h3 className="font-semibold mb-2">About</h3>
         <p className="text-sm text-white/60 mb-2">
-          KeyPerfect v11.0.0
+          KeyPerfect v14.0.0
         </p>
         <p className="text-xs text-white/40">
           A music theory ear training app to help you master chord recognition,

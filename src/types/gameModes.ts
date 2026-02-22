@@ -2,7 +2,8 @@ export type GameModeType =
   | 'chords' | 'scales' | 'intervals' | 'progressions'
   | 'inversions' | 'reverse' | 'melodic' | 'notereading' | 'rhythm'
   | 'harmony' | 'genre_jazz' | 'genre_classical' | 'genre_blues' | 'genre_pop'
-  | 'musickeys' | 'notes';
+  | 'musickeys' | 'notes'
+  | 'practice' | 'comparison' | 'solfege' | 'transposition' | 'realmusic';
 
 export type ChallengeModeType =
   | 'daily' | 'speedrun' | 'survival' | 'timeattack';
@@ -154,6 +155,46 @@ export const GAME_MODES: Record<GameModeType, GameMode> = {
     color: 'from-sky-500 to-blue-600',
     instructions: 'Listen to the note and identify which note is being played.',
   },
+  practice: {
+    id: 'practice',
+    name: 'Practice Mode',
+    description: 'Practice without affecting stats',
+    icon: '🧪',
+    color: 'from-gray-500 to-slate-600',
+    instructions: 'Practice freely. No XP or stats are tracked.',
+  },
+  comparison: {
+    id: 'comparison',
+    name: 'Comparison Mode',
+    description: 'Compare similar sounds side by side',
+    icon: '🔄',
+    color: 'from-teal-500 to-emerald-600',
+    instructions: 'Listen to two sounds and identify the difference.',
+  },
+  solfege: {
+    id: 'solfege',
+    name: 'Sight-Singing',
+    description: 'Sing intervals and scale degrees',
+    icon: '🎤',
+    color: 'from-rose-500 to-pink-600',
+    instructions: 'Use the pitch detector to sing the requested note or interval.',
+  },
+  transposition: {
+    id: 'transposition',
+    name: 'Transposition',
+    description: 'Transpose melodies to new keys',
+    icon: '🔀',
+    color: 'from-violet-500 to-indigo-600',
+    instructions: 'Listen to the melody and identify it in a different key.',
+  },
+  realmusic: {
+    id: 'realmusic',
+    name: 'Real Music',
+    description: 'Identify elements in musical excerpts',
+    icon: '🎶',
+    color: 'from-amber-500 to-yellow-600',
+    instructions: 'Listen to a musical excerpt and identify the chord, key, or progression.',
+  },
 };
 
 export const CHALLENGE_MODES: Record<ChallengeModeType, ChallengeMode> = {
@@ -230,6 +271,10 @@ export interface AudioQuestionData {
   playbackMode: 'chord' | 'arpeggio' | 'scale' | 'interval' | 'rhythm' | 'note';
   duration: number;
   rhythmPattern?: number[]; // Beat timings for rhythm mode (in ms)
+  contextNotes?: number[]; // Context playback - cadence before the question
+  comparisonNotes?: number[]; // Comparison mode - second sound to compare
+  originalKey?: number; // Transposition - original key root MIDI
+  targetKey?: number; // Transposition - target key root MIDI
 }
 
 export interface GameState {
@@ -246,6 +291,7 @@ export interface GameState {
   gameStartTime: number; // When the entire game started (for total time calculation)
   startTime: number; // When current question started (for response time)
   isComplete: boolean;
+  isPracticeMode: boolean; // When true, no XP or stats are tracked
 }
 
 export interface AnswerRecord {
@@ -255,6 +301,7 @@ export interface AnswerRecord {
   isCorrect: boolean;
   timeToAnswer: number;
   xpEarned: number;
+  questionType?: string;
 }
 
 export interface GameResult {
@@ -270,4 +317,5 @@ export interface GameResult {
   averageResponseTime: number;
   newAchievements: string[];
   answers: AnswerRecord[];
+  categoryBreakdown: { category: string; correct: number; total: number; accuracy: number }[]; // Session summary breakdown
 }

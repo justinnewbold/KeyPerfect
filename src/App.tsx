@@ -11,6 +11,11 @@ import {
   GuitarTools,
   LearnScreen,
   SettingsScreen,
+  GuidedLessons,
+  ComparisonMode,
+  WeeklyGoals,
+  MasteryIndicators,
+  SocialChallenges,
 } from './components';
 import type { Screen } from './components';
 import { LevelConfig, LEVELS } from './types/levels';
@@ -24,6 +29,7 @@ import {
   checkAndUpdateDailyStreak,
   PRACTICE_PRESETS,
   PracticePresetId,
+  SocialChallenge,
 } from './utils/storage';
 
 type AppState =
@@ -31,14 +37,19 @@ type AppState =
   | { screen: 'levelSelect' }
   | { screen: 'musicKeysSelect' }
   | { screen: 'notesSelect' }
-  | { screen: 'game'; level: LevelConfig }
+  | { screen: 'game'; level: LevelConfig; isPracticeMode?: boolean }
   | { screen: 'musicKeysGame'; musicKeysLevel: MusicKeysLevelConfig }
   | { screen: 'notesGame'; notesLevel: NotesLevelConfig }
   | { screen: 'result'; result: GameResult }
   | { screen: 'learn' }
   | { screen: 'stats' }
   | { screen: 'tools' }
-  | { screen: 'settings' };
+  | { screen: 'settings' }
+  | { screen: 'guidedLessons' }
+  | { screen: 'comparison' }
+  | { screen: 'weeklyGoals' }
+  | { screen: 'mastery' }
+  | { screen: 'socialChallenges' };
 
 function App() {
   const [appState, setAppState] = useState<AppState>({ screen: 'home' });
@@ -135,8 +146,9 @@ function App() {
 
   // Start specific game mode
   const handleStartGameMode = useCallback((mode: GameModeType) => {
+    const isPracticeMode = mode === 'practice';
     startGame(mode, 1);
-    setAppState({ screen: 'game', level: LEVELS[0] });
+    setAppState({ screen: 'game', level: LEVELS[0], isPracticeMode });
   }, [startGame]);
 
   // Start with a practice preset
@@ -210,6 +222,39 @@ function App() {
     }
   }, [startGame]);
 
+  // New feature navigation handlers
+  const handleOpenGuidedLessons = useCallback(() => {
+    setAppState({ screen: 'guidedLessons' });
+  }, []);
+
+  const handleOpenComparison = useCallback(() => {
+    setAppState({ screen: 'comparison' });
+  }, []);
+
+  const handleOpenWeeklyGoals = useCallback(() => {
+    setAppState({ screen: 'weeklyGoals' });
+  }, []);
+
+  const handleOpenMastery = useCallback(() => {
+    setAppState({ screen: 'mastery' });
+  }, []);
+
+  const handleOpenSocialChallenges = useCallback(() => {
+    setAppState({ screen: 'socialChallenges' });
+  }, []);
+
+  // Start a social challenge
+  const handleStartSocialChallenge = useCallback((challenge: SocialChallenge) => {
+    startGame(challenge.mode as GameModeType, 1);
+    setAppState({ screen: 'game', level: LEVELS[0] });
+  }, [startGame]);
+
+  // Handle guided lessons starting practice
+  const handleStartPracticeFromLesson = useCallback((mode: string) => {
+    startGame(mode as GameModeType, 1);
+    setAppState({ screen: 'game', level: LEVELS[0] });
+  }, [startGame]);
+
   // Render current screen
   const renderScreen = () => {
     switch (appState.screen) {
@@ -222,6 +267,11 @@ function App() {
             onStartPreset={handleStartPreset}
             onStartMusicKeys={handleStartMusicKeys}
             onStartNotes={handleStartNotes}
+            onOpenGuidedLessons={handleOpenGuidedLessons}
+            onOpenComparison={handleOpenComparison}
+            onOpenWeeklyGoals={handleOpenWeeklyGoals}
+            onOpenMastery={handleOpenMastery}
+            onOpenSocialChallenges={handleOpenSocialChallenges}
           />
         );
 
@@ -255,7 +305,7 @@ function App() {
         }
         return (
           <GameScreen
-            level={LEVELS[0]} // Use default level for display purposes
+            level={LEVELS[0]}
             question={gameState.questions[gameState.currentQuestion]}
             questionNumber={gameState.currentQuestion + 1}
             totalQuestions={gameState.totalQuestions}
@@ -275,7 +325,7 @@ function App() {
         }
         return (
           <GameScreen
-            level={LEVELS[0]} // Use default level for display purposes
+            level={LEVELS[0]}
             question={gameState.questions[gameState.currentQuestion]}
             questionNumber={gameState.currentQuestion + 1}
             totalQuestions={gameState.totalQuestions}
@@ -303,6 +353,7 @@ function App() {
             streak={gameState.streak}
             lives={gameState.lives > 0 ? gameState.lives : undefined}
             timeRemaining={gameState.timeRemaining > 0 ? gameState.timeRemaining : undefined}
+            isPracticeMode={appState.isPracticeMode}
             onAnswer={handleAnswer}
             onNext={handleNext}
             onExit={handleExitGame}
@@ -331,13 +382,38 @@ function App() {
       case 'settings':
         return <SettingsScreen />;
 
+      case 'guidedLessons':
+        return (
+          <GuidedLessons
+            onBack={handleGoHome}
+            onStartPractice={handleStartPracticeFromLesson}
+          />
+        );
+
+      case 'comparison':
+        return <ComparisonMode onBack={handleGoHome} />;
+
+      case 'weeklyGoals':
+        return <WeeklyGoals onBack={handleGoHome} />;
+
+      case 'mastery':
+        return <MasteryIndicators onBack={handleGoHome} />;
+
+      case 'socialChallenges':
+        return (
+          <SocialChallenges
+            onBack={handleGoHome}
+            onStartChallenge={handleStartSocialChallenge}
+          />
+        );
+
       default:
-        return <HomeScreen onStartLevel={handleStartLevel} onStartChallenge={handleStartChallenge} onStartGameMode={handleStartGameMode} onStartPreset={handleStartPreset} onStartMusicKeys={handleStartMusicKeys} onStartNotes={handleStartNotes} />;
+        return <HomeScreen onStartLevel={handleStartLevel} onStartChallenge={handleStartChallenge} onStartGameMode={handleStartGameMode} onStartPreset={handleStartPreset} onStartMusicKeys={handleStartMusicKeys} onStartNotes={handleStartNotes} onOpenGuidedLessons={handleOpenGuidedLessons} onOpenComparison={handleOpenComparison} onOpenWeeklyGoals={handleOpenWeeklyGoals} onOpenMastery={handleOpenMastery} onOpenSocialChallenges={handleOpenSocialChallenges} />;
     }
   };
 
-  // Don't show navigation during game
-  const showNavigation = appState.screen !== 'game' && appState.screen !== 'musicKeysGame' && appState.screen !== 'notesGame' && appState.screen !== 'result';
+  // Don't show navigation during game or feature screens
+  const showNavigation = appState.screen !== 'game' && appState.screen !== 'musicKeysGame' && appState.screen !== 'notesGame' && appState.screen !== 'result' && appState.screen !== 'guidedLessons' && appState.screen !== 'comparison' && appState.screen !== 'weeklyGoals' && appState.screen !== 'mastery' && appState.screen !== 'socialChallenges';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] text-white">

@@ -147,6 +147,7 @@ export function useGameState(): UseGameStateReturn {
       gameStartTime: now,
       startTime: now,
       isComplete: false,
+      isPracticeMode: mode === 'practice',
     });
   }, []);
 
@@ -196,6 +197,7 @@ export function useGameState(): UseGameStateReturn {
       gameStartTime: now,
       startTime: now,
       isComplete: false,
+      isPracticeMode: false,
     });
   }, []);
 
@@ -222,6 +224,7 @@ export function useGameState(): UseGameStateReturn {
       isCorrect,
       timeToAnswer,
       xpEarned,
+      questionType: question.type,
     };
 
     // Update stats based on question type
@@ -371,6 +374,22 @@ export function useGameState(): UseGameStateReturn {
     // Check for new achievements
     const newAchievements = checkAndUnlockAchievements(updatedStats);
 
+    // Build category breakdown for session summary
+    const categoryMap = new Map<string, { correct: number; total: number }>();
+    for (const answer of gameState.answers) {
+      const cat = answer.questionType || gameState.mode;
+      const entry = categoryMap.get(cat) || { correct: 0, total: 0 };
+      entry.total++;
+      if (answer.isCorrect) entry.correct++;
+      categoryMap.set(cat, entry);
+    }
+    const categoryBreakdown = Array.from(categoryMap.entries()).map(([category, data]) => ({
+      category,
+      correct: data.correct,
+      total: data.total,
+      accuracy: data.total > 0 ? (data.correct / data.total) * 100 : 0,
+    }));
+
     const result: GameResult = {
       mode: gameState.mode,
       level: gameState.level,
@@ -384,6 +403,7 @@ export function useGameState(): UseGameStateReturn {
       averageResponseTime: totalTime / Math.max(1, gameState.answers.length),
       newAchievements: newAchievements.map(a => a.id),
       answers: gameState.answers,
+      categoryBreakdown,
     };
 
     setGameState(null);

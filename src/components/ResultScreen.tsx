@@ -172,6 +172,38 @@ export function ResultScreen({ result, onPlayAgain, onHome, onNextLevel }: Resul
         </div>
       </Card>
 
+      {/* Category Breakdown - Session Summary */}
+      {result.categoryBreakdown && result.categoryBreakdown.length > 0 && (
+        <Card className="p-4 mb-6">
+          <h3 className="font-semibold mb-3">Category Breakdown</h3>
+          <div className="space-y-3">
+            {result.categoryBreakdown.map((cat, i) => (
+              <div key={i}>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm font-medium capitalize">{cat.category}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-white/60">{cat.correct}/{cat.total}</span>
+                    <span className={`text-sm font-bold ${
+                      cat.accuracy >= 80 ? 'text-green-400' :
+                      cat.accuracy >= 60 ? 'text-amber-400' :
+                      'text-red-400'
+                    }`}>
+                      {Math.round(cat.accuracy)}%
+                    </span>
+                  </div>
+                </div>
+                <Progress
+                  value={cat.accuracy}
+                  max={100}
+                  size="sm"
+                  color={cat.accuracy >= 80 ? 'green' : cat.accuracy >= 60 ? 'amber' : 'red'}
+                />
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
       {/* Next Level Prompt */}
       {nextLevel && onNextLevel && (
         <Card className={`p-4 mb-6 ${canAccessNextLevel ? 'bg-gradient-to-r from-green-500/20 to-emerald-500/20 border-green-500/30' : 'bg-gradient-to-r from-gray-500/20 to-slate-500/20 border-gray-500/30'}`}>
