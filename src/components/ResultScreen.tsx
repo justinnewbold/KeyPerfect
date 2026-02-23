@@ -1,5 +1,5 @@
-import React from 'react';
-import { Trophy, Target, Zap, Clock, TrendingUp, Home, RotateCcw, Award, ChevronRight, Lock } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Trophy, Target, Zap, Clock, TrendingUp, Home, RotateCcw, Award, ChevronRight, Lock, AlertCircle } from 'lucide-react';
 import { GameResult } from '../types/gameModes';
 import { Card, CardContent } from './ui/Card';
 import { Button } from './ui/Button';
@@ -8,15 +8,17 @@ import { Badge, XPBadge } from './ui/Badge';
 import { ACHIEVEMENTS } from '../types/stats';
 import { LEVELS, getNextLevel, LevelConfig } from '../types/levels';
 import { getUserStats } from '../utils/storage';
+import { Confetti } from './Confetti';
 
 interface ResultScreenProps {
   result: GameResult;
   onPlayAgain: () => void;
   onHome: () => void;
   onNextLevel?: (levelId: number) => void;
+  onReviewMistakes?: () => void;
 }
 
-export function ResultScreen({ result, onPlayAgain, onHome, onNextLevel }: ResultScreenProps) {
+export function ResultScreen({ result, onPlayAgain, onHome, onNextLevel, onReviewMistakes }: ResultScreenProps) {
   const userStats = getUserStats();
   const currentLevel = LEVELS.find(l => l.id === result.level);
   const nextLevel = result.level ? getNextLevel(result.level) : undefined;
@@ -25,6 +27,10 @@ export function ResultScreen({ result, onPlayAgain, onHome, onNextLevel }: Resul
   const totalXPAfterGame = userStats.totalXP; // Already updated by the time we get here
   const canAccessNextLevel = nextLevel ? totalXPAfterGame >= nextLevel.unlockRequirement : false;
   const xpNeededForNextLevel = nextLevel ? Math.max(0, nextLevel.unlockRequirement - totalXPAfterGame) : 0;
+
+  // Confetti for perfect or S-grade performance
+  const showConfetti = result.accuracy >= 95 || result.newAchievements.length > 0;
+  const mistakeCount = result.answers.filter(a => !a.isCorrect).length;
 
   const getGrade = (accuracy: number): { grade: string; color: string; message: string } => {
     if (accuracy >= 95) return { grade: 'S', color: 'text-yellow-400', message: 'Perfect!' };
@@ -49,6 +55,9 @@ export function ResultScreen({ result, onPlayAgain, onHome, onNextLevel }: Resul
 
   return (
     <div className="min-h-screen pb-24 px-4 pt-8 animate-in">
+      {/* Celebration confetti for perfect/S-grade or achievements */}
+      <Confetti active={showConfetti} />
+
       {/* Header */}
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold mb-2">Game Complete!</h1>
@@ -259,6 +268,17 @@ export function ResultScreen({ result, onPlayAgain, onHome, onNextLevel }: Resul
 
       {/* Action Buttons */}
       <div className="space-y-3">
+        {mistakeCount > 0 && onReviewMistakes && (
+          <Button
+            variant="danger"
+            size="lg"
+            fullWidth
+            onClick={onReviewMistakes}
+            icon={<AlertCircle className="w-5 h-5" />}
+          >
+            Review {mistakeCount} Mistake{mistakeCount !== 1 ? 's' : ''}
+          </Button>
+        )}
         <Button
           variant="primary"
           size="lg"

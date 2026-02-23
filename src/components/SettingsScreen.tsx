@@ -11,6 +11,10 @@ import {
   Upload,
   Trash2,
   Check,
+  Accessibility,
+  Eye,
+  Type,
+  Sparkles,
 } from 'lucide-react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
@@ -28,6 +32,7 @@ import {
   updateStreakFreezeSettings,
 } from '../utils/storage';
 import { useAudio } from '../hooks/useAudio';
+import { useAccessibility, AccessibilitySettings } from '../utils/accessibility';
 
 export function SettingsScreen() {
   const [settings, setSettings] = useState<AppSettings>(getSettings());
@@ -35,6 +40,7 @@ export function SettingsScreen() {
   const [importStatus, setImportStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [streakFreezeEnabled, setStreakFreezeEnabled] = useState(getStreakFreezeData().autoFreezeEnabled);
   const audio = useAudio();
+  const a11y = useAccessibility();
 
   const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const volume = parseFloat(e.target.value);
@@ -137,6 +143,7 @@ export function SettingsScreen() {
     { id: 'dark', name: 'Dark', color: 'from-gray-800 to-gray-900' },
     { id: 'purple', name: 'Purple', color: 'from-purple-800 to-indigo-900' },
     { id: 'blue', name: 'Blue', color: 'from-blue-800 to-cyan-900' },
+    { id: 'light', name: 'Light', color: 'from-gray-100 to-gray-300' },
   ] as const;
 
   return (
@@ -361,6 +368,95 @@ export function SettingsScreen() {
               />
             </button>
           </label>
+        </div>
+      </Card>
+
+      {/* Accessibility Settings */}
+      <Card className="p-4 mb-4">
+        <div className="flex items-center gap-3 mb-3">
+          <Accessibility className="w-5 h-5 text-purple-400" />
+          <h3 className="font-semibold">Accessibility</h3>
+        </div>
+
+        <div className="space-y-3">
+          <label className="flex items-center justify-between cursor-pointer">
+            <div className="flex items-center gap-3">
+              <Eye className="w-5 h-5 text-blue-400" />
+              <span>High Contrast</span>
+            </div>
+            <button
+              onClick={() => a11y.updateSetting('highContrast', !a11y.settings.highContrast)}
+              className={`w-12 h-6 rounded-full transition-colors ${
+                a11y.settings.highContrast ? 'bg-purple-500' : 'bg-white/20'
+              }`}
+            >
+              <div
+                className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform ${
+                  a11y.settings.highContrast ? 'translate-x-6' : 'translate-x-0.5'
+                }`}
+              />
+            </button>
+          </label>
+
+          <label className="flex items-center justify-between cursor-pointer">
+            <div className="flex items-center gap-3">
+              <Type className="w-5 h-5 text-blue-400" />
+              <span>Large Text</span>
+            </div>
+            <button
+              onClick={() => a11y.updateSetting('largeText', !a11y.settings.largeText)}
+              className={`w-12 h-6 rounded-full transition-colors ${
+                a11y.settings.largeText ? 'bg-purple-500' : 'bg-white/20'
+              }`}
+            >
+              <div
+                className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform ${
+                  a11y.settings.largeText ? 'translate-x-6' : 'translate-x-0.5'
+                }`}
+              />
+            </button>
+          </label>
+
+          <label className="flex items-center justify-between cursor-pointer">
+            <div className="flex items-center gap-3">
+              <Sparkles className="w-5 h-5 text-blue-400" />
+              <span>Reduced Motion</span>
+            </div>
+            <button
+              onClick={() => a11y.updateSetting('reducedMotion', !a11y.settings.reducedMotion)}
+              className={`w-12 h-6 rounded-full transition-colors ${
+                a11y.settings.reducedMotion ? 'bg-purple-500' : 'bg-white/20'
+              }`}
+            >
+              <div
+                className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform ${
+                  a11y.settings.reducedMotion ? 'translate-x-6' : 'translate-x-0.5'
+                }`}
+              />
+            </button>
+          </label>
+
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <Eye className="w-5 h-5 text-blue-400" />
+              <span>Color Blind Mode</span>
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              {(['none', 'protanopia', 'deuteranopia', 'tritanopia'] as const).map(mode => (
+                <button
+                  key={mode}
+                  onClick={() => a11y.updateSetting('colorBlindMode', mode)}
+                  className={`p-2 rounded-xl text-xs text-center transition-all ${
+                    a11y.settings.colorBlindMode === mode
+                      ? 'bg-purple-500/30 border-2 border-purple-500'
+                      : 'bg-white/10 border-2 border-transparent hover:bg-white/20'
+                  }`}
+                >
+                  {mode === 'none' ? 'Off' : mode.charAt(0).toUpperCase() + mode.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </Card>
 

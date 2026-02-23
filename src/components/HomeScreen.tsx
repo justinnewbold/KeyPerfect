@@ -15,6 +15,8 @@ import {
   Star,
   Users,
   Shield,
+  Mic,
+  Layers,
 } from 'lucide-react';
 import { Card, CardContent } from './ui/Card';
 import { Button } from './ui/Button';
@@ -38,9 +40,11 @@ interface HomeScreenProps {
   onOpenWeeklyGoals?: () => void;
   onOpenMastery?: () => void;
   onOpenSocialChallenges?: () => void;
+  onOpenIntervalSinging?: () => void;
+  onOpenProgressionDictation?: () => void;
 }
 
-export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, onStartPreset, onStartMusicKeys, onStartNotes, onOpenGuidedLessons, onOpenComparison, onOpenWeeklyGoals, onOpenMastery, onOpenSocialChallenges }: HomeScreenProps) {
+export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, onStartPreset, onStartMusicKeys, onStartNotes, onOpenGuidedLessons, onOpenComparison, onOpenWeeklyGoals, onOpenMastery, onOpenSocialChallenges, onOpenIntervalSinging, onOpenProgressionDictation }: HomeScreenProps) {
   const userStats = getUserStats();
   const dailyStats = getDailyStats();
   const unlockedAchievements = getUnlockedAchievements();
@@ -431,6 +435,36 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
                 <h4 className="font-semibold text-sm">Practice Mode</h4>
               </div>
               <p className="text-xs text-white/60">No XP, no pressure</p>
+            </Card>
+
+            {/* Interval Singing */}
+            <Card
+              hover
+              onClick={onOpenIntervalSinging}
+              className="p-4 bg-gradient-to-br from-violet-500/10 to-purple-500/10 border-violet-500/20"
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+                  <Mic className="w-5 h-5" />
+                </div>
+                <h4 className="font-semibold text-sm">Sing Intervals</h4>
+              </div>
+              <p className="text-xs text-white/60">Match pitches with your voice</p>
+            </Card>
+
+            {/* Chord Progression Dictation */}
+            <Card
+              hover
+              onClick={onOpenProgressionDictation}
+              className="p-4 bg-gradient-to-br from-orange-500/10 to-amber-500/10 border-orange-500/20"
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center">
+                  <Layers className="w-5 h-5" />
+                </div>
+                <h4 className="font-semibold text-sm">Progressions</h4>
+              </div>
+              <p className="text-xs text-white/60">Identify chord progressions</p>
             </Card>
           </div>
         </div>

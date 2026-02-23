@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   Navigation,
   HomeScreen,
@@ -11,11 +11,16 @@ import {
   GuitarTools,
   LearnScreen,
   SettingsScreen,
+  TutorialScreen,
   GuidedLessons,
   ComparisonMode,
   WeeklyGoals,
   MasteryIndicators,
   SocialChallenges,
+  MistakeReviewScreen,
+  Confetti,
+  IntervalSingingMode,
+  ChordProgressionDictation,
 } from './components';
 import type { Screen } from './components';
 import { LevelConfig, LEVELS } from './types/levels';
@@ -30,6 +35,8 @@ import {
   PRACTICE_PRESETS,
   PracticePresetId,
   SocialChallenge,
+  getSettings,
+  getUserStats,
 } from './utils/storage';
 
 type AppState =
@@ -45,15 +52,28 @@ type AppState =
   | { screen: 'stats' }
   | { screen: 'tools' }
   | { screen: 'settings' }
+  | { screen: 'tutorial' }
   | { screen: 'guidedLessons' }
   | { screen: 'comparison' }
   | { screen: 'weeklyGoals' }
   | { screen: 'mastery' }
-  | { screen: 'socialChallenges' };
+  | { screen: 'socialChallenges' }
+  | { screen: 'mistakeReview'; result: GameResult }
+  | { screen: 'intervalSinging' }
+  | { screen: 'progressionDictation' };
 
 function App() {
-  const [appState, setAppState] = useState<AppState>({ screen: 'home' });
+  // Check if this is a first-time user (auto-trigger tutorial)
+  const isFirstUser = () => {
+    const stats = getUserStats();
+    return stats.totalQuestionsAnswered === 0 && !localStorage.getItem('keyperfect_tutorial_completed');
+  };
+
+  const [appState, setAppState] = useState<AppState>(
+    isFirstUser() ? { screen: 'tutorial' } : { screen: 'home' }
+  );
   const [currentNavScreen, setCurrentNavScreen] = useState<Screen>('home');
+  const prevScreenRef = useRef<string>('home');
   const {
     gameState,
     startGame,
@@ -64,6 +84,19 @@ function App() {
     setIsPlaying,
     timeExpired,
   } = useGameState();
+
+  // Apply theme to document
+  useEffect(() => {
+    const theme = getSettings().theme;
+    const root = document.documentElement;
+    root.classList.remove('theme-dark', 'theme-purple', 'theme-blue', 'theme-light');
+    root.classList.add(`theme-${theme}`);
+  }, [appState]); // Re-check on any screen change in case settings changed
+
+  // Track screen transitions for animation
+  useEffect(() => {
+    prevScreenRef.current = appState.screen;
+  }, [appState.screen]);
 
   // Handle time expiration for timed game modes
   useEffect(() => {
@@ -243,6 +276,14 @@ function App() {
     setAppState({ screen: 'socialChallenges' });
   }, []);
 
+  const handleOpenIntervalSinging = useCallback(() => {
+    setAppState({ screen: 'intervalSinging' });
+  }, []);
+
+  const handleOpenProgressionDictation = useCallback(() => {
+    setAppState({ screen: 'progressionDictation' });
+  }, []);
+
   // Start a social challenge
   const handleStartSocialChallenge = useCallback((challenge: SocialChallenge) => {
     startGame(challenge.mode as GameModeType, 1);
@@ -272,6 +313,8 @@ function App() {
             onOpenWeeklyGoals={handleOpenWeeklyGoals}
             onOpenMastery={handleOpenMastery}
             onOpenSocialChallenges={handleOpenSocialChallenges}
+            onOpenIntervalSinging={handleOpenIntervalSinging}
+            onOpenProgressionDictation={handleOpenProgressionDictation}
           />
         );
 
@@ -367,6 +410,7 @@ function App() {
             onPlayAgain={handlePlayAgain}
             onHome={handleGoHome}
             onNextLevel={handleNextLevel}
+            onReviewMistakes={() => setAppState({ screen: 'mistakeReview', result: appState.result })}
           />
         );
 
@@ -407,17 +451,48 @@ function App() {
           />
         );
 
+      case 'tutorial':
+        return (
+          <TutorialScreen
+            onComplete={() => {
+              localStorage.setItem('keyperfect_tutorial_completed', 'true');
+              setAppState({ screen: 'home' });
+            }}
+            onSkip={() => {
+              localStorage.setItem('keyperfect_tutorial_completed', 'true');
+              setAppState({ screen: 'home' });
+            }}
+          />
+        );
+
+      case 'mistakeReview':
+        return (
+          <MistakeReviewScreen
+            result={appState.result}
+            onBack={() => setAppState({ screen: 'result', result: appState.result })}
+          />
+        );
+
+      case 'intervalSinging':
+        return <IntervalSingingMode onBack={handleGoHome} />;
+
+      case 'progressionDictation':
+        return <ChordProgressionDictation onBack={handleGoHome} />;
+
       default:
-        return <HomeScreen onStartLevel={handleStartLevel} onStartChallenge={handleStartChallenge} onStartGameMode={handleStartGameMode} onStartPreset={handleStartPreset} onStartMusicKeys={handleStartMusicKeys} onStartNotes={handleStartNotes} onOpenGuidedLessons={handleOpenGuidedLessons} onOpenComparison={handleOpenComparison} onOpenWeeklyGoals={handleOpenWeeklyGoals} onOpenMastery={handleOpenMastery} onOpenSocialChallenges={handleOpenSocialChallenges} />;
+        return <HomeScreen onStartLevel={handleStartLevel} onStartChallenge={handleStartChallenge} onStartGameMode={handleStartGameMode} onStartPreset={handleStartPreset} onStartMusicKeys={handleStartMusicKeys} onStartNotes={handleStartNotes} onOpenGuidedLessons={handleOpenGuidedLessons} onOpenComparison={handleOpenComparison} onOpenWeeklyGoals={handleOpenWeeklyGoals} onOpenMastery={handleOpenMastery} onOpenSocialChallenges={handleOpenSocialChallenges} onOpenIntervalSinging={handleOpenIntervalSinging} onOpenProgressionDictation={handleOpenProgressionDictation} />;
     }
   };
 
-  // Don't show navigation during game or feature screens
-  const showNavigation = appState.screen !== 'game' && appState.screen !== 'musicKeysGame' && appState.screen !== 'notesGame' && appState.screen !== 'result' && appState.screen !== 'guidedLessons' && appState.screen !== 'comparison' && appState.screen !== 'weeklyGoals' && appState.screen !== 'mastery' && appState.screen !== 'socialChallenges';
+  // Don't show navigation during game, tutorial, or feature screens
+  const hideNavScreens = ['game', 'musicKeysGame', 'notesGame', 'result', 'guidedLessons', 'comparison', 'weeklyGoals', 'mastery', 'socialChallenges', 'tutorial', 'mistakeReview', 'intervalSinging', 'progressionDictation'];
+  const showNavigation = !hideNavScreens.includes(appState.screen);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] text-white">
-      {renderScreen()}
+      <div key={appState.screen} className="screen-enter">
+        {renderScreen()}
+      </div>
       {showNavigation && (
         <Navigation
           currentScreen={currentNavScreen}

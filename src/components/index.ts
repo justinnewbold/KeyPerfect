@@ -34,3 +34,8 @@ export { ComparisonMode } from './ComparisonMode';
 export { WeeklyGoals } from './WeeklyGoals';
 export { MasteryIndicators } from './MasteryIndicators';
 export { SocialChallenges } from './SocialChallenges';
+// v15 components
+export { MistakeReviewScreen } from './MistakeReviewScreen';
+export { Confetti } from './Confetti';
+export { IntervalSingingMode } from './IntervalSingingMode';
+export { ChordProgressionDictation } from './ChordProgressionDictation';

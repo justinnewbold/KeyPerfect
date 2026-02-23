@@ -1,5 +1,5 @@
 // KeyPerfect Service Worker for Offline Support
-const CACHE_NAME = 'keyperfect-v12.0.0';
+const CACHE_NAME = 'keyperfect-v15.0.0';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

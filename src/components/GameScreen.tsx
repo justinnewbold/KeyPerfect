@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Play, Volume2, Check, X, ChevronRight, Keyboard, Headphones } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { Play, Volume2, Check, X, ChevronRight, Keyboard, Headphones, Usb } from 'lucide-react';
 import { GameQuestion, AnswerRecord } from '../types/gameModes';
 import { LevelConfig } from '../types/levels';
-import { CHORD_TYPES, SCALE_TYPES, INTERVALS, INVERSIONS } from '../types/music';
+import { CHORD_TYPES, SCALE_TYPES, INTERVALS, INVERSIONS, NOTE_NAMES } from '../types/music';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { Progress } from './ui/Progress';
@@ -11,6 +11,7 @@ import { useAudio } from '../hooks/useAudio';
 import { useGameKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { triggerHapticFeedback } from '../utils/haptics';
 import { getChordNotes, getScaleNotes } from '../utils/gameHelpers';
+import { useMIDIInput } from '../utils/midiInput';
 
 interface GameScreenProps {
   level: LevelConfig;
@@ -184,6 +185,35 @@ export function GameScreen({
     enabled: true,
   });
 
+  // MIDI input: map note-on events to answer selection
+  const handleMIDINoteOn = useCallback((note: number) => {
+    if (result) return;
+
+    // For notes/musickeys questions, match the note name to answer options
+    if (question.type === 'notes' || question.type === 'musickeys') {
+      const noteName = NOTE_NAMES[note % 12];
+      const optionIndex = question.options.findIndex(opt =>
+        opt === noteName || opt.startsWith(noteName)
+      );
+      if (optionIndex >= 0) {
+        handleAnswer(question.options[optionIndex]);
+        return;
+      }
+    }
+
+    // Generic: map MIDI notes C4-F4 (60-65) to options 0-5
+    const optionIndex = note - 60;
+    if (optionIndex >= 0 && optionIndex < question.options.length) {
+      handleAnswer(question.options[optionIndex]);
+    }
+  }, [result, question, handleAnswer]);
+
+  const midiCallbacks = useMemo(() => ({
+    onNoteOn: handleMIDINoteOn,
+  }), [handleMIDINoteOn]);
+
+  const midiState = useMIDIInput(midiCallbacks);
+
   const getDisplayName = (value: string): string => {
     if (question.type === 'chords') {
       return CHORD_TYPES[value as keyof typeof CHORD_TYPES]?.name || value;
@@ -335,11 +365,17 @@ export function GameScreen({
           })}
         </div>
 
-        {/* Keyboard shortcuts hint */}
+        {/* Input hints */}
         <div className="hidden sm:flex items-center justify-center gap-2 text-xs text-white/40 mb-4">
           <Keyboard className="w-3 h-3" />
           <span>Press 1-4 to answer, R to replay, Space/Enter for next</span>
         </div>
+        {midiState.isConnected && (
+          <div className="flex items-center justify-center gap-2 text-xs text-green-400/70 mb-4">
+            <Usb className="w-3 h-3" />
+            <span>MIDI: {midiState.deviceName} (play C4-F4 to select)</span>
+          </div>
+        )}
 
         {/* Result Feedback */}
         {result && (

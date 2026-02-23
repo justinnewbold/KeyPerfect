@@ -4,7 +4,10 @@ import { InstrumentType, INSTRUMENTS } from '../types/instruments';
 let audioContext: AudioContext | null = null;
 let masterGain: GainNode | null = null;
 let reverbNode: ConvolverNode | null = null;
+let reverbGain: GainNode | null = null;
+let dryGain: GainNode | null = null;
 let compressor: DynamicsCompressorNode | null = null;
+let analyserNode: AnalyserNode | null = null;
 
 // Sound effect buffers
 const soundEffects: Map<string, AudioBuffer> = new Map();
@@ -38,12 +41,35 @@ function setupMasterChain() {
   masterGain = audioContext.createGain();
   masterGain.gain.value = 0.7;
 
-  // Connect chain
-  compressor.connect(masterGain);
-  masterGain.connect(audioContext.destination);
+  // Dry/wet gain nodes for reverb mix
+  dryGain = audioContext.createGain();
+  dryGain.gain.value = 0.75;
 
-  // Create reverb impulse
+  reverbGain = audioContext.createGain();
+  reverbGain.gain.value = 0.25;
+
+  // Create analyser for visualizer
+  analyserNode = audioContext.createAnalyser();
+  analyserNode.fftSize = 256;
+  analyserNode.smoothingTimeConstant = 0.8;
+
+  // Create reverb impulse (sets reverbNode)
   createReverbImpulse();
+
+  // Connect chain: compressor -> dry/wet split -> masterGain -> analyser -> destination
+  // Dry path: compressor -> dryGain -> masterGain
+  compressor.connect(dryGain);
+  dryGain.connect(masterGain);
+
+  // Wet path: compressor -> reverbNode -> reverbGain -> masterGain
+  if (reverbNode) {
+    compressor.connect(reverbNode);
+    reverbNode.connect(reverbGain);
+    reverbGain.connect(masterGain);
+  }
+
+  masterGain.connect(analyserNode);
+  analyserNode.connect(audioContext.destination);
 }
 
 function createReverbImpulse() {
@@ -70,9 +96,144 @@ export function setMasterVolume(volume: number) {
   }
 }
 
+export function getAnalyserNode(): AnalyserNode | null {
+  return analyserNode;
+}
+
+export function setReverbMix(wet: number) {
+  const clamped = Math.max(0, Math.min(1, wet));
+  if (dryGain) dryGain.gain.value = 1 - clamped;
+  if (reverbGain) reverbGain.gain.value = clamped;
+}
+
 // Convert MIDI note to frequency
 export function midiToFrequency(midi: number): number {
   return 440 * Math.pow(2, (midi - 69) / 12);
+}
+
+// Create white noise buffer for percussion
+function createNoiseBuffer(ctx: AudioContext, duration: number): AudioBuffer {
+  const sampleRate = ctx.sampleRate;
+  const length = sampleRate * duration;
+  const buffer = ctx.createBuffer(1, length, sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < length; i++) {
+    data[i] = Math.random() * 2 - 1;
+  }
+  return buffer;
+}
+
+// Play a drum hit using noise + tone synthesis
+function playDrumHit(
+  midi: number,
+  velocity: number = 0.7
+): { stop: () => void } {
+  const ctx = getAudioContext();
+  const now = ctx.currentTime;
+
+  // Determine drum type from MIDI range
+  // Low notes = kick, mid = snare, high = hi-hat
+  const isKick = midi < 50;
+  const isHiHat = midi > 70;
+
+  const masterGainNode = ctx.createGain();
+  masterGainNode.gain.value = 0;
+  masterGainNode.connect(compressor!);
+
+  const cleanupNodes: { stop?: () => void; disconnect?: () => void }[] = [];
+
+  if (isKick) {
+    // Kick drum: sine wave with pitch drop
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(150, now);
+    osc.frequency.exponentialRampToValueAtTime(40, now + 0.12);
+    const oscGain = ctx.createGain();
+    oscGain.gain.setValueAtTime(velocity, now);
+    oscGain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+    osc.connect(oscGain);
+    oscGain.connect(masterGainNode);
+    osc.start(now);
+    osc.stop(now + 0.3);
+    cleanupNodes.push(osc);
+
+    masterGainNode.gain.setValueAtTime(velocity, now);
+    masterGainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+  } else if (isHiHat) {
+    // Hi-hat: filtered noise, short decay
+    const noiseBuffer = createNoiseBuffer(ctx, 0.1);
+    const noise = ctx.createBufferSource();
+    noise.buffer = noiseBuffer;
+
+    const hihatFilter = ctx.createBiquadFilter();
+    hihatFilter.type = 'highpass';
+    hihatFilter.frequency.value = 7000;
+
+    const hihatGain = ctx.createGain();
+    hihatGain.gain.setValueAtTime(velocity * 0.6, now);
+    hihatGain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+
+    noise.connect(hihatFilter);
+    hihatFilter.connect(hihatGain);
+    hihatGain.connect(masterGainNode);
+    noise.start(now);
+    cleanupNodes.push(noise);
+
+    masterGainNode.gain.setValueAtTime(velocity * 0.6, now);
+    masterGainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+  } else {
+    // Snare: noise burst + tone
+    const noiseBuffer = createNoiseBuffer(ctx, 0.2);
+    const noise = ctx.createBufferSource();
+    noise.buffer = noiseBuffer;
+
+    const snareFilter = ctx.createBiquadFilter();
+    snareFilter.type = 'bandpass';
+    snareFilter.frequency.value = 3000;
+    snareFilter.Q.value = 1;
+
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(velocity * 0.8, now);
+    noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+
+    noise.connect(snareFilter);
+    snareFilter.connect(noiseGain);
+    noiseGain.connect(masterGainNode);
+    noise.start(now);
+    cleanupNodes.push(noise);
+
+    // Snare tone body
+    const osc = ctx.createOscillator();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(200, now);
+    osc.frequency.exponentialRampToValueAtTime(100, now + 0.05);
+    const oscGain = ctx.createGain();
+    oscGain.gain.setValueAtTime(velocity * 0.5, now);
+    oscGain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+    osc.connect(oscGain);
+    oscGain.connect(masterGainNode);
+    osc.start(now);
+    osc.stop(now + 0.15);
+    cleanupNodes.push(osc);
+
+    masterGainNode.gain.setValueAtTime(velocity, now);
+    masterGainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+  }
+
+  const soundHandle = {
+    stop: () => {
+      const t = ctx.currentTime;
+      masterGainNode.gain.cancelScheduledValues(t);
+      masterGainNode.gain.setValueAtTime(masterGainNode.gain.value, t);
+      masterGainNode.gain.linearRampToValueAtTime(0, t + 0.02);
+      activeSounds.delete(soundHandle);
+    },
+  };
+
+  activeSounds.add(soundHandle);
+  setTimeout(() => activeSounds.delete(soundHandle), 500);
+
+  return soundHandle;
 }
 
 // Create sound with instrument config
@@ -82,6 +243,11 @@ export function playNote(
   duration: number = 1,
   velocity: number = 0.7
 ): { stop: () => void } {
+  // Use specialized drum synthesis
+  if (instrument === 'drums') {
+    return playDrumHit(midi, velocity);
+  }
+
   const ctx = getAudioContext();
   const config = INSTRUMENTS[instrument];
   const frequency = midiToFrequency(midi);
@@ -89,7 +255,6 @@ export function playNote(
   // Create oscillator(s)
   const oscillators: OscillatorNode[] = [];
   const gainNode = ctx.createGain();
-  const filterNode = ctx.createBiquadFilter();
 
   // Main oscillator
   const osc1 = ctx.createOscillator();
@@ -274,14 +439,25 @@ export function playNote(
   // Connect main oscillator
   osc1.connect(gainNode);
 
-  // Apply filter if configured
+  // Apply filter chain if configured
   if (config.filters && config.filters.length > 0) {
-    const filter = config.filters[0];
-    filterNode.type = filter.type;
-    filterNode.frequency.value = filter.frequency;
-    filterNode.Q.value = filter.Q;
-    gainNode.connect(filterNode);
-    filterNode.connect(compressor!);
+    const filterNodes: BiquadFilterNode[] = config.filters.map(filterConfig => {
+      const node = ctx.createBiquadFilter();
+      node.type = filterConfig.type;
+      node.frequency.value = filterConfig.frequency;
+      node.Q.value = filterConfig.Q;
+      if (filterConfig.gain !== undefined) {
+        node.gain.value = filterConfig.gain;
+      }
+      return node;
+    });
+
+    // Chain: gainNode -> filter1 -> filter2 -> ... -> compressor
+    gainNode.connect(filterNodes[0]);
+    for (let i = 0; i < filterNodes.length - 1; i++) {
+      filterNodes[i].connect(filterNodes[i + 1]);
+    }
+    filterNodes[filterNodes.length - 1].connect(compressor!);
   } else {
     gainNode.connect(compressor!);
   }
@@ -718,6 +894,9 @@ export function cleanup() {
     audioContext = null;
     masterGain = null;
     reverbNode = null;
+    reverbGain = null;
+    dryGain = null;
     compressor = null;
+    analyserNode = null;
   }
 }
