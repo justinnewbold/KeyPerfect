@@ -1,5 +1,5 @@
 // KeyPerfect Service Worker for Offline Support
-const CACHE_NAME = 'keyperfect-v12.0.0';
+const CACHE_NAME = 'keyperfect-v15.0.0';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -7,7 +7,7 @@ const STATIC_ASSETS = [
 ];
 
 // Dynamic cache for assets loaded at runtime
-const DYNAMIC_CACHE = 'keyperfect-dynamic-v12.0.0';
+const DYNAMIC_CACHE = 'keyperfect-dynamic-v15.0.0';
 
 // Cache duration in milliseconds (7 days)
 const CACHE_DURATION = 7 * 24 * 60 * 60 * 1000;
@@ -45,7 +45,7 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames
-          .filter((name) => name !== CACHE_NAME)
+          .filter((name) => name !== CACHE_NAME && name !== DYNAMIC_CACHE)
           .map((name) => caches.delete(name))
       );
     })

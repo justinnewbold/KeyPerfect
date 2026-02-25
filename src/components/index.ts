@@ -28,3 +28,14 @@ export { CustomPracticeBuilder } from './CustomPracticeBuilder';
 export type { CustomPracticeSet } from './CustomPracticeBuilder';
 export { SongAnalysis } from './SongAnalysis';
 export { PitchDetector } from './PitchDetector';
+// v14 components - Game Improvements
+export { GuidedLessons } from './GuidedLessons';
+export { ComparisonMode } from './ComparisonMode';
+export { WeeklyGoals } from './WeeklyGoals';
+export { MasteryIndicators } from './MasteryIndicators';
+export { SocialChallenges } from './SocialChallenges';
+// v15 components
+export { MistakeReviewScreen } from './MistakeReviewScreen';
+export { Confetti } from './Confetti';
+export { IntervalSingingMode } from './IntervalSingingMode';
+export { ChordProgressionDictation } from './ChordProgressionDictation';

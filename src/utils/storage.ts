@@ -28,6 +28,10 @@ const STORAGE_KEYS = {
   SETTINGS: 'keyperfect_settings',
   SESSION_HISTORY: 'keyperfect_session_history',
   USED_INSTRUMENTS: 'keyperfect_used_instruments',
+  WEEKLY_GOALS: 'keyperfect_weekly_goals',
+  STREAK_FREEZE: 'keyperfect_streak_freeze',
+  SOCIAL_CHALLENGES: 'keyperfect_social_challenges',
+  MASTERY_DATA: 'keyperfect_mastery_data',
 } as const;
 
 // Default values
@@ -431,6 +435,203 @@ export function updateNotesProgress(levelId: number, updates: Partial<NotesLevel
   return progress;
 }
 
+// Helper: get the ISO date string for Monday of the current week
+function getWeekStart(): string {
+  const now = new Date();
+  const day = now.getDay();
+  const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+  const monday = new Date(now.setDate(diff));
+  return monday.toISOString().split('T')[0];
+}
+
+// Weekly Goals
+export interface WeeklyGoal {
+  id: string;
+  type: 'questions' | 'minutes' | 'accuracy' | 'streak';
+  target: number;
+  current: number;
+  weekStart: string; // ISO date string of Monday
+  completed: boolean;
+}
+
+export interface WeeklyGoalsData {
+  goals: WeeklyGoal[];
+  weekStart: string;
+  totalWeeksCompleted: number;
+}
+
+export function getWeeklyGoals(): WeeklyGoalsData {
+  const defaultData: WeeklyGoalsData = {
+    goals: [],
+    weekStart: getWeekStart(),
+    totalWeeksCompleted: 0,
+  };
+  const data = getItem(STORAGE_KEYS.WEEKLY_GOALS, defaultData);
+  // Reset if new week
+  if (data.weekStart !== getWeekStart()) {
+    const wasCompleted = data.goals.length > 0 && data.goals.every(g => g.completed);
+    return {
+      goals: data.goals.map(g => ({ ...g, current: 0, completed: false })),
+      weekStart: getWeekStart(),
+      totalWeeksCompleted: data.totalWeeksCompleted + (wasCompleted ? 1 : 0),
+    };
+  }
+  return data;
+}
+
+export function setWeeklyGoals(goals: Omit<WeeklyGoal, 'id' | 'current' | 'completed' | 'weekStart'>[]): WeeklyGoalsData {
+  const data = getWeeklyGoals();
+  data.goals = goals.map((g, i) => ({
+    ...g,
+    id: `goal_${i}_${Date.now()}`,
+    current: 0,
+    completed: false,
+    weekStart: getWeekStart(),
+  }));
+  data.weekStart = getWeekStart();
+  setItem(STORAGE_KEYS.WEEKLY_GOALS, data);
+  return data;
+}
+
+export function updateWeeklyGoalProgress(type: WeeklyGoal['type'], amount: number): WeeklyGoalsData {
+  const data = getWeeklyGoals();
+  data.goals = data.goals.map(goal => {
+    if (goal.type === type) {
+      const newCurrent = type === 'accuracy' ? amount : goal.current + amount;
+      return { ...goal, current: newCurrent, completed: newCurrent >= goal.target };
+    }
+    return goal;
+  });
+  setItem(STORAGE_KEYS.WEEKLY_GOALS, data);
+  return data;
+}
+
+// Streak Freeze
+export interface StreakFreezeData {
+  freezesAvailable: number;
+  freezesUsedThisWeek: number;
+  lastFreezeDate: string;
+  weekStart: string;
+  autoFreezeEnabled: boolean;
+}
+
+export function getStreakFreezeData(): StreakFreezeData {
+  const defaultData: StreakFreezeData = {
+    freezesAvailable: 1,
+    freezesUsedThisWeek: 0,
+    lastFreezeDate: '',
+    weekStart: getWeekStart(),
+    autoFreezeEnabled: true,
+  };
+  const data = getItem(STORAGE_KEYS.STREAK_FREEZE, defaultData);
+  // Reset weekly allowance
+  if (data.weekStart !== getWeekStart()) {
+    return { ...data, freezesUsedThisWeek: 0, freezesAvailable: 1, weekStart: getWeekStart() };
+  }
+  return data;
+}
+
+export function useStreakFreeze(): boolean {
+  const data = getStreakFreezeData();
+  if (data.freezesAvailable <= 0 || data.freezesUsedThisWeek >= 1) return false;
+  const today = new Date().toISOString().split('T')[0];
+  const updated: StreakFreezeData = {
+    ...data,
+    freezesAvailable: data.freezesAvailable - 1,
+    freezesUsedThisWeek: data.freezesUsedThisWeek + 1,
+    lastFreezeDate: today,
+  };
+  setItem(STORAGE_KEYS.STREAK_FREEZE, updated);
+  return true;
+}
+
+export function updateStreakFreezeSettings(autoFreeze: boolean): void {
+  const data = getStreakFreezeData();
+  setItem(STORAGE_KEYS.STREAK_FREEZE, { ...data, autoFreezeEnabled: autoFreeze });
+}
+
+// Social Challenges
+export interface SocialChallenge {
+  id: string;
+  creatorName: string;
+  mode: string;
+  level: number;
+  questionSeed: number;
+  questionCount: number;
+  creatorScore: number;
+  creatorAccuracy: number;
+  createdDate: string;
+  completed: boolean;
+  playerScore?: number;
+  playerAccuracy?: number;
+}
+
+export function getSocialChallenges(): SocialChallenge[] {
+  return getItem(STORAGE_KEYS.SOCIAL_CHALLENGES, []);
+}
+
+export function createSocialChallenge(challenge: Omit<SocialChallenge, 'id' | 'completed'>): SocialChallenge {
+  const challenges = getSocialChallenges();
+  const newChallenge: SocialChallenge = {
+    ...challenge,
+    id: `challenge_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    completed: false,
+  };
+  challenges.push(newChallenge);
+  setItem(STORAGE_KEYS.SOCIAL_CHALLENGES, challenges);
+  return newChallenge;
+}
+
+export function completeSocialChallenge(id: string, score: number, accuracy: number): void {
+  const challenges = getSocialChallenges();
+  const index = challenges.findIndex(c => c.id === id);
+  if (index >= 0) {
+    challenges[index] = { ...challenges[index], completed: true, playerScore: score, playerAccuracy: accuracy };
+    setItem(STORAGE_KEYS.SOCIAL_CHALLENGES, challenges);
+  }
+}
+
+// Mastery Data
+export interface MasteryItem {
+  type: 'chord' | 'scale' | 'interval' | 'key' | 'note';
+  value: string;
+  attempts: number;
+  correct: number;
+  masteryLevel: number; // 0-100
+  lastPracticed: string;
+}
+
+export function getMasteryData(): MasteryItem[] {
+  return getItem(STORAGE_KEYS.MASTERY_DATA, []);
+}
+
+export function updateMasteryItem(type: MasteryItem['type'], value: string, isCorrect: boolean): MasteryItem {
+  const data = getMasteryData();
+  const today = new Date().toISOString().split('T')[0];
+  let item = data.find(d => d.type === type && d.value === value);
+
+  if (!item) {
+    item = { type, value, attempts: 0, correct: 0, masteryLevel: 0, lastPracticed: today };
+    data.push(item);
+  }
+
+  item.attempts++;
+  if (isCorrect) item.correct++;
+  item.lastPracticed = today;
+
+  // Calculate mastery level (weighted recent accuracy with minimum attempts)
+  const accuracy = item.correct / item.attempts;
+  const confidence = Math.min(1, item.attempts / 20); // Need 20 attempts for full confidence
+  item.masteryLevel = Math.round(accuracy * confidence * 100);
+
+  setItem(STORAGE_KEYS.MASTERY_DATA, data);
+  return item;
+}
+
+export function getMasteryByType(type: MasteryItem['type']): MasteryItem[] {
+  return getMasteryData().filter(d => d.type === type);
+}
+
 // Daily Stats
 export function getDailyStats(): DailyStats {
   return getItem(STORAGE_KEYS.DAILY_STATS, getDefaultDailyStats());
@@ -456,7 +657,13 @@ export function checkAndUpdateDailyStreak(): DailyStats {
   if (stats.lastPlayedDate === yesterday) {
     newStreak += 1; // Continue streak
   } else if (stats.lastPlayedDate !== today) {
-    newStreak = 1; // Start new streak
+    // Check if auto-freeze is enabled and a freeze is available
+    const freezeData = getStreakFreezeData();
+    if (freezeData.autoFreezeEnabled && useStreakFreeze()) {
+      newStreak += 1; // Streak preserved by freeze
+    } else {
+      newStreak = 1; // Start new streak
+    }
   }
 
   return updateDailyStats({
@@ -758,6 +965,10 @@ export function exportData(): string {
     gameModeStats: getGameModeStats(),
     achievements: getItem<string[]>(STORAGE_KEYS.ACHIEVEMENTS, []),
     settings: getSettings(),
+    weeklyGoals: getWeeklyGoals(),
+    streakFreeze: getStreakFreezeData(),
+    socialChallenges: getSocialChallenges(),
+    masteryData: getMasteryData(),
     exportDate: new Date().toISOString(),
   };
   return JSON.stringify(data, null, 2);
@@ -777,6 +988,10 @@ export function importData(jsonString: string): boolean {
     if (data.gameModeStats) setItem(STORAGE_KEYS.GAME_MODE_STATS, data.gameModeStats);
     if (data.achievements) setItem(STORAGE_KEYS.ACHIEVEMENTS, data.achievements);
     if (data.settings) setItem(STORAGE_KEYS.SETTINGS, data.settings);
+    if (data.weeklyGoals) setItem(STORAGE_KEYS.WEEKLY_GOALS, data.weeklyGoals);
+    if (data.streakFreeze) setItem(STORAGE_KEYS.STREAK_FREEZE, data.streakFreeze);
+    if (data.socialChallenges) setItem(STORAGE_KEYS.SOCIAL_CHALLENGES, data.socialChallenges);
+    if (data.masteryData) setItem(STORAGE_KEYS.MASTERY_DATA, data.masteryData);
 
     return true;
   } catch {

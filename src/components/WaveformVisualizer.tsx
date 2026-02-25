@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { getAudioContext } from '../utils/audioEngine';
+import { getAnalyserNode } from '../utils/audioEngine';
 
 interface WaveformVisualizerProps {
   isPlaying: boolean;
@@ -18,30 +18,7 @@ export function WaveformVisualizer({
 }: WaveformVisualizerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const [isInitialized, setIsInitialized] = useState(false);
-
-  const initAnalyser = useCallback(() => {
-    if (isInitialized) return;
-
-    try {
-      const ctx = getAudioContext();
-
-      // Create analyser if it doesn't exist
-      if (!analyserRef.current) {
-        analyserRef.current = ctx.createAnalyser();
-        analyserRef.current.fftSize = 64;
-        analyserRef.current.smoothingTimeConstant = 0.8;
-
-        // Note: In a real implementation, you'd connect this to the audio source
-        // For now, we'll simulate the visualization
-      }
-
-      setIsInitialized(true);
-    } catch (error) {
-      console.error('Failed to initialize audio analyser:', error);
-    }
-  }, [isInitialized]);
+  const dataArrayRef = useRef<Uint8Array | null>(null);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -56,16 +33,35 @@ export function WaveformVisualizer({
     // Clear canvas
     ctx.clearRect(0, 0, width, canvasHeight);
 
-    // Generate visualizer bars
     const barWidth = width / barCount;
     const barGap = 2;
 
+    // Try to get real analyser data
+    const analyser = getAnalyserNode();
+    let useRealData = false;
+
+    if (analyser && isPlaying) {
+      if (!dataArrayRef.current || dataArrayRef.current.length !== analyser.frequencyBinCount) {
+        dataArrayRef.current = new Uint8Array(analyser.frequencyBinCount);
+      }
+      analyser.getByteFrequencyData(dataArrayRef.current as Uint8Array<ArrayBuffer>);
+
+      // Check if there's actual audio data (not all zeros)
+      const hasData = dataArrayRef.current.some(v => v > 0);
+      useRealData = hasData;
+    }
+
     for (let i = 0; i < barCount; i++) {
-      // Generate pseudo-random values that animate smoothly when playing
       let barHeight: number;
 
-      if (isPlaying) {
-        // Animated bars when playing
+      if (useRealData && dataArrayRef.current) {
+        // Map bar index to frequency bin
+        const binIndex = Math.floor((i / barCount) * dataArrayRef.current.length);
+        const value = dataArrayRef.current[binIndex] / 255;
+        barHeight = value * canvasHeight * 0.9;
+        barHeight = Math.max(barHeight, canvasHeight * 0.05);
+      } else if (isPlaying) {
+        // Fallback animated bars when no analyser data
         const time = Date.now() / 100;
         const wave = Math.sin(time + i * 0.5) * 0.3 + 0.5;
         const random = Math.random() * 0.3;
@@ -94,7 +90,6 @@ export function WaveformVisualizer({
 
   useEffect(() => {
     if (isPlaying) {
-      initAnalyser();
       draw();
     } else {
       if (animationRef.current) {
@@ -109,7 +104,7 @@ export function WaveformVisualizer({
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [isPlaying, draw, initAnalyser]);
+  }, [isPlaying, draw]);
 
   // Handle resize
   useEffect(() => {

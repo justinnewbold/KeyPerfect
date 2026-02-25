@@ -9,12 +9,20 @@ import {
   Key,
   Music,
   ChevronDown,
+  BookOpen,
+  ArrowLeftRight,
+  Target,
+  Star,
+  Users,
+  Shield,
+  Mic,
+  Layers,
 } from 'lucide-react';
 import { Card, CardContent } from './ui/Card';
 import { Button } from './ui/Button';
 import { Progress, CircularProgress } from './ui/Progress';
 import { Badge, LevelBadge, XPBadge, StreakBadge } from './ui/Badge';
-import { getUserStats, getDailyStats, getUnlockedAchievements, PRACTICE_PRESETS, PracticePresetId, updateSettings, getSettings, trackInstrumentUsage } from '../utils/storage';
+import { getUserStats, getDailyStats, getUnlockedAchievements, PRACTICE_PRESETS, PracticePresetId, updateSettings, getSettings, trackInstrumentUsage, getWeeklyGoals, getStreakFreezeData } from '../utils/storage';
 import { getLevelFromXP, getXPProgress, ACHIEVEMENTS } from '../types/stats';
 import { GAME_MODES, CHALLENGE_MODES, GameModeType, ChallengeModeType } from '../types/gameModes';
 import { InstrumentType, INSTRUMENTS, getInstrumentList } from '../types/instruments';
@@ -27,9 +35,16 @@ interface HomeScreenProps {
   onStartPreset?: (presetId: PracticePresetId) => void;
   onStartMusicKeys?: () => void;
   onStartNotes?: () => void;
+  onOpenGuidedLessons?: () => void;
+  onOpenComparison?: () => void;
+  onOpenWeeklyGoals?: () => void;
+  onOpenMastery?: () => void;
+  onOpenSocialChallenges?: () => void;
+  onOpenIntervalSinging?: () => void;
+  onOpenProgressionDictation?: () => void;
 }
 
-export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, onStartPreset, onStartMusicKeys, onStartNotes }: HomeScreenProps) {
+export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, onStartPreset, onStartMusicKeys, onStartNotes, onOpenGuidedLessons, onOpenComparison, onOpenWeeklyGoals, onOpenMastery, onOpenSocialChallenges, onOpenIntervalSinging, onOpenProgressionDictation }: HomeScreenProps) {
   const userStats = getUserStats();
   const dailyStats = getDailyStats();
   const unlockedAchievements = getUnlockedAchievements();
@@ -67,6 +82,12 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
             <p className="text-sm text-white/60">Master your musical ear</p>
           </div>
           <div className="flex items-center gap-2">
+            {getStreakFreezeData().freezesAvailable > 0 && (
+              <Badge variant="info" size="sm" className="flex items-center gap-1">
+                <Shield className="w-3 h-3" />
+                Freeze
+              </Badge>
+            )}
             {dailyStats.currentStreak > 0 && (
               <StreakBadge streak={dailyStats.currentStreak} />
             )}
@@ -322,11 +343,139 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
           </div>
         </div>
 
+        {/* New Features: Learning & Tools */}
+        <div>
+          <h2 className="text-lg font-semibold mb-3">Learn & Improve</h2>
+          <div className="grid grid-cols-2 gap-3">
+            {/* Guided Lessons */}
+            <Card
+              hover
+              onClick={onOpenGuidedLessons}
+              className="p-4 bg-gradient-to-br from-indigo-500/10 to-blue-500/10 border-indigo-500/20"
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center">
+                  <BookOpen className="w-5 h-5" />
+                </div>
+                <h4 className="font-semibold text-sm">Guided Lessons</h4>
+              </div>
+              <p className="text-xs text-white/60">Learn what to listen for</p>
+            </Card>
+
+            {/* Comparison Mode */}
+            <Card
+              hover
+              onClick={onOpenComparison}
+              className="p-4 bg-gradient-to-br from-teal-500/10 to-emerald-500/10 border-teal-500/20"
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 flex items-center justify-center">
+                  <ArrowLeftRight className="w-5 h-5" />
+                </div>
+                <h4 className="font-semibold text-sm">Compare Sounds</h4>
+              </div>
+              <p className="text-xs text-white/60">Side-by-side listening</p>
+            </Card>
+
+            {/* Mastery Indicators */}
+            <Card
+              hover
+              onClick={onOpenMastery}
+              className="p-4 bg-gradient-to-br from-yellow-500/10 to-amber-500/10 border-yellow-500/20"
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-yellow-500 to-amber-600 flex items-center justify-center">
+                  <Star className="w-5 h-5" />
+                </div>
+                <h4 className="font-semibold text-sm">Mastery</h4>
+              </div>
+              <p className="text-xs text-white/60">Per-topic progress</p>
+            </Card>
+
+            {/* Weekly Goals */}
+            <Card
+              hover
+              onClick={onOpenWeeklyGoals}
+              className="p-4 bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-green-500/20"
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
+                  <Target className="w-5 h-5" />
+                </div>
+                <h4 className="font-semibold text-sm">Weekly Goals</h4>
+              </div>
+              <p className="text-xs text-white/60">Set practice targets</p>
+            </Card>
+
+            {/* Social Challenges */}
+            <Card
+              hover
+              onClick={onOpenSocialChallenges}
+              className="p-4 bg-gradient-to-br from-pink-500/10 to-rose-500/10 border-pink-500/20"
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center">
+                  <Users className="w-5 h-5" />
+                </div>
+                <h4 className="font-semibold text-sm">Challenges</h4>
+              </div>
+              <p className="text-xs text-white/60">Challenge friends</p>
+            </Card>
+
+            {/* Practice Mode (No Stakes) */}
+            <Card
+              hover
+              onClick={() => onStartGameMode('practice')}
+              className="p-4 bg-gradient-to-br from-gray-500/10 to-slate-500/10 border-gray-500/20"
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gray-500 to-slate-600 flex items-center justify-center">
+                  <Shield className="w-5 h-5" />
+                </div>
+                <h4 className="font-semibold text-sm">Practice Mode</h4>
+              </div>
+              <p className="text-xs text-white/60">No XP, no pressure</p>
+            </Card>
+
+            {/* Interval Singing */}
+            <Card
+              hover
+              onClick={onOpenIntervalSinging}
+              className="p-4 bg-gradient-to-br from-violet-500/10 to-purple-500/10 border-violet-500/20"
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+                  <Mic className="w-5 h-5" />
+                </div>
+                <h4 className="font-semibold text-sm">Sing Intervals</h4>
+              </div>
+              <p className="text-xs text-white/60">Match pitches with your voice</p>
+            </Card>
+
+            {/* Chord Progression Dictation */}
+            <Card
+              hover
+              onClick={onOpenProgressionDictation}
+              className="p-4 bg-gradient-to-br from-orange-500/10 to-amber-500/10 border-orange-500/20"
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center">
+                  <Layers className="w-5 h-5" />
+                </div>
+                <h4 className="font-semibold text-sm">Progressions</h4>
+              </div>
+              <p className="text-xs text-white/60">Identify chord progressions</p>
+            </Card>
+          </div>
+        </div>
+
         {/* Training Modes */}
         <div>
           <h2 className="text-lg font-semibold mb-3">Training Modes</h2>
           <div className="grid grid-cols-2 gap-3">
-            {Object.values(GAME_MODES).map(mode => (
+            {Object.values(GAME_MODES).filter(mode =>
+              !['practice', 'comparison', 'musickeys', 'notes'].includes(mode.id)
+            ).map(mode => (
               <Card
                 key={mode.id}
                 hover

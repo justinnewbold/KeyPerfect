@@ -98,7 +98,7 @@ export function getIntervalNotes(rootMidi: number, intervalType: IntervalType): 
 }
 
 // Calculate difficulty modifier based on question progress
-function getDifficultyModifier(questionIndex: number, totalQuestions: number): number {
+export function getDifficultyModifier(questionIndex: number, totalQuestions: number): number {
   // Returns 0-1, where 0 is easiest and 1 is hardest
   return Math.min(1, questionIndex / Math.max(1, totalQuestions - 1));
 }
@@ -157,6 +157,18 @@ export function generateQuestion(
     case 'notes':
       // Notes uses its own level config, fallback to basic notes
       return generateNoteQuestion(id, null, difficultyModifier);
+    case 'comparison':
+      return generateComparisonQuestion(id, level, difficultyModifier);
+    case 'transposition':
+      return generateTranspositionQuestion(id, level, difficultyModifier);
+    case 'realmusic':
+      return generateRealMusicQuestion(id, level, difficultyModifier);
+    case 'solfege':
+      return generateSolfegeQuestion(id, level, difficultyModifier);
+    case 'practice':
+      // Practice mode generates random types
+      const practiceMode = randomElement(['chords', 'scales', 'intervals'] as GameModeType[]);
+      return generateQuestion(level, practiceMode, questionIndex, totalQuestions);
     default:
       return generateChordQuestion(id, level, difficultyModifier);
   }
@@ -886,6 +898,294 @@ export function generateGameQuestions(
   return Array.from({ length: count }, (_, i) =>
     generateQuestion(level, mode, i, count)
   );
+}
+
+// Adaptive difficulty: adjust question content based on player's weak areas
+export function generateAdaptiveQuestion(
+  level: LevelConfig,
+  mode: GameModeType,
+  questionIndex: number,
+  totalQuestions: number,
+  weakAreas: { type: string; name: string; accuracy: number }[]
+): GameQuestion {
+  // 40% chance to focus on weak areas if available
+  if (weakAreas.length > 0 && Math.random() < 0.4) {
+    const weakArea = randomElement(weakAreas);
+    // Override mode to target the weak area
+    if (weakArea.type === 'chord' && level.chords.includes(weakArea.name as any)) {
+      const question = generateChordQuestion(
+        `adaptive-${questionIndex}-${Date.now()}`,
+        level,
+        getDifficultyModifier(questionIndex, totalQuestions)
+      );
+      // Force the weak chord to be the correct answer
+      const rootNote = randomElement(NOTE_NAMES);
+      const rootMidi = getMidiFromNote(rootNote, 4);
+      const quality = weakArea.name as ChordQuality;
+      const notes = getChordNotes(rootMidi, quality);
+      return {
+        ...question,
+        correctAnswer: quality,
+        options: shuffleArray([quality, ...level.chords.filter(c => c !== quality)]).slice(0, 4),
+        audioData: { ...question.audioData, notes, type: quality },
+      };
+    }
+  }
+  return generateQuestion(level, mode, questionIndex, totalQuestions);
+}
+
+// Apply random voicing to chord notes for more realistic training
+export function applyRandomVoicing(notes: number[], difficulty: number): number[] {
+  if (difficulty < 0.3) return notes; // Keep simple voicings for beginners
+
+  const voicings: ((notes: number[]) => number[])[] = [
+    // Drop 2 voicing
+    (n) => {
+      if (n.length < 4) return n;
+      const dropped = [...n];
+      dropped[1] = dropped[1] - 12;
+      return dropped.sort((a, b) => a - b);
+    },
+    // Open voicing (spread notes across octaves)
+    (n) => {
+      if (n.length < 3) return n;
+      const spread = [...n];
+      spread[1] = spread[1] + 12;
+      return spread.sort((a, b) => a - b);
+    },
+    // Close position (default, no change)
+    (n) => n,
+    // Randomize octave of root
+    (n) => {
+      const shifted = [...n];
+      if (Math.random() > 0.5) {
+        shifted[0] = shifted[0] - 12;
+      }
+      return shifted.sort((a, b) => a - b);
+    },
+  ];
+
+  // Higher difficulty = more voicing variety
+  const availableVoicings = difficulty > 0.6 ? voicings : voicings.slice(2);
+  return randomElement(availableVoicings)(notes);
+}
+
+// Generate context notes (short cadence) to play before the question
+export function generateContextNotes(rootMidi: number, isMinor: boolean = false): number[] {
+  // Play a short I-V-I cadence to establish the key
+  const iChord = isMinor
+    ? [rootMidi, rootMidi + 3, rootMidi + 7]
+    : [rootMidi, rootMidi + 4, rootMidi + 7];
+  const vChord = [rootMidi + 7, rootMidi + 11, rootMidi + 14];
+  // Return flattened: I chord notes, then V chord notes, then I chord notes
+  return [...iChord, ...vChord, ...iChord];
+}
+
+// Generate comparison mode questions
+export function generateComparisonQuestion(
+  id: string,
+  level: LevelConfig,
+  difficultyModifier: number = 0.5
+): GameQuestion {
+  const rootNote = randomElement(NOTE_NAMES);
+  const rootMidi = getMidiFromNote(rootNote, 4);
+
+  // Pick two similar chord types for comparison
+  const chord1 = randomElement(level.chords);
+  const similarChords = level.chords.filter(c => c !== chord1);
+  const chord2 = randomElement(similarChords);
+
+  const notes1 = getChordNotes(rootMidi, chord1);
+  const notes2 = getChordNotes(rootMidi, chord2);
+
+  // The question asks which chord is the SECOND one played
+  return {
+    id,
+    type: 'comparison',
+    prompt: `Two chords are played. What is the second chord?`,
+    correctAnswer: chord2,
+    options: shuffleArray([chord2, ...level.chords.filter(c => c !== chord2)]).slice(0, 4),
+    audioData: {
+      notes: notes1,
+      rootNote: rootMidi,
+      type: chord2,
+      playbackMode: 'chord',
+      duration: 1.5,
+      comparisonNotes: notes2,
+    },
+    difficulty: level.id,
+    xpValue: 15 + level.id * 2 + Math.floor(difficultyModifier * 5),
+  };
+}
+
+// Generate transposition questions
+export function generateTranspositionQuestion(
+  id: string,
+  level: LevelConfig,
+  difficultyModifier: number = 0.5
+): GameQuestion {
+  const originalRoot = randomElement(NOTE_NAMES);
+  const originalMidi = getMidiFromNote(originalRoot, 4);
+
+  // Choose a target key (different from original)
+  const targetRoots = NOTE_NAMES.filter(n => n !== originalRoot);
+  const targetRoot = randomElement(targetRoots);
+  const targetMidi = getMidiFromNote(targetRoot, 4);
+
+  // Generate a short melody (3-5 notes from the major scale)
+  const scaleIntervals = [0, 2, 4, 5, 7, 9, 11];
+  const melodyLength = 3 + Math.floor(difficultyModifier * 2);
+  const melodyIntervals = Array.from({ length: melodyLength }, () => randomElement(scaleIntervals));
+
+  const originalNotes = melodyIntervals.map(i => originalMidi + i);
+  const transposedNotes = melodyIntervals.map(i => targetMidi + i);
+
+  // Ask what key the transposed melody is in
+  const options = shuffleArray([targetRoot, ...targetRoots.filter(n => n !== targetRoot)]).slice(0, 4);
+
+  return {
+    id,
+    type: 'transposition',
+    prompt: `This melody is transposed. What key is the new version in?`,
+    correctAnswer: targetRoot,
+    options,
+    audioData: {
+      notes: originalNotes,
+      rootNote: originalMidi,
+      type: targetRoot,
+      playbackMode: 'scale',
+      duration: 0.35,
+      originalKey: originalMidi,
+      targetKey: targetMidi,
+      comparisonNotes: transposedNotes,
+    },
+    difficulty: level.id,
+    xpValue: 20 + level.id * 3 + Math.floor(difficultyModifier * 8),
+  };
+}
+
+// Famous progression patterns for "real music" mode
+const REAL_MUSIC_EXCERPTS = [
+  { name: 'Let It Be', progression: ['I', 'V', 'vi', 'IV'], key: 'C', genre: 'pop' },
+  { name: 'Autumn Leaves', progression: ['ii', 'V', 'I', 'IV'], key: 'G', genre: 'jazz' },
+  { name: 'Blue Bossa', progression: ['i', 'iv', 'ii', 'V'], key: 'Cm', genre: 'jazz' },
+  { name: 'Hallelujah', progression: ['I', 'vi', 'I', 'vi'], key: 'C', genre: 'pop' },
+  { name: 'Pachelbel Canon', progression: ['I', 'V', 'vi', 'iii'], key: 'D', genre: 'classical' },
+  { name: 'Stand By Me', progression: ['I', 'vi', 'IV', 'V'], key: 'A', genre: 'pop' },
+  { name: '12 Bar Blues', progression: ['I', 'I', 'IV', 'I'], key: 'A', genre: 'blues' },
+  { name: 'Hit The Road Jack', progression: ['vi', 'V', 'IV', 'V'], key: 'Am', genre: 'blues' },
+  { name: 'All of Me (Jazz)', progression: ['I', 'I', 'iii', 'iii'], key: 'C', genre: 'jazz' },
+  { name: 'Fly Me To The Moon', progression: ['vi', 'ii', 'V', 'I'], key: 'C', genre: 'jazz' },
+];
+
+export function generateRealMusicQuestion(
+  id: string,
+  level: LevelConfig,
+  difficultyModifier: number = 0.5
+): GameQuestion {
+  const excerpt = randomElement(REAL_MUSIC_EXCERPTS);
+  const rootNote = randomElement(NOTE_NAMES);
+  const rootMidi = getMidiFromNote(rootNote, 4);
+
+  // Build chord progression from numerals
+  const chords = excerpt.progression.map(numeral => {
+    const isMinor = numeral.startsWith('i') && numeral !== 'I' && numeral !== 'IV';
+    const majorScale = [0, 2, 4, 5, 7, 9, 11];
+    let degree = 0;
+
+    switch (numeral.replace(/[^IViv]/g, '').toUpperCase()) {
+      case 'I': degree = 0; break;
+      case 'II': degree = 1; break;
+      case 'III': degree = 2; break;
+      case 'IV': degree = 3; break;
+      case 'V': degree = 4; break;
+      case 'VI': degree = 5; break;
+    }
+
+    const chordRoot = rootMidi + majorScale[degree];
+    return isMinor || numeral === 'ii' || numeral === 'iii' || numeral === 'vi'
+      ? getChordNotes(chordRoot, 'minor')
+      : getChordNotes(chordRoot, 'major');
+  });
+
+  const notes = chords.flat();
+  const progressionStr = excerpt.progression.join('-');
+
+  // Generate options: the correct progression plus others
+  const otherExcerpts = REAL_MUSIC_EXCERPTS.filter(e => e.name !== excerpt.name);
+  const wrongOptions = shuffleArray(otherExcerpts).slice(0, 3).map(e => e.name);
+  const allOptions = shuffleArray([excerpt.name, ...wrongOptions]);
+
+  return {
+    id,
+    type: 'realmusic',
+    prompt: `Which famous song uses this progression? (${progressionStr})`,
+    correctAnswer: excerpt.name,
+    options: allOptions.slice(0, 4),
+    audioData: {
+      notes,
+      rootNote: rootMidi,
+      type: excerpt.name,
+      playbackMode: 'chord',
+      duration: 1.2,
+    },
+    difficulty: level.id,
+    xpValue: 15 + Math.floor(difficultyModifier * 10),
+  };
+}
+
+// Generate solfege/sight-singing questions
+export function generateSolfegeQuestion(
+  id: string,
+  level: LevelConfig,
+  difficultyModifier: number = 0.5
+): GameQuestion {
+  const rootNote = randomElement(NOTE_NAMES);
+  const rootMidi = getMidiFromNote(rootNote, 4);
+
+  // Solfege syllables mapped to scale degrees
+  const solfegeMap = [
+    { syllable: 'Do', interval: 0 },
+    { syllable: 'Re', interval: 2 },
+    { syllable: 'Mi', interval: 4 },
+    { syllable: 'Fa', interval: 5 },
+    { syllable: 'Sol', interval: 7 },
+    { syllable: 'La', interval: 9 },
+    { syllable: 'Ti', interval: 11 },
+  ];
+
+  // Available syllables based on difficulty
+  const availableSolfege = difficultyModifier < 0.3
+    ? solfegeMap.slice(0, 3) // Do Re Mi
+    : difficultyModifier < 0.6
+    ? solfegeMap.slice(0, 5) // Do Re Mi Fa Sol
+    : solfegeMap; // All
+
+  // Play root note as reference, then a target note
+  const target = randomElement(availableSolfege);
+  const targetMidi = rootMidi + target.interval;
+
+  const otherSolfege = availableSolfege.filter(s => s.syllable !== target.syllable);
+  const wrongOptions = shuffleArray(otherSolfege).slice(0, 3).map(s => s.syllable);
+  const allOptions = shuffleArray([target.syllable, ...wrongOptions]);
+
+  return {
+    id,
+    type: 'solfege',
+    prompt: `What solfege syllable is this note? (Reference: Do)`,
+    correctAnswer: target.syllable,
+    options: allOptions.slice(0, 4),
+    audioData: {
+      notes: [rootMidi, targetMidi],
+      rootNote: rootMidi,
+      type: target.syllable,
+      playbackMode: 'interval',
+      duration: 1,
+      contextNotes: [rootMidi], // Play reference Do first
+    },
+    difficulty: level.id,
+    xpValue: 12 + level.id * 2 + Math.floor(difficultyModifier * 6),
+  };
 }
 
 // Format time as mm:ss

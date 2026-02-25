@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   Navigation,
   HomeScreen,
@@ -11,6 +11,16 @@ import {
   GuitarTools,
   LearnScreen,
   SettingsScreen,
+  TutorialScreen,
+  GuidedLessons,
+  ComparisonMode,
+  WeeklyGoals,
+  MasteryIndicators,
+  SocialChallenges,
+  MistakeReviewScreen,
+  Confetti,
+  IntervalSingingMode,
+  ChordProgressionDictation,
 } from './components';
 import type { Screen } from './components';
 import { LevelConfig, LEVELS } from './types/levels';
@@ -24,6 +34,9 @@ import {
   checkAndUpdateDailyStreak,
   PRACTICE_PRESETS,
   PracticePresetId,
+  SocialChallenge,
+  getSettings,
+  getUserStats,
 } from './utils/storage';
 
 type AppState =
@@ -31,18 +44,36 @@ type AppState =
   | { screen: 'levelSelect' }
   | { screen: 'musicKeysSelect' }
   | { screen: 'notesSelect' }
-  | { screen: 'game'; level: LevelConfig }
+  | { screen: 'game'; level: LevelConfig; isPracticeMode?: boolean }
   | { screen: 'musicKeysGame'; musicKeysLevel: MusicKeysLevelConfig }
   | { screen: 'notesGame'; notesLevel: NotesLevelConfig }
   | { screen: 'result'; result: GameResult }
   | { screen: 'learn' }
   | { screen: 'stats' }
   | { screen: 'tools' }
-  | { screen: 'settings' };
+  | { screen: 'settings' }
+  | { screen: 'tutorial' }
+  | { screen: 'guidedLessons' }
+  | { screen: 'comparison' }
+  | { screen: 'weeklyGoals' }
+  | { screen: 'mastery' }
+  | { screen: 'socialChallenges' }
+  | { screen: 'mistakeReview'; result: GameResult }
+  | { screen: 'intervalSinging' }
+  | { screen: 'progressionDictation' };
 
 function App() {
-  const [appState, setAppState] = useState<AppState>({ screen: 'home' });
+  // Check if this is a first-time user (auto-trigger tutorial)
+  const isFirstUser = () => {
+    const stats = getUserStats();
+    return stats.totalQuestionsAnswered === 0 && !localStorage.getItem('keyperfect_tutorial_completed');
+  };
+
+  const [appState, setAppState] = useState<AppState>(
+    isFirstUser() ? { screen: 'tutorial' } : { screen: 'home' }
+  );
   const [currentNavScreen, setCurrentNavScreen] = useState<Screen>('home');
+  const prevScreenRef = useRef<string>('home');
   const {
     gameState,
     startGame,
@@ -53,6 +84,19 @@ function App() {
     setIsPlaying,
     timeExpired,
   } = useGameState();
+
+  // Apply theme to document
+  useEffect(() => {
+    const theme = getSettings().theme;
+    const root = document.documentElement;
+    root.classList.remove('theme-dark', 'theme-purple', 'theme-blue', 'theme-light');
+    root.classList.add(`theme-${theme}`);
+  }, [appState]); // Re-check on any screen change in case settings changed
+
+  // Track screen transitions for animation
+  useEffect(() => {
+    prevScreenRef.current = appState.screen;
+  }, [appState.screen]);
 
   // Handle time expiration for timed game modes
   useEffect(() => {
@@ -135,8 +179,9 @@ function App() {
 
   // Start specific game mode
   const handleStartGameMode = useCallback((mode: GameModeType) => {
+    const isPracticeMode = mode === 'practice';
     startGame(mode, 1);
-    setAppState({ screen: 'game', level: LEVELS[0] });
+    setAppState({ screen: 'game', level: LEVELS[0], isPracticeMode });
   }, [startGame]);
 
   // Start with a practice preset
@@ -210,6 +255,47 @@ function App() {
     }
   }, [startGame]);
 
+  // New feature navigation handlers
+  const handleOpenGuidedLessons = useCallback(() => {
+    setAppState({ screen: 'guidedLessons' });
+  }, []);
+
+  const handleOpenComparison = useCallback(() => {
+    setAppState({ screen: 'comparison' });
+  }, []);
+
+  const handleOpenWeeklyGoals = useCallback(() => {
+    setAppState({ screen: 'weeklyGoals' });
+  }, []);
+
+  const handleOpenMastery = useCallback(() => {
+    setAppState({ screen: 'mastery' });
+  }, []);
+
+  const handleOpenSocialChallenges = useCallback(() => {
+    setAppState({ screen: 'socialChallenges' });
+  }, []);
+
+  const handleOpenIntervalSinging = useCallback(() => {
+    setAppState({ screen: 'intervalSinging' });
+  }, []);
+
+  const handleOpenProgressionDictation = useCallback(() => {
+    setAppState({ screen: 'progressionDictation' });
+  }, []);
+
+  // Start a social challenge
+  const handleStartSocialChallenge = useCallback((challenge: SocialChallenge) => {
+    startGame(challenge.mode as GameModeType, 1);
+    setAppState({ screen: 'game', level: LEVELS[0] });
+  }, [startGame]);
+
+  // Handle guided lessons starting practice
+  const handleStartPracticeFromLesson = useCallback((mode: string) => {
+    startGame(mode as GameModeType, 1);
+    setAppState({ screen: 'game', level: LEVELS[0] });
+  }, [startGame]);
+
   // Render current screen
   const renderScreen = () => {
     switch (appState.screen) {
@@ -222,6 +308,13 @@ function App() {
             onStartPreset={handleStartPreset}
             onStartMusicKeys={handleStartMusicKeys}
             onStartNotes={handleStartNotes}
+            onOpenGuidedLessons={handleOpenGuidedLessons}
+            onOpenComparison={handleOpenComparison}
+            onOpenWeeklyGoals={handleOpenWeeklyGoals}
+            onOpenMastery={handleOpenMastery}
+            onOpenSocialChallenges={handleOpenSocialChallenges}
+            onOpenIntervalSinging={handleOpenIntervalSinging}
+            onOpenProgressionDictation={handleOpenProgressionDictation}
           />
         );
 
@@ -255,7 +348,7 @@ function App() {
         }
         return (
           <GameScreen
-            level={LEVELS[0]} // Use default level for display purposes
+            level={LEVELS[0]}
             question={gameState.questions[gameState.currentQuestion]}
             questionNumber={gameState.currentQuestion + 1}
             totalQuestions={gameState.totalQuestions}
@@ -275,7 +368,7 @@ function App() {
         }
         return (
           <GameScreen
-            level={LEVELS[0]} // Use default level for display purposes
+            level={LEVELS[0]}
             question={gameState.questions[gameState.currentQuestion]}
             questionNumber={gameState.currentQuestion + 1}
             totalQuestions={gameState.totalQuestions}
@@ -303,6 +396,7 @@ function App() {
             streak={gameState.streak}
             lives={gameState.lives > 0 ? gameState.lives : undefined}
             timeRemaining={gameState.timeRemaining > 0 ? gameState.timeRemaining : undefined}
+            isPracticeMode={appState.isPracticeMode}
             onAnswer={handleAnswer}
             onNext={handleNext}
             onExit={handleExitGame}
@@ -316,6 +410,7 @@ function App() {
             onPlayAgain={handlePlayAgain}
             onHome={handleGoHome}
             onNextLevel={handleNextLevel}
+            onReviewMistakes={() => setAppState({ screen: 'mistakeReview', result: appState.result })}
           />
         );
 
@@ -331,17 +426,73 @@ function App() {
       case 'settings':
         return <SettingsScreen />;
 
+      case 'guidedLessons':
+        return (
+          <GuidedLessons
+            onBack={handleGoHome}
+            onStartPractice={handleStartPracticeFromLesson}
+          />
+        );
+
+      case 'comparison':
+        return <ComparisonMode onBack={handleGoHome} />;
+
+      case 'weeklyGoals':
+        return <WeeklyGoals onBack={handleGoHome} />;
+
+      case 'mastery':
+        return <MasteryIndicators onBack={handleGoHome} />;
+
+      case 'socialChallenges':
+        return (
+          <SocialChallenges
+            onBack={handleGoHome}
+            onStartChallenge={handleStartSocialChallenge}
+          />
+        );
+
+      case 'tutorial':
+        return (
+          <TutorialScreen
+            onComplete={() => {
+              localStorage.setItem('keyperfect_tutorial_completed', 'true');
+              setAppState({ screen: 'home' });
+            }}
+            onSkip={() => {
+              localStorage.setItem('keyperfect_tutorial_completed', 'true');
+              setAppState({ screen: 'home' });
+            }}
+          />
+        );
+
+      case 'mistakeReview':
+        return (
+          <MistakeReviewScreen
+            result={appState.result}
+            onBack={() => setAppState({ screen: 'result', result: appState.result })}
+          />
+        );
+
+      case 'intervalSinging':
+        return <IntervalSingingMode onBack={handleGoHome} />;
+
+      case 'progressionDictation':
+        return <ChordProgressionDictation onBack={handleGoHome} />;
+
       default:
-        return <HomeScreen onStartLevel={handleStartLevel} onStartChallenge={handleStartChallenge} onStartGameMode={handleStartGameMode} onStartPreset={handleStartPreset} onStartMusicKeys={handleStartMusicKeys} onStartNotes={handleStartNotes} />;
+        return <HomeScreen onStartLevel={handleStartLevel} onStartChallenge={handleStartChallenge} onStartGameMode={handleStartGameMode} onStartPreset={handleStartPreset} onStartMusicKeys={handleStartMusicKeys} onStartNotes={handleStartNotes} onOpenGuidedLessons={handleOpenGuidedLessons} onOpenComparison={handleOpenComparison} onOpenWeeklyGoals={handleOpenWeeklyGoals} onOpenMastery={handleOpenMastery} onOpenSocialChallenges={handleOpenSocialChallenges} onOpenIntervalSinging={handleOpenIntervalSinging} onOpenProgressionDictation={handleOpenProgressionDictation} />;
     }
   };
 
-  // Don't show navigation during game
-  const showNavigation = appState.screen !== 'game' && appState.screen !== 'musicKeysGame' && appState.screen !== 'notesGame' && appState.screen !== 'result';
+  // Don't show navigation during game, tutorial, or feature screens
+  const hideNavScreens = ['game', 'musicKeysGame', 'notesGame', 'result', 'guidedLessons', 'comparison', 'weeklyGoals', 'mastery', 'socialChallenges', 'tutorial', 'mistakeReview', 'intervalSinging', 'progressionDictation'];
+  const showNavigation = !hideNavScreens.includes(appState.screen);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] text-white">
-      {renderScreen()}
+      <div key={appState.screen} className="screen-enter">
+        {renderScreen()}
+      </div>
       {showNavigation && (
         <Navigation
           currentScreen={currentNavScreen}

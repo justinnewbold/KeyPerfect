@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Play, Volume2, Check, X, ChevronRight, Keyboard } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { Play, Volume2, Check, X, ChevronRight, Keyboard, Headphones, Usb } from 'lucide-react';
 import { GameQuestion, AnswerRecord } from '../types/gameModes';
 import { LevelConfig } from '../types/levels';
-import { CHORD_TYPES, SCALE_TYPES, INTERVALS, INVERSIONS } from '../types/music';
+import { CHORD_TYPES, SCALE_TYPES, INTERVALS, INVERSIONS, NOTE_NAMES } from '../types/music';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { Progress } from './ui/Progress';
@@ -10,6 +10,8 @@ import { Badge, StreakBadge, XPBadge } from './ui/Badge';
 import { useAudio } from '../hooks/useAudio';
 import { useGameKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { triggerHapticFeedback } from '../utils/haptics';
+import { getChordNotes, getScaleNotes } from '../utils/gameHelpers';
+import { useMIDIInput } from '../utils/midiInput';
 
 interface GameScreenProps {
   level: LevelConfig;
@@ -20,6 +22,7 @@ interface GameScreenProps {
   streak: number;
   lives?: number;
   timeRemaining?: number;
+  isPracticeMode?: boolean;
   onAnswer: (answer: string) => AnswerRecord;
   onNext: () => void;
   onExit: () => void;
@@ -34,6 +37,7 @@ export function GameScreen({
   streak,
   lives,
   timeRemaining,
+  isPracticeMode = false,
   onAnswer,
   onNext,
   onExit,
@@ -41,6 +45,7 @@ export function GameScreen({
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [result, setResult] = useState<AnswerRecord | null>(null);
   const [hasPlayed, setHasPlayed] = useState(false);
+  const [showCorrectFeedback, setShowCorrectFeedback] = useState(false);
   const audio = useAudio();
   const hasAutoPlayed = useRef(false);
 
@@ -49,37 +54,15 @@ export function GameScreen({
     setSelectedAnswer(null);
     setResult(null);
     setHasPlayed(false);
+    setShowCorrectFeedback(false);
     hasAutoPlayed.current = false;
   }, [question.id]);
 
-  const playQuestionAudio = useCallback(() => {
-    const { notes, playbackMode, rhythmPattern, duration } = question.audioData;
+  // Play context notes (cadence) before the question if available
+  const playContextThenAudio = useCallback((audioData: typeof question.audioData) => {
+    const { notes, playbackMode, rhythmPattern, duration, contextNotes, comparisonNotes } = audioData;
 
-    if (playbackMode === 'chord') {
-      audio.playChord(notes);
-    } else if (playbackMode === 'scale') {
-      audio.playScale(notes);
-    } else if (playbackMode === 'interval') {
-      audio.playInterval(notes[0], notes[1]);
-    } else if (playbackMode === 'rhythm' && rhythmPattern) {
-      audio.playRhythmPattern(rhythmPattern, notes[0]);
-    } else if (playbackMode === 'note') {
-      audio.playNote(notes[0], duration);
-    }
-
-    setHasPlayed(true);
-  }, [question.audioData, audio]);
-
-  // Auto-play once on first load of each question
-  useEffect(() => {
-    if (hasAutoPlayed.current) return;
-
-    const { notes, playbackMode, rhythmPattern, duration } = question.audioData;
-
-    const timer = setTimeout(() => {
-      if (hasAutoPlayed.current) return;
-      hasAutoPlayed.current = true;
-
+    const playMain = () => {
       if (playbackMode === 'chord') {
         audio.playChord(notes);
       } else if (playbackMode === 'scale') {
@@ -92,6 +75,68 @@ export function GameScreen({
         audio.playNote(notes[0], duration);
       }
 
+      // For comparison mode: play second sound after a pause
+      if (comparisonNotes && comparisonNotes.length > 0) {
+        setTimeout(() => {
+          if (playbackMode === 'chord') {
+            audio.playChord(comparisonNotes);
+          } else if (playbackMode === 'scale') {
+            audio.playScale(comparisonNotes);
+          }
+        }, 2000);
+      }
+    };
+
+    // Play context (cadence) first, then the main question
+    if (contextNotes && contextNotes.length > 0) {
+      audio.playChord(contextNotes.slice(0, 3));
+      setTimeout(() => {
+        audio.playChord(contextNotes.slice(3, 6));
+        setTimeout(playMain, 1200);
+      }, 1200);
+    } else {
+      playMain();
+    }
+  }, [audio]);
+
+  const playQuestionAudio = useCallback(() => {
+    playContextThenAudio(question.audioData);
+    setHasPlayed(true);
+  }, [question.audioData, playContextThenAudio]);
+
+  // Play the correct answer audio for wrong answer feedback
+  const playCorrectAnswerAudio = useCallback(() => {
+    const { playbackMode, rootNote } = question.audioData;
+    const correctAnswer = question.correctAnswer;
+
+    // Try to generate the correct answer's audio
+    try {
+      if (question.type === 'chords' || question.type === 'comparison') {
+        const correctNotes = getChordNotes(rootNote || 60, correctAnswer as any);
+        audio.playChord(correctNotes);
+      } else if (question.type === 'scales') {
+        const correctNotes = getScaleNotes(rootNote || 60, correctAnswer as any);
+        audio.playScale(correctNotes);
+      } else if (question.type === 'intervals') {
+        audio.playInterval(rootNote || 60, (rootNote || 60) + parseInt(correctAnswer));
+      } else {
+        // For other types, just replay the question audio
+        playQuestionAudio();
+      }
+    } catch {
+      // Fallback: replay the question
+      playQuestionAudio();
+    }
+  }, [question, audio, playQuestionAudio]);
+
+  // Auto-play once on first load of each question
+  useEffect(() => {
+    if (hasAutoPlayed.current) return;
+
+    const timer = setTimeout(() => {
+      if (hasAutoPlayed.current) return;
+      hasAutoPlayed.current = true;
+      playContextThenAudio(question.audioData);
       setHasPlayed(true);
     }, 500);
 
@@ -111,8 +156,17 @@ export function GameScreen({
     } else {
       audio.playError();
       triggerHapticFeedback('error');
+      // Wrong answer feedback: play the correct answer after a short delay
+      setShowCorrectFeedback(true);
+      setTimeout(() => {
+        playCorrectAnswerAudio();
+        // Then replay the question so they can hear the difference
+        setTimeout(() => {
+          playContextThenAudio(question.audioData);
+        }, 2000);
+      }, 1000);
     }
-  }, [result, onAnswer, audio]);
+  }, [result, onAnswer, audio, playCorrectAnswerAudio, playContextThenAudio, question.audioData]);
 
   // Handle option selection by index (for keyboard shortcuts)
   const handleSelectOption = useCallback((index: number) => {
@@ -130,6 +184,35 @@ export function GameScreen({
     hasResult: !!result,
     enabled: true,
   });
+
+  // MIDI input: map note-on events to answer selection
+  const handleMIDINoteOn = useCallback((note: number) => {
+    if (result) return;
+
+    // For notes/musickeys questions, match the note name to answer options
+    if (question.type === 'notes' || question.type === 'musickeys') {
+      const noteName = NOTE_NAMES[note % 12];
+      const optionIndex = question.options.findIndex(opt =>
+        opt === noteName || opt.startsWith(noteName)
+      );
+      if (optionIndex >= 0) {
+        handleAnswer(question.options[optionIndex]);
+        return;
+      }
+    }
+
+    // Generic: map MIDI notes C4-F4 (60-65) to options 0-5
+    const optionIndex = note - 60;
+    if (optionIndex >= 0 && optionIndex < question.options.length) {
+      handleAnswer(question.options[optionIndex]);
+    }
+  }, [result, question, handleAnswer]);
+
+  const midiCallbacks = useMemo(() => ({
+    onNoteOn: handleMIDINoteOn,
+  }), [handleMIDINoteOn]);
+
+  const midiState = useMIDIInput(midiCallbacks);
 
   const getDisplayName = (value: string): string => {
     if (question.type === 'chords') {
@@ -199,9 +282,15 @@ export function GameScreen({
       <div className="flex-1 px-4 flex flex-col">
         {/* Level Info */}
         <div className="text-center mb-6">
-          <Badge variant="purple" size="sm">
-            Level {level.id}: {level.name}
-          </Badge>
+          {isPracticeMode ? (
+            <Badge variant="default" size="sm">
+              Practice Mode (No XP)
+            </Badge>
+          ) : (
+            <Badge variant="purple" size="sm">
+              Level {level.id}: {level.name}
+            </Badge>
+          )}
         </div>
 
         {/* Question */}
@@ -276,11 +365,17 @@ export function GameScreen({
           })}
         </div>
 
-        {/* Keyboard shortcuts hint */}
+        {/* Input hints */}
         <div className="hidden sm:flex items-center justify-center gap-2 text-xs text-white/40 mb-4">
           <Keyboard className="w-3 h-3" />
           <span>Press 1-4 to answer, R to replay, Space/Enter for next</span>
         </div>
+        {midiState.isConnected && (
+          <div className="flex items-center justify-center gap-2 text-xs text-green-400/70 mb-4">
+            <Usb className="w-3 h-3" />
+            <span>MIDI: {midiState.deviceName} (play C4-F4 to select)</span>
+          </div>
+        )}
 
         {/* Result Feedback */}
         {result && (
@@ -305,12 +400,20 @@ export function GameScreen({
                   )}
                 </div>
                 {!result.isCorrect && (
-                  <p className="text-sm text-white/60">
-                    The answer was: <span className="text-white">{getDisplayName(question.correctAnswer)}</span>
-                  </p>
+                  <div>
+                    <p className="text-sm text-white/60">
+                      The answer was: <span className="text-white">{getDisplayName(question.correctAnswer)}</span>
+                    </p>
+                    {showCorrectFeedback && (
+                      <div className="flex items-center gap-2 mt-2 text-xs text-amber-300/80">
+                        <Headphones className="w-3 h-3" />
+                        <span>Playing correct answer, then your question again...</span>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
-              {result.isCorrect && (
+              {result.isCorrect && !isPracticeMode && (
                 <div className="text-right">
                   <span className="text-lg font-bold text-green-300">+{result.xpEarned}</span>
                   <span className="text-sm text-green-300/60 ml-1">XP</span>

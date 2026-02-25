@@ -28,6 +28,7 @@ import {
   addSessionToHistory,
 } from '../utils/storage';
 import { calculateQuestionXP, getLevelFromXP } from '../types/stats';
+import { updateReviewItem } from '../utils/spacedRepetition';
 
 interface UseGameStateReturn {
   gameState: GameState | null;
@@ -147,6 +148,7 @@ export function useGameState(): UseGameStateReturn {
       gameStartTime: now,
       startTime: now,
       isComplete: false,
+      isPracticeMode: mode === 'practice',
     });
   }, []);
 
@@ -196,6 +198,7 @@ export function useGameState(): UseGameStateReturn {
       gameStartTime: now,
       startTime: now,
       isComplete: false,
+      isPracticeMode: false,
     });
   }, []);
 
@@ -222,15 +225,19 @@ export function useGameState(): UseGameStateReturn {
       isCorrect,
       timeToAnswer,
       xpEarned,
+      questionType: question.type,
     };
 
     // Update stats based on question type
     if (question.type === 'chords') {
       updateChordStats(question.correctAnswer, isCorrect);
+      updateReviewItem('chord', question.correctAnswer, isCorrect, timeToAnswer, gameState.streak);
     } else if (question.type === 'scales') {
       updateScaleStats(question.correctAnswer, isCorrect);
+      updateReviewItem('scale', question.correctAnswer, isCorrect, timeToAnswer, gameState.streak);
     } else if (question.type === 'intervals') {
       updateIntervalStats(question.correctAnswer, isCorrect);
+      updateReviewItem('interval', question.correctAnswer, isCorrect, timeToAnswer, gameState.streak);
     } else if (question.type === 'musickeys') {
       updateKeyStats(question.correctAnswer, isCorrect);
     } else if (question.type === 'notes') {
@@ -286,9 +293,33 @@ export function useGameState(): UseGameStateReturn {
         return { ...prev, isComplete: true };
       }
 
+      // Progressive difficulty: adjust upcoming question difficulty based on performance
+      const correctSoFar = prev.answers.filter(a => a.isCorrect).length;
+      const totalSoFar = prev.answers.length;
+      const accuracy = totalSoFar > 0 ? correctSoFar / totalSoFar : 0.5;
+
+      // Scale difficulty: high accuracy → harder questions, low accuracy → easier
+      let difficultyAdjust = 0;
+      if (accuracy >= 0.9 && totalSoFar >= 3) difficultyAdjust = 0.2;
+      else if (accuracy >= 0.75) difficultyAdjust = 0.1;
+      else if (accuracy < 0.5 && totalSoFar >= 3) difficultyAdjust = -0.15;
+      else if (accuracy < 0.3) difficultyAdjust = -0.25;
+
+      // Apply difficulty adjustment to the next question
+      const updatedQuestions = [...prev.questions];
+      const nextQ = updatedQuestions[nextIndex];
+      if (nextQ && difficultyAdjust !== 0) {
+        const baseDifficulty = nextQ.difficulty || 0.5;
+        updatedQuestions[nextIndex] = {
+          ...nextQ,
+          difficulty: Math.max(0.1, Math.min(1.0, baseDifficulty + difficultyAdjust)),
+        };
+      }
+
       return {
         ...prev,
         currentQuestion: nextIndex,
+        questions: updatedQuestions,
         startTime: Date.now(), // Reset for response time tracking
       };
     });
@@ -371,6 +402,22 @@ export function useGameState(): UseGameStateReturn {
     // Check for new achievements
     const newAchievements = checkAndUnlockAchievements(updatedStats);
 
+    // Build category breakdown for session summary
+    const categoryMap = new Map<string, { correct: number; total: number }>();
+    for (const answer of gameState.answers) {
+      const cat = answer.questionType || gameState.mode;
+      const entry = categoryMap.get(cat) || { correct: 0, total: 0 };
+      entry.total++;
+      if (answer.isCorrect) entry.correct++;
+      categoryMap.set(cat, entry);
+    }
+    const categoryBreakdown = Array.from(categoryMap.entries()).map(([category, data]) => ({
+      category,
+      correct: data.correct,
+      total: data.total,
+      accuracy: data.total > 0 ? (data.correct / data.total) * 100 : 0,
+    }));
+
     const result: GameResult = {
       mode: gameState.mode,
       level: gameState.level,
@@ -384,6 +431,7 @@ export function useGameState(): UseGameStateReturn {
       averageResponseTime: totalTime / Math.max(1, gameState.answers.length),
       newAchievements: newAchievements.map(a => a.id),
       answers: gameState.answers,
+      categoryBreakdown,
     };
 
     setGameState(null);
