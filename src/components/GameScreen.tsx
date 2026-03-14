@@ -112,11 +112,19 @@ export function GameScreen({
     // Try to generate the correct answer's audio
     try {
       if (question.type === 'chords' || question.type === 'comparison') {
-        const correctNotes = getChordNotes(rootNote || 60, correctAnswer as any);
-        audio.playChord(correctNotes);
+        if (correctAnswer in CHORD_TYPES) {
+          const correctNotes = getChordNotes(rootNote || 60, correctAnswer as keyof typeof CHORD_TYPES);
+          audio.playChord(correctNotes);
+        } else {
+          playQuestionAudio();
+        }
       } else if (question.type === 'scales') {
-        const correctNotes = getScaleNotes(rootNote || 60, correctAnswer as any);
-        audio.playScale(correctNotes);
+        if (correctAnswer in SCALE_TYPES) {
+          const correctNotes = getScaleNotes(rootNote || 60, correctAnswer as keyof typeof SCALE_TYPES);
+          audio.playScale(correctNotes);
+        } else {
+          playQuestionAudio();
+        }
       } else if (question.type === 'intervals') {
         audio.playInterval(rootNote || 60, (rootNote || 60) + parseInt(correctAnswer));
       } else {

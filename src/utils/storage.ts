@@ -440,7 +440,7 @@ function getWeekStart(): string {
   const now = new Date();
   const day = now.getDay();
   const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-  const monday = new Date(now.setDate(diff));
+  const monday = new Date(now.getFullYear(), now.getMonth(), diff);
   return monday.toISOString().split('T')[0];
 }
 
@@ -452,6 +452,7 @@ export interface WeeklyGoal {
   current: number;
   weekStart: string; // ISO date string of Monday
   completed: boolean;
+  accuracySessions?: number; // number of sessions averaged for 'accuracy' type
 }
 
 export interface WeeklyGoalsData {
@@ -497,8 +498,17 @@ export function updateWeeklyGoalProgress(type: WeeklyGoal['type'], amount: numbe
   const data = getWeeklyGoals();
   data.goals = data.goals.map(goal => {
     if (goal.type === type) {
-      const newCurrent = type === 'accuracy' ? amount : goal.current + amount;
-      return { ...goal, current: newCurrent, completed: newCurrent >= goal.target };
+      let newCurrent: number;
+      let updatedFields: Partial<WeeklyGoal> = {};
+      if (type === 'accuracy') {
+        // Average accuracy across all sessions this week
+        const sessions = (goal.accuracySessions ?? 0) + 1;
+        newCurrent = (goal.current * (sessions - 1) + amount) / sessions;
+        updatedFields = { accuracySessions: sessions };
+      } else {
+        newCurrent = goal.current + amount;
+      }
+      return { ...goal, ...updatedFields, current: newCurrent, completed: newCurrent >= goal.target };
     }
     return goal;
   });
@@ -535,6 +545,7 @@ export function useStreakFreeze(): boolean {
   const data = getStreakFreezeData();
   if (data.freezesAvailable <= 0 || data.freezesUsedThisWeek >= 1) return false;
   const today = new Date().toISOString().split('T')[0];
+  if (data.lastFreezeDate === today) return false;
   const updated: StreakFreezeData = {
     ...data,
     freezesAvailable: data.freezesAvailable - 1,

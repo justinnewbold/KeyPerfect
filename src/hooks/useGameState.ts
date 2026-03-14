@@ -327,6 +327,9 @@ export function useGameState(): UseGameStateReturn {
     if (!gameState) {
       throw new Error('No active game');
     }
+    if (gameState.isComplete) {
+      throw new Error('Game already ended');
+    }
 
     const correctAnswers = gameState.answers.filter(a => a.isCorrect).length;
     const totalXPEarned = gameState.answers.reduce((sum, a) => sum + a.xpEarned, 0);
