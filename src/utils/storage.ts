@@ -620,7 +620,7 @@ export function updateMasteryItem(type: MasteryItem['type'], value: string, isCo
   item.lastPracticed = today;
 
   // Calculate mastery level (weighted recent accuracy with minimum attempts)
-  const accuracy = item.correct / item.attempts;
+  const accuracy = item.attempts > 0 ? item.correct / item.attempts : 0;
   const confidence = Math.min(1, item.attempts / 20); // Need 20 attempts for full confidence
   item.masteryLevel = Math.round(accuracy * confidence * 100);
 
@@ -897,7 +897,7 @@ export function checkAndUnlockAchievements(stats: UserStats): Achievement[] {
       case 'special':
         const hour = new Date().getHours();
         if (achievement.id === 'night_owl' && hour >= 0 && hour < 5) shouldUnlock = true;
-        if (achievement.id === 'early_bird' && hour >= 5 && hour < 6) shouldUnlock = true;
+        if (achievement.id === 'early_bird' && hour >= 5 && hour < 8) shouldUnlock = true;
         if (achievement.id === 'all_instruments') {
           const usedInstruments = getUsedInstruments();
           if (usedInstruments.length >= achievement.requirement) shouldUnlock = true;

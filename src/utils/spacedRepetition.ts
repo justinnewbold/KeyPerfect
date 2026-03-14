@@ -15,6 +15,15 @@ export interface ReviewItem {
 }
 
 const STORAGE_KEY = 'keyperfect_srs';
+
+function shuffleArray<T>(arr: T[]): T[] {
+  const shuffled = [...arr];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
 const MIN_EASE_FACTOR = 1.3;
 const MAX_EASE_FACTOR = 2.5;
 const DEFAULT_EASE_FACTOR = 2.0;
@@ -324,16 +333,16 @@ export function generateAdaptivePractice(
   }
 
   // Shuffle remaining items
-  const remaining = allItems
-    .filter(item => !items.some(i => i.type === item.type && i.value === item.value))
-    .sort(() => Math.random() - 0.5);
+  const remaining = shuffleArray(
+    allItems.filter(item => !items.some(i => i.type === item.type && i.value === item.value))
+  );
 
   while (items.length < count && remaining.length > 0) {
     items.push(remaining.shift()!);
   }
 
   // Shuffle final list
-  return items.sort(() => Math.random() - 0.5);
+  return shuffleArray(items);
 }
 
 // Get recommendation for what to practice next
