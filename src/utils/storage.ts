@@ -667,7 +667,8 @@ export function checkAndUpdateDailyStreak(): DailyStats {
   let newStreak = stats.currentStreak;
   if (stats.lastPlayedDate === yesterday) {
     newStreak += 1; // Continue streak
-  } else if (stats.lastPlayedDate !== today) {
+  } else {
+    // lastPlayedDate is neither today nor yesterday — streak is broken
     // Check if auto-freeze is enabled and a freeze is available
     const freezeData = getStreakFreezeData();
     if (freezeData.autoFreezeEnabled && useStreakFreeze()) {

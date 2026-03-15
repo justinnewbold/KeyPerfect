@@ -286,9 +286,13 @@ function generateIntervalQuestion(id: string, level: LevelConfig, difficultyModi
 function generateInversionQuestion(id: string, level: LevelConfig): GameQuestion {
   const rootNote = randomElement(NOTE_NAMES);
   const rootMidi = getMidiFromNote(rootNote, 4);
-  const quality = randomElement(level.chords.filter(c =>
+  const validChords = level.chords.filter(c =>
     !c.includes('sus') && !c.includes('add')
-  ));
+  );
+  if (validChords.length === 0) {
+    return generateChordQuestion(id, level);
+  }
+  const quality = randomElement(validChords);
   const inversion = randomElement(level.inversions);
   const notes = getChordNotes(rootMidi, quality, inversion);
 
