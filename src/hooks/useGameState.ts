@@ -11,7 +11,7 @@ import { PracticePreset } from '../utils/storage';
 import { LevelConfig, LEVELS } from '../types/levels';
 import { MUSIC_KEYS_LEVELS } from '../types/musicKeysLevels';
 import { NOTES_LEVELS } from '../types/notesLevels';
-import { generateGameQuestions, generateMusicKeyQuestions, generateNoteQuestions } from '../utils/gameHelpers';
+import { generateGameQuestions, generateMusicKeyQuestions, generateNoteQuestions, shuffleArray } from '../utils/gameHelpers';
 import {
   getUserStats,
   updateUserStats,
@@ -168,9 +168,7 @@ export function useGameState(): UseGameStateReturn {
     });
 
     // Shuffle and trim to exact question count
-    allQuestions = allQuestions
-      .sort(() => Math.random() - 0.5)
-      .slice(0, totalQuestions);
+    allQuestions = shuffleArray(allQuestions).slice(0, totalQuestions);
 
     // Adjust difficulty based on preset
     if (preset.difficulty !== 'progressive') {
@@ -329,10 +327,13 @@ export function useGameState(): UseGameStateReturn {
     if (!gameState) {
       throw new Error('No active game');
     }
+    if (gameState.isComplete) {
+      throw new Error('Game already ended');
+    }
 
     const correctAnswers = gameState.answers.filter(a => a.isCorrect).length;
     const totalXPEarned = gameState.answers.reduce((sum, a) => sum + a.xpEarned, 0);
-    const totalTime = (Date.now() - gameState.startTime) / 1000;
+    const totalTime = (Date.now() - gameState.gameStartTime) / 1000;
     const accuracy = gameState.answers.length > 0
       ? (correctAnswers / gameState.answers.length) * 100
       : 0;
@@ -356,7 +357,7 @@ export function useGameState(): UseGameStateReturn {
       totalQuestionsAnswered: userStats.totalQuestionsAnswered + gameState.answers.length,
       totalCorrect: userStats.totalCorrect + correctAnswers,
       totalIncorrect: userStats.totalIncorrect + (gameState.answers.length - correctAnswers),
-      currentStreak: longestStreak,
+      currentStreak: currentStreak,
       longestStreak: Math.max(userStats.longestStreak, longestStreak),
       currentLevel: getLevelFromXP(userStats.totalXP + totalXPEarned),
       lastPlayedDate: new Date().toISOString().split('T')[0],

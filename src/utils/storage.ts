@@ -440,7 +440,7 @@ function getWeekStart(): string {
   const now = new Date();
   const day = now.getDay();
   const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-  const monday = new Date(now.setDate(diff));
+  const monday = new Date(now.getFullYear(), now.getMonth(), diff);
   return monday.toISOString().split('T')[0];
 }
 
@@ -452,6 +452,7 @@ export interface WeeklyGoal {
   current: number;
   weekStart: string; // ISO date string of Monday
   completed: boolean;
+  accuracySessions?: number; // number of sessions averaged for 'accuracy' type
 }
 
 export interface WeeklyGoalsData {
@@ -497,8 +498,17 @@ export function updateWeeklyGoalProgress(type: WeeklyGoal['type'], amount: numbe
   const data = getWeeklyGoals();
   data.goals = data.goals.map(goal => {
     if (goal.type === type) {
-      const newCurrent = type === 'accuracy' ? amount : goal.current + amount;
-      return { ...goal, current: newCurrent, completed: newCurrent >= goal.target };
+      let newCurrent: number;
+      let updatedFields: Partial<WeeklyGoal> = {};
+      if (type === 'accuracy') {
+        // Average accuracy across all sessions this week
+        const sessions = (goal.accuracySessions ?? 0) + 1;
+        newCurrent = (goal.current * (sessions - 1) + amount) / sessions;
+        updatedFields = { accuracySessions: sessions };
+      } else {
+        newCurrent = goal.current + amount;
+      }
+      return { ...goal, ...updatedFields, current: newCurrent, completed: newCurrent >= goal.target };
     }
     return goal;
   });
@@ -535,6 +545,7 @@ export function useStreakFreeze(): boolean {
   const data = getStreakFreezeData();
   if (data.freezesAvailable <= 0 || data.freezesUsedThisWeek >= 1) return false;
   const today = new Date().toISOString().split('T')[0];
+  if (data.lastFreezeDate === today) return false;
   const updated: StreakFreezeData = {
     ...data,
     freezesAvailable: data.freezesAvailable - 1,
@@ -620,7 +631,7 @@ export function updateMasteryItem(type: MasteryItem['type'], value: string, isCo
   item.lastPracticed = today;
 
   // Calculate mastery level (weighted recent accuracy with minimum attempts)
-  const accuracy = item.correct / item.attempts;
+  const accuracy = item.attempts > 0 ? item.correct / item.attempts : 0;
   const confidence = Math.min(1, item.attempts / 20); // Need 20 attempts for full confidence
   item.masteryLevel = Math.round(accuracy * confidence * 100);
 
@@ -656,7 +667,8 @@ export function checkAndUpdateDailyStreak(): DailyStats {
   let newStreak = stats.currentStreak;
   if (stats.lastPlayedDate === yesterday) {
     newStreak += 1; // Continue streak
-  } else if (stats.lastPlayedDate !== today) {
+  } else {
+    // lastPlayedDate is neither today nor yesterday — streak is broken
     // Check if auto-freeze is enabled and a freeze is available
     const freezeData = getStreakFreezeData();
     if (freezeData.autoFreezeEnabled && useStreakFreeze()) {
@@ -878,12 +890,19 @@ export function checkAndUnlockAchievements(stats: UserStats): Achievement[] {
         if (achievement.id === 'questions_5000' && stats.totalQuestionsAnswered >= 5000) shouldUnlock = true;
         break;
 
-      case 'streak':
+      case 'streak': {
+        // In-session answer streaks
         if (achievement.id === 'streak_5' && stats.longestStreak >= 5) shouldUnlock = true;
         if (achievement.id === 'streak_10' && stats.longestStreak >= 10) shouldUnlock = true;
         if (achievement.id === 'streak_25' && stats.longestStreak >= 25) shouldUnlock = true;
         if (achievement.id === 'streak_50' && stats.longestStreak >= 50) shouldUnlock = true;
+        // Daily login streaks
+        const dailyStats = getDailyStats();
+        if (achievement.id === 'daily_3' && dailyStats.currentStreak >= 3) shouldUnlock = true;
+        if (achievement.id === 'daily_7' && dailyStats.currentStreak >= 7) shouldUnlock = true;
+        if (achievement.id === 'daily_30' && dailyStats.currentStreak >= 30) shouldUnlock = true;
         break;
+      }
 
       case 'accuracy':
         const accuracy = stats.totalQuestionsAnswered > 0
@@ -894,10 +913,27 @@ export function checkAndUnlockAchievements(stats: UserStats): Achievement[] {
         if (achievement.id === 'accuracy_95' && accuracy >= 95 && stats.totalQuestionsAnswered >= 200) shouldUnlock = true;
         break;
 
+      case 'mastery': {
+        const levelProgress = getLevelProgress();
+        if (achievement.id === 'level_complete_1' && levelProgress.some(p => p.levelId === 1 && p.timesCompleted > 0)) shouldUnlock = true;
+        if (achievement.id === 'level_complete_4' && levelProgress.some(p => p.levelId === 4 && p.timesCompleted > 0)) shouldUnlock = true;
+        if (achievement.id === 'level_complete_8' && levelProgress.some(p => p.levelId === 8 && p.timesCompleted > 0)) shouldUnlock = true;
+        break;
+      }
+
+      case 'challenge': {
+        const modeStats = getGameModeStats();
+        const speedrunStats = modeStats.find(s => s.mode === 'speedrun');
+        const survivalStats = modeStats.find(s => s.mode === 'survival');
+        if (achievement.id === 'speed_run_perfect' && speedrunStats && speedrunStats.bestScore >= 100) shouldUnlock = true;
+        if (achievement.id === 'survival_100' && survivalStats && survivalStats.bestScore >= 100) shouldUnlock = true;
+        break;
+      }
+
       case 'special':
         const hour = new Date().getHours();
         if (achievement.id === 'night_owl' && hour >= 0 && hour < 5) shouldUnlock = true;
-        if (achievement.id === 'early_bird' && hour >= 5 && hour < 6) shouldUnlock = true;
+        if (achievement.id === 'early_bird' && hour >= 5 && hour < 8) shouldUnlock = true;
         if (achievement.id === 'all_instruments') {
           const usedInstruments = getUsedInstruments();
           if (usedInstruments.length >= achievement.requirement) shouldUnlock = true;

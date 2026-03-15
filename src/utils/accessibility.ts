@@ -230,6 +230,15 @@ export function useAccessibility() {
   };
 }
 
+// Inject accessibility CSS into the document once
+export function injectAccessibilityStyles() {
+  if (document.getElementById('keyperfect-a11y-styles')) return;
+  const style = document.createElement('style');
+  style.id = 'keyperfect-a11y-styles';
+  style.textContent = accessibilityStyles;
+  document.head.appendChild(style);
+}
+
 // CSS to inject for accessibility modes
 export const accessibilityStyles = `
   /* High Contrast Mode */
