@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   TrendingUp,
   Target,
@@ -8,6 +8,7 @@ import {
   BarChart3,
   AlertTriangle,
   CheckCircle,
+  Play,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader } from './ui/Card';
 import { Progress, CircularProgress } from './ui/Progress';
@@ -25,10 +26,16 @@ import {
 } from '../utils/storage';
 import { getLevelFromXP, getXPProgress, ACHIEVEMENTS } from '../types/stats';
 import { calculateWeakAreas, getDisplayName, formatTime } from '../utils/gameHelpers';
+import { getWeakItems, ReviewItem } from '../utils/spacedRepetition';
+import { GameModeType } from '../types/gameModes';
 
 type TabType = 'overview' | 'accuracy' | 'achievements' | 'insights';
 
-export function StatsScreen() {
+interface StatsScreenProps {
+  onStartGameMode?: (mode: GameModeType) => void;
+}
+
+export function StatsScreen({ onStartGameMode }: StatsScreenProps = {}) {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
 
   const userStats = getUserStats();
@@ -48,6 +55,9 @@ export function StatsScreen() {
     : 0;
 
   const weakAreas = calculateWeakAreas(chordStats, scaleStats, intervalStats);
+
+  // SRS-derived weak items for drill recommendations
+  const srsWeakItems = useMemo(() => getWeakItems(undefined, 5), []);
 
   const tabs: { id: TabType; label: string; icon: React.ReactNode }[] = [
     { id: 'overview', label: 'Overview', icon: <BarChart3 className="w-4 h-4" /> },
@@ -388,24 +398,44 @@ export function StatsScreen() {
               </Card>
             )}
 
-            {/* Weak Areas */}
-            {weakAreas.length > 0 && (
+            {/* Weak Areas + Drill Recommendations */}
+            {(weakAreas.length > 0 || srsWeakItems.length > 0) && (
               <Card className="p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <AlertTriangle className="w-5 h-5 text-amber-400" />
-                  <h3 className="font-semibold">Areas to Improve</h3>
+                  <h3 className="font-semibold">Focus Areas</h3>
                 </div>
                 <div className="space-y-3">
+                  {srsWeakItems.slice(0, 3).map((item: ReviewItem, i: number) => {
+                    const total = item.correct + item.incorrect;
+                    const acc = total > 0 ? Math.round((item.correct / total) * 100) : 0;
+                    const modeMap: Record<string, GameModeType> = { chord: 'chords', scale: 'scales', interval: 'intervals' };
+                    const drillMode = modeMap[item.type];
+                    return (
+                      <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+                        <div>
+                          <div className="font-medium capitalize">{item.value.replace(/_/g, ' ')}</div>
+                          <div className="text-xs text-white/60">{item.type} · {total} attempts · {acc}% accuracy</div>
+                        </div>
+                        {onStartGameMode && drillMode && (
+                          <button
+                            onClick={() => onStartGameMode(drillMode)}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-purple-500/20 border border-purple-500/30 rounded-lg text-xs text-purple-300 hover:bg-purple-500/30 transition-colors"
+                          >
+                            <Play className="w-3 h-3" />
+                            Drill
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
                   {weakAreas.slice(0, 3).map((area, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                    <div key={`wa-${i}`} className="flex items-center justify-between p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
                       <div>
                         <div className="font-medium">{area.name}</div>
-                        <div className="text-sm text-white/60">{area.type}</div>
+                        <div className="text-xs text-white/60">{area.type} · {area.attempts} attempts</div>
                       </div>
-                      <div className="text-right">
-                        <div className="font-bold text-amber-400">{Math.round(area.accuracy)}%</div>
-                        <div className="text-xs text-white/60">{area.attempts} attempts</div>
-                      </div>
+                      <div className="font-bold text-amber-400">{Math.round(area.accuracy)}%</div>
                     </div>
                   ))}
                 </div>

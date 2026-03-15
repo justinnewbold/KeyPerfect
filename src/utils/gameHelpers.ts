@@ -18,6 +18,7 @@ import { LevelConfig } from '../types/levels';
 import { MusicKeysLevelConfig } from '../types/musicKeysLevels';
 import { NotesLevelConfig } from '../types/notesLevels';
 import { GameQuestion, AudioQuestionData, GameModeType } from '../types/gameModes';
+import { loadSRSData } from './spacedRepetition';
 
 // Genre-specific content configurations
 export const GENRE_CONTENT = {
@@ -177,13 +178,33 @@ export function generateQuestion(
   }
 }
 
+// Weighted random selection that biases toward SRS-weak items
+// Weak items (low accuracy) receive higher probability
+function srsWeightedSelection<T extends string>(items: T[], srsType: 'chord' | 'scale' | 'interval'): T {
+  if (items.length <= 1) return items[0];
+  const srsData = loadSRSData();
+  const weights = items.map(item => {
+    const entry = srsData.get(`${srsType}-${item}`);
+    if (!entry || entry.correct + entry.incorrect < 3) return 1.5; // new / sparse → slight boost for coverage
+    const accuracy = entry.correct / (entry.correct + entry.incorrect);
+    return Math.max(0.3, 2 - accuracy * 1.5); // weak items approach 2, mastered items approach 0.5
+  });
+  const totalWeight = weights.reduce((s, w) => s + w, 0);
+  let r = Math.random() * totalWeight;
+  for (let i = 0; i < items.length; i++) {
+    r -= weights[i];
+    if (r <= 0) return items[i];
+  }
+  return items[items.length - 1];
+}
+
 function generateChordQuestion(id: string, level: LevelConfig, difficultyModifier: number = 0.5): GameQuestion {
   const rootNote = randomElement(NOTE_NAMES);
 
   // Vary octave based on difficulty (harder = wider range)
   const octaveVariation = difficultyModifier > 0.5 ? randomInt(-1, 1) : 0;
   const rootMidi = getMidiFromNote(rootNote, (4 + octaveVariation) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8);
-  const quality = randomElement(level.chords);
+  const quality = srsWeightedSelection(level.chords, 'chord');
   const notes = getChordNotes(rootMidi, quality);
 
   // Get unique options from level chords (no duplicates)
@@ -218,7 +239,7 @@ function generateScaleQuestion(id: string, level: LevelConfig, difficultyModifie
   // Vary octave based on difficulty
   const octaveVariation = difficultyModifier > 0.5 ? randomInt(-1, 1) : 0;
   const rootMidi = getMidiFromNote(rootNote, (4 + octaveVariation) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8);
-  const scaleType = randomElement(level.scales);
+  const scaleType = srsWeightedSelection(level.scales, 'scale');
   const notes = getScaleNotes(rootMidi, scaleType);
 
   // Get unique options from level scales (no duplicates)
@@ -253,7 +274,7 @@ function generateIntervalQuestion(id: string, level: LevelConfig, difficultyModi
   // Vary octave based on difficulty
   const octaveVariation = difficultyModifier > 0.5 ? randomInt(-1, 1) : 0;
   const rootMidi = getMidiFromNote(rootNote, (4 + octaveVariation) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8);
-  const intervalType = randomElement(level.intervals);
+  const intervalType = srsWeightedSelection(level.intervals, 'interval');
   const notes = getIntervalNotes(rootMidi, intervalType);
 
   // Get unique options from level intervals (no duplicates)
@@ -1053,7 +1074,7 @@ export function generateTranspositionQuestion(
   return {
     id,
     type: 'transposition',
-    prompt: `This melody is transposed. What key is the new version in?`,
+    prompt: `A melody plays in its original key, then again transposed. What key is the transposed version in?`,
     correctAnswer: targetRoot,
     options,
     audioData: {
@@ -1179,7 +1200,7 @@ export function generateSolfegeQuestion(
   return {
     id,
     type: 'solfege',
-    prompt: `What solfege syllable is this note? (Reference: Do)`,
+    prompt: `The first note is Do (root). What solfege syllable is the second note?`,
     correctAnswer: target.syllable,
     options: allOptions.slice(0, 4),
     audioData: {

@@ -38,6 +38,11 @@ import {
   getSettings,
   getUserStats,
 } from './utils/storage';
+import {
+  loadAccessibilitySettings,
+  applyAccessibilitySettings,
+  injectAccessibilityStyles,
+} from './utils/accessibility';
 
 type AppState =
   | { screen: 'home' }
@@ -84,6 +89,12 @@ function App() {
     setIsPlaying,
     timeExpired,
   } = useGameState();
+
+  // Inject accessibility styles and apply saved settings once on mount
+  useEffect(() => {
+    injectAccessibilityStyles();
+    applyAccessibilitySettings(loadAccessibilitySettings());
+  }, []);
 
   // Apply theme to document
   useEffect(() => {
@@ -418,7 +429,7 @@ function App() {
         return <LearnScreen />;
 
       case 'stats':
-        return <StatsScreen />;
+        return <StatsScreen onStartGameMode={handleStartGameMode} />;
 
       case 'tools':
         return <GuitarTools />;

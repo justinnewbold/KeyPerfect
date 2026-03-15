@@ -890,12 +890,19 @@ export function checkAndUnlockAchievements(stats: UserStats): Achievement[] {
         if (achievement.id === 'questions_5000' && stats.totalQuestionsAnswered >= 5000) shouldUnlock = true;
         break;
 
-      case 'streak':
+      case 'streak': {
+        // In-session answer streaks
         if (achievement.id === 'streak_5' && stats.longestStreak >= 5) shouldUnlock = true;
         if (achievement.id === 'streak_10' && stats.longestStreak >= 10) shouldUnlock = true;
         if (achievement.id === 'streak_25' && stats.longestStreak >= 25) shouldUnlock = true;
         if (achievement.id === 'streak_50' && stats.longestStreak >= 50) shouldUnlock = true;
+        // Daily login streaks
+        const dailyStats = getDailyStats();
+        if (achievement.id === 'daily_3' && dailyStats.currentStreak >= 3) shouldUnlock = true;
+        if (achievement.id === 'daily_7' && dailyStats.currentStreak >= 7) shouldUnlock = true;
+        if (achievement.id === 'daily_30' && dailyStats.currentStreak >= 30) shouldUnlock = true;
         break;
+      }
 
       case 'accuracy':
         const accuracy = stats.totalQuestionsAnswered > 0
@@ -905,6 +912,23 @@ export function checkAndUnlockAchievements(stats: UserStats): Achievement[] {
         if (achievement.id === 'accuracy_90' && accuracy >= 90 && stats.totalQuestionsAnswered >= 100) shouldUnlock = true;
         if (achievement.id === 'accuracy_95' && accuracy >= 95 && stats.totalQuestionsAnswered >= 200) shouldUnlock = true;
         break;
+
+      case 'mastery': {
+        const levelProgress = getLevelProgress();
+        if (achievement.id === 'level_complete_1' && levelProgress.some(p => p.levelId === 1 && p.timesCompleted > 0)) shouldUnlock = true;
+        if (achievement.id === 'level_complete_4' && levelProgress.some(p => p.levelId === 4 && p.timesCompleted > 0)) shouldUnlock = true;
+        if (achievement.id === 'level_complete_8' && levelProgress.some(p => p.levelId === 8 && p.timesCompleted > 0)) shouldUnlock = true;
+        break;
+      }
+
+      case 'challenge': {
+        const modeStats = getGameModeStats();
+        const speedrunStats = modeStats.find(s => s.mode === 'speedrun');
+        const survivalStats = modeStats.find(s => s.mode === 'survival');
+        if (achievement.id === 'speed_run_perfect' && speedrunStats && speedrunStats.bestScore >= 100) shouldUnlock = true;
+        if (achievement.id === 'survival_100' && survivalStats && survivalStats.bestScore >= 100) shouldUnlock = true;
+        break;
+      }
 
       case 'special':
         const hour = new Date().getHours();
