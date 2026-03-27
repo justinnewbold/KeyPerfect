@@ -13,6 +13,7 @@ import {
 import { Card, CardContent, CardHeader } from './ui/Card';
 import { Progress, CircularProgress } from './ui/Progress';
 import { Badge, LevelBadge, XPBadge } from './ui/Badge';
+import { AnalyticsDashboard } from './AnalyticsDashboard';
 import {
   getUserStats,
   getDailyStats,
@@ -29,7 +30,7 @@ import { calculateWeakAreas, getDisplayName, formatTime } from '../utils/gameHel
 import { getWeakItems, ReviewItem } from '../utils/spacedRepetition';
 import { GameModeType } from '../types/gameModes';
 
-type TabType = 'overview' | 'accuracy' | 'achievements' | 'insights';
+type TabType = 'overview' | 'accuracy' | 'achievements' | 'insights' | 'analytics';
 
 interface StatsScreenProps {
   onStartGameMode?: (mode: GameModeType) => void;
@@ -64,6 +65,7 @@ export function StatsScreen({ onStartGameMode }: StatsScreenProps = {}) {
     { id: 'accuracy', label: 'Accuracy', icon: <Target className="w-4 h-4" /> },
     { id: 'achievements', label: 'Badges', icon: <Award className="w-4 h-4" /> },
     { id: 'insights', label: 'Insights', icon: <TrendingUp className="w-4 h-4" /> },
+    { id: 'analytics', label: 'Analytics', icon: <Clock className="w-4 h-4" /> },
   ];
 
   return (
@@ -475,6 +477,12 @@ export function StatsScreen({ onStartGameMode }: StatsScreenProps = {}) {
                 )}
               </div>
             </Card>
+          </div>
+        )}
+
+        {activeTab === 'analytics' && (
+          <div className="animate-in">
+            <AnalyticsDashboard />
           </div>
         )}
       </div>

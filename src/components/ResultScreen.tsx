@@ -9,6 +9,7 @@ import { ACHIEVEMENTS } from '../types/stats';
 import { LEVELS, getNextLevel, LevelConfig } from '../types/levels';
 import { getUserStats } from '../utils/storage';
 import { Confetti } from './Confetti';
+import { triggerHapticFeedback } from '../utils/haptics';
 
 interface ResultScreenProps {
   result: GameResult;
@@ -31,6 +32,15 @@ export function ResultScreen({ result, onPlayAgain, onHome, onNextLevel, onRevie
   // Confetti for perfect or S-grade performance
   const showConfetti = result.accuracy >= 95 || result.newAchievements.length > 0;
   const mistakeCount = result.answers.filter(a => !a.isCorrect).length;
+
+  // Haptic feedback on result screen mount
+  useEffect(() => {
+    if (result.newAchievements.length > 0) {
+      triggerHapticFeedback('success');
+    } else if (result.accuracy >= 95) {
+      triggerHapticFeedback('success');
+    }
+  }, []);
 
   const getGrade = (accuracy: number): { grade: string; color: string; message: string } => {
     if (accuracy >= 95) return { grade: 'S', color: 'text-yellow-400', message: 'Perfect!' };

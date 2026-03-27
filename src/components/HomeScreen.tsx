@@ -22,7 +22,9 @@ import { Card, CardContent } from './ui/Card';
 import { Button } from './ui/Button';
 import { Progress, CircularProgress } from './ui/Progress';
 import { Badge, LevelBadge, XPBadge, StreakBadge } from './ui/Badge';
-import { getUserStats, getDailyStats, getUnlockedAchievements, PRACTICE_PRESETS, PracticePresetId, updateSettings, getSettings, trackInstrumentUsage, getWeeklyGoals, getStreakFreezeData } from '../utils/storage';
+import { getUserStats, getDailyStats, getUnlockedAchievements, PRACTICE_PRESETS, PracticePresetId, updateSettings, getSettings, trackInstrumentUsage, getWeeklyGoals, getStreakFreezeData, getMusicKeysProgress, getNotesProgress } from '../utils/storage';
+import { MUSIC_KEYS_LEVELS } from '../types/musicKeysLevels';
+import { NOTES_LEVELS } from '../types/notesLevels';
 import { getLevelFromXP, getXPProgress, ACHIEVEMENTS } from '../types/stats';
 import { GAME_MODES, CHALLENGE_MODES, GameModeType, ChallengeModeType } from '../types/gameModes';
 import { InstrumentType, INSTRUMENTS, getInstrumentList } from '../types/instruments';
@@ -71,6 +73,11 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
   const accuracy = userStats.totalQuestionsAnswered > 0
     ? Math.round((userStats.totalCorrect / userStats.totalQuestionsAnswered) * 100)
     : 0;
+
+  const musicKeysProgress = getMusicKeysProgress();
+  const notesProgress = getNotesProgress();
+  const musicKeysCompleted = musicKeysProgress.filter(p => p.timesCompleted > 0).length;
+  const notesCompleted = notesProgress.filter(p => p.timesCompleted > 0).length;
 
   return (
     <div className="min-h-screen pb-24">
@@ -214,6 +221,12 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
               <div className="flex-1">
                 <h3 className="text-lg font-bold">Music Keys</h3>
                 <p className="text-sm text-white/60">Identify keys by ear (E, A, G, D, B, F...)</p>
+                {musicKeysCompleted > 0 && (
+                  <div className="mt-2">
+                    <Progress value={musicKeysCompleted} max={MUSIC_KEYS_LEVELS.length} size="sm" color="green" />
+                    <p className="text-xs text-white/50 mt-1">{musicKeysCompleted}/{MUSIC_KEYS_LEVELS.length} levels</p>
+                  </div>
+                )}
               </div>
               <ChevronRight className="w-5 h-5 text-white/40" />
             </div>
@@ -232,6 +245,12 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
               <div className="flex-1">
                 <h3 className="text-lg font-bold">Notes</h3>
                 <p className="text-sm text-white/60">Identify individual notes (C, D, E, F#...)</p>
+                {notesCompleted > 0 && (
+                  <div className="mt-2">
+                    <Progress value={notesCompleted} max={NOTES_LEVELS.length} size="sm" color="purple" />
+                    <p className="text-xs text-white/50 mt-1">{notesCompleted}/{NOTES_LEVELS.length} levels</p>
+                  </div>
+                )}
               </div>
               <ChevronRight className="w-5 h-5 text-white/40" />
             </div>
@@ -417,9 +436,12 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
                 <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center">
                   <Users className="w-5 h-5" />
                 </div>
-                <h4 className="font-semibold text-sm">Challenges</h4>
+                <div>
+                  <h4 className="font-semibold text-sm">Challenges</h4>
+                  <Badge variant="info" size="sm">Local only</Badge>
+                </div>
               </div>
-              <p className="text-xs text-white/60">Challenge friends</p>
+              <p className="text-xs text-white/60">Share codes, play same seed</p>
             </Card>
 
             {/* Practice Mode (No Stakes) */}

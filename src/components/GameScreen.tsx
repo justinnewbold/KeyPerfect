@@ -48,6 +48,7 @@ export function GameScreen({
   const [showCorrectFeedback, setShowCorrectFeedback] = useState(false);
   const audio = useAudio();
   const hasAutoPlayed = useRef(false);
+  const feedbackTimeouts = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   // Reset state when question changes
   useEffect(() => {
@@ -56,6 +57,9 @@ export function GameScreen({
     setHasPlayed(false);
     setShowCorrectFeedback(false);
     hasAutoPlayed.current = false;
+    // Clear any pending feedback audio timeouts from the previous question
+    feedbackTimeouts.current.forEach(clearTimeout);
+    feedbackTimeouts.current = [];
   }, [question.id]);
 
   // Play context notes (cadence) before the question if available
@@ -166,13 +170,15 @@ export function GameScreen({
       triggerHapticFeedback('error');
       // Wrong answer feedback: play the correct answer after a short delay
       setShowCorrectFeedback(true);
-      setTimeout(() => {
+      const t1 = setTimeout(() => {
         playCorrectAnswerAudio();
         // Then replay the question so they can hear the difference
-        setTimeout(() => {
+        const t2 = setTimeout(() => {
           playContextThenAudio(question.audioData);
         }, 2000);
+        feedbackTimeouts.current.push(t2);
       }, 1000);
+      feedbackTimeouts.current.push(t1);
     }
   }, [result, onAnswer, audio, playCorrectAnswerAudio, playContextThenAudio, question.audioData]);
 
@@ -310,7 +316,7 @@ export function GameScreen({
           {/* Play Button */}
           <div className="flex justify-center">
             <button
-              onClick={playQuestionAudio}
+              onClick={() => { triggerHapticFeedback('light'); playQuestionAudio(); }}
               disabled={audio.isPlaying}
               className={`w-20 h-20 rounded-full flex items-center justify-center transition-all duration-300 ${
                 audio.isPlaying
