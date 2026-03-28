@@ -54,7 +54,7 @@ type AppState =
   | { screen: 'notesGame'; notesLevel: NotesLevelConfig }
   | { screen: 'result'; result: GameResult }
   | { screen: 'learn' }
-  | { screen: 'stats' }
+  | { screen: 'stats'; initialTab?: string }
   | { screen: 'tools' }
   | { screen: 'settings' }
   | { screen: 'tutorial' }
@@ -295,6 +295,11 @@ function App() {
     setAppState({ screen: 'progressionDictation' });
   }, []);
 
+  const handleOpenFocusAreas = useCallback(() => {
+    setCurrentNavScreen('stats');
+    setAppState({ screen: 'stats', initialTab: 'insights' });
+  }, []);
+
   // Start a social challenge
   const handleStartSocialChallenge = useCallback((challenge: SocialChallenge) => {
     startGame(challenge.mode as GameModeType, 1);
@@ -326,6 +331,7 @@ function App() {
             onOpenSocialChallenges={handleOpenSocialChallenges}
             onOpenIntervalSinging={handleOpenIntervalSinging}
             onOpenProgressionDictation={handleOpenProgressionDictation}
+            onOpenFocusAreas={handleOpenFocusAreas}
           />
         );
 
@@ -429,7 +435,7 @@ function App() {
         return <LearnScreen />;
 
       case 'stats':
-        return <StatsScreen onStartGameMode={handleStartGameMode} />;
+        return <StatsScreen onStartGameMode={handleStartGameMode} initialTab={appState.initialTab} />;
 
       case 'tools':
         return <GuitarTools />;

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   Play,
   Zap,
@@ -17,6 +17,7 @@ import {
   Shield,
   Mic,
   Layers,
+  RotateCcw,
 } from 'lucide-react';
 import { Card, CardContent } from './ui/Card';
 import { Button } from './ui/Button';
@@ -26,6 +27,7 @@ import { getUserStats, getDailyStats, getUnlockedAchievements, PRACTICE_PRESETS,
 import { MUSIC_KEYS_LEVELS } from '../types/musicKeysLevels';
 import { NOTES_LEVELS } from '../types/notesLevels';
 import { getLevelFromXP, getXPProgress, ACHIEVEMENTS } from '../types/stats';
+import { LEVELS, getUnlockedLevels } from '../types/levels';
 import { GAME_MODES, CHALLENGE_MODES, GameModeType, ChallengeModeType } from '../types/gameModes';
 import { InstrumentType, INSTRUMENTS, getInstrumentList } from '../types/instruments';
 import { useAudio } from '../hooks/useAudio';
@@ -44,9 +46,10 @@ interface HomeScreenProps {
   onOpenSocialChallenges?: () => void;
   onOpenIntervalSinging?: () => void;
   onOpenProgressionDictation?: () => void;
+  onOpenFocusAreas?: () => void;
 }
 
-export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, onStartPreset, onStartMusicKeys, onStartNotes, onOpenGuidedLessons, onOpenComparison, onOpenWeeklyGoals, onOpenMastery, onOpenSocialChallenges, onOpenIntervalSinging, onOpenProgressionDictation }: HomeScreenProps) {
+export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, onStartPreset, onStartMusicKeys, onStartNotes, onOpenGuidedLessons, onOpenComparison, onOpenWeeklyGoals, onOpenMastery, onOpenSocialChallenges, onOpenIntervalSinging, onOpenProgressionDictation, onOpenFocusAreas }: HomeScreenProps) {
   const userStats = getUserStats();
   const dailyStats = getDailyStats();
   const unlockedAchievements = getUnlockedAchievements();
@@ -57,6 +60,19 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
   const [currentInstrument, setCurrentInstrument] = useState<InstrumentType>(getSettings().instrument);
   const [showInstrumentDropdown, setShowInstrumentDropdown] = useState(false);
   const instruments = getInstrumentList();
+  const instrumentDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close instrument dropdown when clicking outside
+  useEffect(() => {
+    if (!showInstrumentDropdown) return;
+    const handler = (e: MouseEvent) => {
+      if (instrumentDropdownRef.current && !instrumentDropdownRef.current.contains(e.target as Node)) {
+        setShowInstrumentDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showInstrumentDropdown]);
 
   const handleInstrumentChange = useCallback((instrument: InstrumentType) => {
     setCurrentInstrument(instrument);
@@ -78,6 +94,12 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
   const notesProgress = getNotesProgress();
   const musicKeysCompleted = musicKeysProgress.filter(p => p.timesCompleted > 0).length;
   const notesCompleted = notesProgress.filter(p => p.timesCompleted > 0).length;
+
+  const chordLevelsUnlocked = getUnlockedLevels(userStats.totalXP).length;
+
+  const weeklyGoalsData = getWeeklyGoals();
+  const goalsCompleted = weeklyGoalsData.goals.filter(g => g.completed).length;
+  const goalsTotal = weeklyGoalsData.goals.length;
 
   return (
     <div className="min-h-screen pb-24">
@@ -133,7 +155,7 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
 
       <div className="px-4 space-y-6">
         {/* Instrument Selector */}
-        <div className="relative">
+        <div className="relative" ref={instrumentDropdownRef}>
           <button
             onClick={() => setShowInstrumentDropdown(!showInstrumentDropdown)}
             className="w-full p-3 rounded-xl bg-white/10 border border-white/20 flex items-center justify-between"
@@ -188,6 +210,23 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
           </Card>
         </div>
 
+        {/* Weekly Goals strip — only shown when goals are configured */}
+        {goalsTotal > 0 && (
+          <button
+            onClick={onOpenWeeklyGoals}
+            className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+          >
+            <div className="flex items-center gap-2 text-sm text-white/70">
+              <Target className="w-4 h-4 text-green-400" />
+              <span>Weekly Goals</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Progress value={goalsCompleted} max={goalsTotal} size="sm" color="green" />
+              <span className="text-xs text-white/50 w-10 text-right">{goalsCompleted}/{goalsTotal}</span>
+            </div>
+          </button>
+        )}
+
         {/* Main Play Buttons - Two Card Layout */}
         <div className="grid grid-cols-1 gap-3">
           {/* Chord Training */}
@@ -203,6 +242,12 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
               <div className="flex-1">
                 <h3 className="text-lg font-bold">Chord Training</h3>
                 <p className="text-sm text-white/60">Master chord recognition</p>
+                {chordLevelsUnlocked > 1 && (
+                  <div className="mt-2">
+                    <Progress value={chordLevelsUnlocked} max={LEVELS.length} size="sm" color="purple" />
+                    <p className="text-xs text-white/50 mt-1">{chordLevelsUnlocked}/{LEVELS.length} levels unlocked</p>
+                  </div>
+                )}
               </div>
               <ChevronRight className="w-5 h-5 text-white/40" />
             </div>
@@ -487,6 +532,21 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
                 <h4 className="font-semibold text-sm">Progressions</h4>
               </div>
               <p className="text-xs text-white/60">Identify chord progressions</p>
+            </Card>
+
+            {/* Focus Areas / Review Weak Spots */}
+            <Card
+              hover
+              onClick={onOpenFocusAreas}
+              className="p-4 bg-gradient-to-br from-red-500/10 to-rose-500/10 border-red-500/20"
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center">
+                  <RotateCcw className="w-5 h-5" />
+                </div>
+                <h4 className="font-semibold text-sm">Focus Areas</h4>
+              </div>
+              <p className="text-xs text-white/60">Drill your weak spots</p>
             </Card>
           </div>
         </div>

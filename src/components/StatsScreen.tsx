@@ -9,6 +9,7 @@ import {
   AlertTriangle,
   CheckCircle,
   Play,
+  Activity,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader } from './ui/Card';
 import { Progress, CircularProgress } from './ui/Progress';
@@ -34,10 +35,13 @@ type TabType = 'overview' | 'accuracy' | 'achievements' | 'insights' | 'analytic
 
 interface StatsScreenProps {
   onStartGameMode?: (mode: GameModeType) => void;
+  initialTab?: string;
 }
 
-export function StatsScreen({ onStartGameMode }: StatsScreenProps = {}) {
-  const [activeTab, setActiveTab] = useState<TabType>('overview');
+export function StatsScreen({ onStartGameMode, initialTab }: StatsScreenProps = {}) {
+  const [activeTab, setActiveTab] = useState<TabType>(
+    (initialTab as TabType) || 'overview'
+  );
 
   const userStats = getUserStats();
   const dailyStats = getDailyStats();
@@ -65,7 +69,7 @@ export function StatsScreen({ onStartGameMode }: StatsScreenProps = {}) {
     { id: 'accuracy', label: 'Accuracy', icon: <Target className="w-4 h-4" /> },
     { id: 'achievements', label: 'Badges', icon: <Award className="w-4 h-4" /> },
     { id: 'insights', label: 'Insights', icon: <TrendingUp className="w-4 h-4" /> },
-    { id: 'analytics', label: 'Analytics', icon: <Clock className="w-4 h-4" /> },
+    { id: 'analytics', label: 'Analytics', icon: <Activity className="w-4 h-4" /> },
   ];
 
   return (
