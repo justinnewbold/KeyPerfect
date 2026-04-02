@@ -96,6 +96,7 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
   const notesCompleted = notesProgress.filter(p => p.timesCompleted > 0).length;
 
   const chordLevelsUnlocked = getUnlockedLevels(userStats.totalXP).length;
+  const streakFreezeData = getStreakFreezeData();
 
   const weeklyGoalsData = getWeeklyGoals();
   const goalsCompleted = weeklyGoalsData.goals.filter(g => g.completed).length;
@@ -111,7 +112,7 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
             <p className="text-sm text-white/60">Master your musical ear</p>
           </div>
           <div className="flex items-center gap-2">
-            {getStreakFreezeData().freezesAvailable > 0 && (
+            {streakFreezeData.freezesAvailable > 0 && (
               <Badge variant="info" size="sm" className="flex items-center gap-1">
                 <Shield className="w-3 h-3" />
                 Freeze

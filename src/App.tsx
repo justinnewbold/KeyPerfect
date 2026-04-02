@@ -257,12 +257,26 @@ function App() {
     setCurrentNavScreen('home');
   }, []);
 
-  // Start next level
-  const handleNextLevel = useCallback((levelId: number) => {
-    const level = LEVELS.find(l => l.id === levelId);
-    if (level) {
-      startGame('chords', level.id);
-      setAppState({ screen: 'game', level });
+  // Start next level — mode-aware to support chords, musickeys, and notes
+  const handleNextLevel = useCallback((levelId: number, mode: string) => {
+    if (mode === 'musickeys') {
+      const level = MUSIC_KEYS_LEVELS.find(l => l.id === levelId);
+      if (level) {
+        startGame('musickeys', level.id);
+        setAppState({ screen: 'musicKeysGame', musicKeysLevel: level });
+      }
+    } else if (mode === 'notes') {
+      const level = NOTES_LEVELS.find(l => l.id === levelId);
+      if (level) {
+        startGame('notes', level.id);
+        setAppState({ screen: 'notesGame', notesLevel: level });
+      }
+    } else {
+      const level = LEVELS.find(l => l.id === levelId);
+      if (level) {
+        startGame('chords', level.id);
+        setAppState({ screen: 'game', level });
+      }
     }
   }, [startGame]);
 
@@ -441,7 +455,14 @@ function App() {
         return <GuitarTools />;
 
       case 'settings':
-        return <SettingsScreen />;
+        return (
+          <SettingsScreen
+            onReplayTutorial={() => {
+              localStorage.removeItem('keyperfect_tutorial_completed');
+              setAppState({ screen: 'tutorial' });
+            }}
+          />
+        );
 
       case 'guidedLessons':
         return (

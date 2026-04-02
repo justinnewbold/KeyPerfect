@@ -179,70 +179,66 @@ export function StatsScreen({ onStartGameMode, initialTab }: StatsScreenProps = 
 
         {activeTab === 'accuracy' && (
           <div className="space-y-4 animate-in">
-            {/* Overall Accuracy */}
-            <Card className="p-6">
-              <div className="flex justify-center mb-4">
-                <CircularProgress
-                  value={accuracy}
-                  size={140}
-                  strokeWidth={12}
-                >
-                  <div className="text-center">
-                    <div className="text-3xl font-bold">{accuracy}%</div>
-                    <div className="text-sm text-white/60">Overall</div>
-                  </div>
-                </CircularProgress>
-              </div>
-            </Card>
-
-            {/* Chord Accuracy */}
-            <Card className="p-4">
-              <h3 className="font-semibold mb-3">Chord Recognition</h3>
-              <div className="space-y-2">
-                {chordStats.slice(0, 6).map(stat => {
-                  const acc = stat.attempts > 0 ? (stat.correct / stat.attempts) * 100 : 0;
-                  return (
-                    <div key={stat.chordType}>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span>{getDisplayName(stat.chordType, 'chord')}</span>
-                        <span className="text-white/60">{Math.round(acc)}%</span>
-                      </div>
-                      <Progress
-                        value={acc}
-                        max={100}
-                        size="sm"
-                        color={acc >= 70 ? 'green' : acc >= 50 ? 'amber' : 'red'}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            </Card>
-
-            {/* Scale Accuracy */}
-            {scaleStats.length > 0 && (
-              <Card className="p-4">
-                <h3 className="font-semibold mb-3">Scale Recognition</h3>
-                <div className="space-y-2">
-                  {scaleStats.slice(0, 6).map(stat => {
-                    const acc = stat.attempts > 0 ? (stat.correct / stat.attempts) * 100 : 0;
-                    return (
-                      <div key={stat.scaleType}>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span>{getDisplayName(stat.scaleType, 'scale')}</span>
-                          <span className="text-white/60">{Math.round(acc)}%</span>
-                        </div>
-                        <Progress
-                          value={acc}
-                          max={100}
-                          size="sm"
-                          color={acc >= 70 ? 'green' : acc >= 50 ? 'amber' : 'red'}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
+            {userStats.totalQuestionsAnswered === 0 ? (
+              <Card className="p-8 text-center">
+                <div className="text-4xl mb-3">🎯</div>
+                <h3 className="font-semibold mb-2">No data yet</h3>
+                <p className="text-sm text-white/60">Play a round to see your accuracy breakdown here.</p>
               </Card>
+            ) : (
+              <>
+                {/* Overall Accuracy */}
+                <Card className="p-6">
+                  <div className="flex justify-center mb-4">
+                    <CircularProgress value={accuracy} size={140} strokeWidth={12}>
+                      <div className="text-center">
+                        <div className="text-3xl font-bold">{accuracy}%</div>
+                        <div className="text-sm text-white/60">Overall</div>
+                      </div>
+                    </CircularProgress>
+                  </div>
+                </Card>
+
+                {/* Chord Accuracy */}
+                <Card className="p-4">
+                  <h3 className="font-semibold mb-3">Chord Recognition</h3>
+                  <div className="space-y-2">
+                    {chordStats.slice(0, 6).map(stat => {
+                      const acc = stat.attempts > 0 ? (stat.correct / stat.attempts) * 100 : 0;
+                      return (
+                        <div key={stat.chordType}>
+                          <div className="flex justify-between text-sm mb-1">
+                            <span>{getDisplayName(stat.chordType, 'chord')}</span>
+                            <span className="text-white/60">{Math.round(acc)}%</span>
+                          </div>
+                          <Progress value={acc} max={100} size="sm" color={acc >= 70 ? 'green' : acc >= 50 ? 'amber' : 'red'} />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Card>
+
+                {/* Scale Accuracy */}
+                {scaleStats.length > 0 && (
+                  <Card className="p-4">
+                    <h3 className="font-semibold mb-3">Scale Recognition</h3>
+                    <div className="space-y-2">
+                      {scaleStats.slice(0, 6).map(stat => {
+                        const acc = stat.attempts > 0 ? (stat.correct / stat.attempts) * 100 : 0;
+                        return (
+                          <div key={stat.scaleType}>
+                            <div className="flex justify-between text-sm mb-1">
+                              <span>{getDisplayName(stat.scaleType, 'scale')}</span>
+                              <span className="text-white/60">{Math.round(acc)}%</span>
+                            </div>
+                            <Progress value={acc} max={100} size="sm" color={acc >= 70 ? 'green' : acc >= 50 ? 'amber' : 'red'} />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </Card>
+                )}
+              </>
             )}
           </div>
         )}
@@ -301,6 +297,13 @@ export function StatsScreen({ onStartGameMode, initialTab }: StatsScreenProps = 
 
         {activeTab === 'insights' && (
           <div className="space-y-4 animate-in">
+            {userStats.totalQuestionsAnswered === 0 && (
+              <Card className="p-8 text-center">
+                <div className="text-4xl mb-3">📈</div>
+                <h3 className="font-semibold mb-2">No insights yet</h3>
+                <p className="text-sm text-white/60">Complete a few sessions to unlock personalised insights and weak-area recommendations.</p>
+              </Card>
+            )}
             {/* Weekly Progress Chart */}
             <Card className="p-4">
               <h3 className="font-semibold mb-3">Weekly Progress</h3>
