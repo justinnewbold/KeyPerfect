@@ -7,30 +7,51 @@ import { Progress, CircularProgress } from './ui/Progress';
 import { Badge, XPBadge } from './ui/Badge';
 import { ACHIEVEMENTS } from '../types/stats';
 import { LEVELS, getNextLevel, LevelConfig } from '../types/levels';
+import { MUSIC_KEYS_LEVELS } from '../types/musicKeysLevels';
+import { NOTES_LEVELS } from '../types/notesLevels';
 import { getUserStats } from '../utils/storage';
 import { Confetti } from './Confetti';
+import { triggerHapticFeedback } from '../utils/haptics';
 
 interface ResultScreenProps {
   result: GameResult;
   onPlayAgain: () => void;
   onHome: () => void;
-  onNextLevel?: (levelId: number) => void;
+  onNextLevel?: (levelId: number, mode: string) => void;
   onReviewMistakes?: () => void;
 }
 
 export function ResultScreen({ result, onPlayAgain, onHome, onNextLevel, onReviewMistakes }: ResultScreenProps) {
   const userStats = getUserStats();
-  const currentLevel = LEVELS.find(l => l.id === result.level);
-  const nextLevel = result.level ? getNextLevel(result.level) : undefined;
-
-  // Check if user can access next level (has enough XP after this game)
   const totalXPAfterGame = userStats.totalXP; // Already updated by the time we get here
+
+  // Resolve the "next level" from the correct level array based on game mode
+  const nextLevel = (() => {
+    if (!result.level) return undefined;
+    if (result.mode === 'musickeys') {
+      return MUSIC_KEYS_LEVELS.find(l => l.id === result.level + 1);
+    }
+    if (result.mode === 'notes') {
+      return NOTES_LEVELS.find(l => l.id === result.level + 1);
+    }
+    return getNextLevel(result.level);
+  })();
+
   const canAccessNextLevel = nextLevel ? totalXPAfterGame >= nextLevel.unlockRequirement : false;
   const xpNeededForNextLevel = nextLevel ? Math.max(0, nextLevel.unlockRequirement - totalXPAfterGame) : 0;
 
   // Confetti for perfect or S-grade performance
   const showConfetti = result.accuracy >= 95 || result.newAchievements.length > 0;
   const mistakeCount = result.answers.filter(a => !a.isCorrect).length;
+
+  // Haptic feedback on result screen mount
+  useEffect(() => {
+    if (result.newAchievements.length > 0) {
+      triggerHapticFeedback('success');
+    } else if (result.accuracy >= 95) {
+      triggerHapticFeedback('success');
+    }
+  }, []);
 
   const getGrade = (accuracy: number): { grade: string; color: string; message: string } => {
     if (accuracy >= 95) return { grade: 'S', color: 'text-yellow-400', message: 'Perfect!' };
@@ -245,7 +266,7 @@ export function ResultScreen({ result, onPlayAgain, onHome, onNextLevel, onRevie
               size="md"
               fullWidth
               className="mt-4"
-              onClick={() => onNextLevel(nextLevel.id)}
+              onClick={() => onNextLevel(nextLevel.id, result.mode)}
               icon={<ChevronRight className="w-5 h-5" />}
             >
               Start Level {nextLevel.id}

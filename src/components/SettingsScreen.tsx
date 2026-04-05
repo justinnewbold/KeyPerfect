@@ -34,7 +34,11 @@ import {
 import { useAudio } from '../hooks/useAudio';
 import { useAccessibility, AccessibilitySettings } from '../utils/accessibility';
 
-export function SettingsScreen() {
+interface SettingsScreenProps {
+  onReplayTutorial?: () => void;
+}
+
+export function SettingsScreen({ onReplayTutorial }: SettingsScreenProps = {}) {
   const [settings, setSettings] = useState<AppSettings>(getSettings());
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [importStatus, setImportStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -526,10 +530,20 @@ export function SettingsScreen() {
         <p className="text-sm text-white/60 mb-2">
           KeyPerfect v14.0.0
         </p>
-        <p className="text-xs text-white/40">
+        <p className="text-xs text-white/40 mb-4">
           A music theory ear training app to help you master chord recognition,
           scale identification, and interval training.
         </p>
+        {onReplayTutorial && (
+          <Button
+            variant="secondary"
+            fullWidth
+            onClick={onReplayTutorial}
+            icon={<RotateCcw className="w-4 h-4" />}
+          >
+            Replay Tutorial
+          </Button>
+        )}
       </Card>
     </div>
   );
