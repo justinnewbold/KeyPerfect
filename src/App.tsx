@@ -21,6 +21,7 @@ import {
   Confetti,
   IntervalSingingMode,
   ChordProgressionDictation,
+  CircleOfFifthsGame,
 } from './components';
 import type { Screen } from './components';
 import { LevelConfig, LEVELS } from './types/levels';
@@ -65,7 +66,8 @@ type AppState =
   | { screen: 'socialChallenges' }
   | { screen: 'mistakeReview'; result: GameResult }
   | { screen: 'intervalSinging' }
-  | { screen: 'progressionDictation' };
+  | { screen: 'progressionDictation' }
+  | { screen: 'circleOfFifths' };
 
 function App() {
   // Check if this is a first-time user (auto-trigger tutorial)
@@ -309,6 +311,10 @@ function App() {
     setAppState({ screen: 'progressionDictation' });
   }, []);
 
+  const handleOpenCircleOfFifths = useCallback(() => {
+    setAppState({ screen: 'circleOfFifths' });
+  }, []);
+
   const handleOpenFocusAreas = useCallback(() => {
     setCurrentNavScreen('stats');
     setAppState({ screen: 'stats', initialTab: 'insights' });
@@ -346,6 +352,7 @@ function App() {
             onOpenIntervalSinging={handleOpenIntervalSinging}
             onOpenProgressionDictation={handleOpenProgressionDictation}
             onOpenFocusAreas={handleOpenFocusAreas}
+            onOpenCircleOfFifths={handleOpenCircleOfFifths}
           />
         );
 
@@ -517,13 +524,16 @@ function App() {
       case 'progressionDictation':
         return <ChordProgressionDictation onBack={handleGoHome} />;
 
+      case 'circleOfFifths':
+        return <CircleOfFifthsGame onBack={handleGoHome} />;
+
       default:
-        return <HomeScreen onStartLevel={handleStartLevel} onStartChallenge={handleStartChallenge} onStartGameMode={handleStartGameMode} onStartPreset={handleStartPreset} onStartMusicKeys={handleStartMusicKeys} onStartNotes={handleStartNotes} onOpenGuidedLessons={handleOpenGuidedLessons} onOpenComparison={handleOpenComparison} onOpenWeeklyGoals={handleOpenWeeklyGoals} onOpenMastery={handleOpenMastery} onOpenSocialChallenges={handleOpenSocialChallenges} onOpenIntervalSinging={handleOpenIntervalSinging} onOpenProgressionDictation={handleOpenProgressionDictation} />;
+        return <HomeScreen onStartLevel={handleStartLevel} onStartChallenge={handleStartChallenge} onStartGameMode={handleStartGameMode} onStartPreset={handleStartPreset} onStartMusicKeys={handleStartMusicKeys} onStartNotes={handleStartNotes} onOpenGuidedLessons={handleOpenGuidedLessons} onOpenComparison={handleOpenComparison} onOpenWeeklyGoals={handleOpenWeeklyGoals} onOpenMastery={handleOpenMastery} onOpenSocialChallenges={handleOpenSocialChallenges} onOpenIntervalSinging={handleOpenIntervalSinging} onOpenProgressionDictation={handleOpenProgressionDictation} onOpenCircleOfFifths={handleOpenCircleOfFifths} />;
     }
   };
 
   // Don't show navigation during game, tutorial, or feature screens
-  const hideNavScreens = ['game', 'musicKeysGame', 'notesGame', 'result', 'guidedLessons', 'comparison', 'weeklyGoals', 'mastery', 'socialChallenges', 'tutorial', 'mistakeReview', 'intervalSinging', 'progressionDictation'];
+  const hideNavScreens = ['game', 'musicKeysGame', 'notesGame', 'result', 'guidedLessons', 'comparison', 'weeklyGoals', 'mastery', 'socialChallenges', 'tutorial', 'mistakeReview', 'intervalSinging', 'progressionDictation', 'circleOfFifths'];
   const showNavigation = !hideNavScreens.includes(appState.screen);
 
   return (
