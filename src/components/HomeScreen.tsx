@@ -18,6 +18,7 @@ import {
   Mic,
   Layers,
   RotateCcw,
+  RefreshCw,
 } from 'lucide-react';
 import { Card, CardContent } from './ui/Card';
 import { Button } from './ui/Button';
@@ -47,9 +48,10 @@ interface HomeScreenProps {
   onOpenIntervalSinging?: () => void;
   onOpenProgressionDictation?: () => void;
   onOpenFocusAreas?: () => void;
+  onOpenCircleOfFifths?: () => void;
 }
 
-export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, onStartPreset, onStartMusicKeys, onStartNotes, onOpenGuidedLessons, onOpenComparison, onOpenWeeklyGoals, onOpenMastery, onOpenSocialChallenges, onOpenIntervalSinging, onOpenProgressionDictation, onOpenFocusAreas }: HomeScreenProps) {
+export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, onStartPreset, onStartMusicKeys, onStartNotes, onOpenGuidedLessons, onOpenComparison, onOpenWeeklyGoals, onOpenMastery, onOpenSocialChallenges, onOpenIntervalSinging, onOpenProgressionDictation, onOpenFocusAreas, onOpenCircleOfFifths }: HomeScreenProps) {
   const userStats = getUserStats();
   const dailyStats = getDailyStats();
   const unlockedAchievements = getUnlockedAchievements();
@@ -533,6 +535,21 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
                 <h4 className="font-semibold text-sm">Progressions</h4>
               </div>
               <p className="text-xs text-white/60">Identify chord progressions</p>
+            </Card>
+
+            {/* Circle of Fifths */}
+            <Card
+              hover
+              onClick={onOpenCircleOfFifths}
+              className="p-4 bg-gradient-to-br from-cyan-500/10 to-teal-500/10 border-cyan-500/20"
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-teal-600 flex items-center justify-center">
+                  <RefreshCw className="w-5 h-5" />
+                </div>
+                <h4 className="font-semibold text-sm">Circle of 5ths</h4>
+              </div>
+              <p className="text-xs text-white/60">Interactive wheel game</p>
             </Card>
 
             {/* Focus Areas / Review Weak Spots */}

@@ -39,3 +39,4 @@ export { MistakeReviewScreen } from './MistakeReviewScreen';
 export { Confetti } from './Confetti';
 export { IntervalSingingMode } from './IntervalSingingMode';
 export { ChordProgressionDictation } from './ChordProgressionDictation';
+export { CircleOfFifthsGame } from './CircleOfFifthsGame';
