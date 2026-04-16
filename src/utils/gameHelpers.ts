@@ -209,7 +209,8 @@ function generateChordQuestion(id: string, level: LevelConfig, difficultyModifie
 
   // Get unique options from level chords (no duplicates)
   const otherChords = level.chords.filter(c => c !== quality);
-  const allOptions = shuffleArray([quality, ...otherChords]);
+  const wrongOptions = shuffleArray(otherChords).slice(0, 3);
+  const allOptions = shuffleArray([quality, ...wrongOptions]);
 
   // Adjust duration based on difficulty (harder = shorter playback)
   const baseDuration = 1.5;
@@ -220,7 +221,7 @@ function generateChordQuestion(id: string, level: LevelConfig, difficultyModifie
     type: 'chords',
     prompt: `What type of chord is this?`,
     correctAnswer: quality,
-    options: allOptions.slice(0, 4),
+    options: allOptions,
     audioData: {
       notes,
       rootNote: rootMidi,
@@ -244,7 +245,8 @@ function generateScaleQuestion(id: string, level: LevelConfig, difficultyModifie
 
   // Get unique options from level scales (no duplicates)
   const otherScales = level.scales.filter(s => s !== scaleType);
-  const allOptions = shuffleArray([scaleType, ...otherScales]);
+  const wrongOptions = shuffleArray(otherScales).slice(0, 3);
+  const allOptions = shuffleArray([scaleType, ...wrongOptions]);
 
   // Adjust note delay based on difficulty (harder = faster playback)
   const baseDelay = 0.35;
@@ -255,7 +257,7 @@ function generateScaleQuestion(id: string, level: LevelConfig, difficultyModifie
     type: 'scales',
     prompt: `What scale is this?`,
     correctAnswer: scaleType,
-    options: allOptions.slice(0, 4),
+    options: allOptions,
     audioData: {
       notes,
       rootNote: rootMidi,
@@ -279,7 +281,8 @@ function generateIntervalQuestion(id: string, level: LevelConfig, difficultyModi
 
   // Get unique options from level intervals (no duplicates)
   const otherIntervals = level.intervals.filter(i => i !== intervalType);
-  const allOptions = shuffleArray([intervalType, ...otherIntervals]);
+  const wrongOptions = shuffleArray(otherIntervals).slice(0, 3);
+  const allOptions = shuffleArray([intervalType, ...wrongOptions]);
 
   // At higher difficulty, play notes simultaneously instead of sequentially
   const playSimultaneously = difficultyModifier > 0.7;
@@ -291,7 +294,7 @@ function generateIntervalQuestion(id: string, level: LevelConfig, difficultyModi
       ? `What interval is this? (played together)`
       : `What interval is this?`,
     correctAnswer: intervalType,
-    options: allOptions.slice(0, 4),
+    options: allOptions,
     audioData: {
       notes,
       rootNote: rootMidi,
@@ -346,14 +349,16 @@ function generateProgressionQuestion(id: string, level: LevelConfig): GameQuesti
   const chordMidis = getProgressionChords(rootMidi, progression);
   const notes = chordMidis.flat();
 
-  const options = shuffleArray(level.progressions);
+  const otherProgressions = level.progressions.filter(p => p !== progression);
+  const wrongOptions = shuffleArray(otherProgressions).slice(0, 3);
+  const options = shuffleArray([progression, ...wrongOptions]);
 
   return {
     id,
     type: 'progressions',
     prompt: `What chord progression is this?`,
     correctAnswer: progression,
-    options: options.slice(0, 4),
+    options,
     audioData: {
       notes,
       rootNote: rootMidi,
@@ -525,7 +530,8 @@ function generateHarmonyQuestion(id: string, level: LevelConfig, difficultyModif
   if (questionType === 'cadence') {
     const cadence = randomElement(CADENCE_TYPES);
     const otherCadences = CADENCE_TYPES.filter(c => c.name !== cadence.name);
-    const options = shuffleArray([cadence.name, ...otherCadences.map(c => c.name)]).slice(0, 4);
+    const wrongOptions = shuffleArray(otherCadences.map(c => c.name)).slice(0, 3);
+    const options = shuffleArray([cadence.name, ...wrongOptions]);
 
     // Generate chord notes for the cadence
     let notes: number[] = [];
@@ -618,7 +624,8 @@ function generateGenreQuestion(
     const chord = randomElement(content.chords);
     const notes = getChordNotes(rootMidi, chord);
     const otherChords = content.chords.filter(c => c !== chord);
-    const options = shuffleArray([chord, ...otherChords]).slice(0, 4);
+    const wrongOptions = shuffleArray([...otherChords]).slice(0, 3);
+    const options = shuffleArray([chord, ...wrongOptions]);
 
     return {
       id,
@@ -640,7 +647,8 @@ function generateGenreQuestion(
     const scale = randomElement(content.scales);
     const notes = getScaleNotes(rootMidi, scale);
     const otherScales = content.scales.filter(s => s !== scale);
-    const options = shuffleArray([scale, ...otherScales]).slice(0, 4);
+    const wrongOptions = shuffleArray([...otherScales]).slice(0, 3);
+    const options = shuffleArray([scale, ...wrongOptions]);
 
     return {
       id,
@@ -664,7 +672,8 @@ function generateGenreQuestion(
     const chordMidis = getProgressionChords(rootMidi, progression);
     const notes = chordMidis.flat();
     const otherProgressions = content.progressions.filter(p => p !== progression);
-    const options = shuffleArray([progression, ...otherProgressions]).slice(0, 4);
+    const wrongOptions = shuffleArray([...otherProgressions]).slice(0, 3);
+    const options = shuffleArray([progression, ...wrongOptions]);
 
     return {
       id,

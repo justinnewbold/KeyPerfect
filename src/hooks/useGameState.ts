@@ -26,6 +26,7 @@ import {
   checkAndUnlockAchievements,
   updateGameModeStats,
   addSessionToHistory,
+  getDailyStats,
 } from '../utils/storage';
 import { calculateQuestionXP, getLevelFromXP } from '../types/stats';
 import { updateReviewItem } from '../utils/spacedRepetition';
@@ -350,14 +351,17 @@ export function useGameState(): UseGameStateReturn {
       }
     });
 
-    // Update user stats
+    // Update user stats.
+    // currentStreak reflects daily play streak (see AnalyticsDashboard "days in a row"),
+    // so keep it synced with DailyStats rather than the per-session answer streak.
     const userStats = getUserStats();
+    const dailyStats = getDailyStats();
     const updatedStats = updateUserStats({
       totalXP: userStats.totalXP + totalXPEarned,
       totalQuestionsAnswered: userStats.totalQuestionsAnswered + gameState.answers.length,
       totalCorrect: userStats.totalCorrect + correctAnswers,
       totalIncorrect: userStats.totalIncorrect + (gameState.answers.length - correctAnswers),
-      currentStreak: currentStreak,
+      currentStreak: dailyStats.currentStreak,
       longestStreak: Math.max(userStats.longestStreak, longestStreak),
       currentLevel: getLevelFromXP(userStats.totalXP + totalXPEarned),
       lastPlayedDate: new Date().toISOString().split('T')[0],
