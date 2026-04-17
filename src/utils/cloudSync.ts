@@ -327,12 +327,20 @@ export function queueOfflineSync(data: Partial<SyncData>): void {
 }
 
 export async function processPendingSync(): Promise<void> {
-  if (!isAuthenticated() || pendingSync.length === 0) return;
+  if (!isAuthenticated()) return;
 
+  // Load any pending syncs persisted from a previous session before checking if
+  // there's anything to process.
   const stored = localStorage.getItem('keyperfect_pending_sync');
   if (stored) {
-    pendingSync = JSON.parse(stored);
+    try {
+      pendingSync = JSON.parse(stored);
+    } catch {
+      pendingSync = [];
+    }
   }
+
+  if (pendingSync.length === 0) return;
 
   for (const data of pendingSync) {
     try {
