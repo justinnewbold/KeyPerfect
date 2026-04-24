@@ -187,6 +187,18 @@ export function useMetronome() {
   const intervalRef = useRef<number | null>(null);
   const nextNoteTimeRef = useRef(0);
   const beatRef = useRef(0);
+  const bpmRef = useRef(bpm);
+  const timeSignatureRef = useRef(timeSignature);
+
+  // Keep refs current so the scheduler (running inside setInterval) picks up
+  // tempo and time-signature changes without being restarted.
+  useEffect(() => {
+    bpmRef.current = bpm;
+  }, [bpm]);
+
+  useEffect(() => {
+    timeSignatureRef.current = timeSignature;
+  }, [timeSignature]);
 
   const start = useCallback(() => {
     if (isRunning) return;
@@ -197,14 +209,15 @@ export function useMetronome() {
     beatRef.current = 0;
 
     const scheduleNote = () => {
-      const secondsPerBeat = 60 / bpm;
+      const secondsPerBeat = 60 / bpmRef.current;
+      const beatsPerBar = timeSignatureRef.current[0];
       const ctx = getAudioContext();
 
       while (nextNoteTimeRef.current < ctx.currentTime + 0.1) {
-        const beat = beatRef.current % timeSignature[0];
+        const beat = beatRef.current % beatsPerBar;
         playMetronomeClick(beat === 0);
 
-        beatRef.current = (beatRef.current + 1) % timeSignature[0];
+        beatRef.current = (beatRef.current + 1) % beatsPerBar;
         setCurrentBeat(beatRef.current);
         nextNoteTimeRef.current += secondsPerBeat;
       }
@@ -212,7 +225,7 @@ export function useMetronome() {
 
     nextNoteTimeRef.current = getAudioContext().currentTime;
     intervalRef.current = window.setInterval(scheduleNote, 25);
-  }, [isRunning, bpm, timeSignature]);
+  }, [isRunning]);
 
   const stop = useCallback(() => {
     setIsRunning(false);
