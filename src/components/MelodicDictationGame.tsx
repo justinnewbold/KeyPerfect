@@ -62,6 +62,12 @@ export function MelodicDictationGame({ onComplete, onExit }: MelodicDictationGam
   const [hasPlayed, setHasPlayed] = useState(false);
   const [currentNoteIndex, setCurrentNoteIndex] = useState(0);
   const [showCorrectNotes, setShowCorrectNotes] = useState(false);
+  const playTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  const clearScheduledNotes = useCallback(() => {
+    playTimeoutsRef.current.forEach(t => clearTimeout(t));
+    playTimeoutsRef.current = [];
+  }, []);
 
   // Generate a new question with progressive difficulty
   const generateQuestion = useCallback((index: number): MelodyQuestion => {
@@ -85,17 +91,24 @@ export function MelodicDictationGame({ onComplete, onExit }: MelodicDictationGam
   const playMelody = useCallback(() => {
     if (!question) return;
 
+    // Cancel any in-flight playback so re-tapping or auto-play after Next
+    // doesn't stack overlapping schedules of the same melody.
+    clearScheduledNotes();
+
     setHasPlayed(true);
     setCurrentNoteIndex(0);
 
-    // Play notes sequentially
     question.notes.forEach((note, index) => {
-      setTimeout(() => {
+      const timeout = setTimeout(() => {
         audio.playNote(note, 0.4);
         setCurrentNoteIndex(index + 1);
       }, index * 600); // 600ms between notes
+      playTimeoutsRef.current.push(timeout);
     });
-  }, [question, audio]);
+  }, [question, audio, clearScheduledNotes]);
+
+  // Stop in-flight playback when the component unmounts.
+  useEffect(() => clearScheduledNotes, [clearScheduledNotes]);
 
   // Auto-play on new question
   useEffect(() => {
@@ -151,6 +164,8 @@ export function MelodicDictationGame({ onComplete, onExit }: MelodicDictationGam
 
   // Handle next question
   const handleNext = useCallback(() => {
+    clearScheduledNotes();
+
     if (currentQuestion >= totalQuestions - 1) {
       const maxPossibleScore = totalQuestions * 25; // Approximate max
       const accuracy = (score / maxPossibleScore) * 100;
@@ -166,7 +181,7 @@ export function MelodicDictationGame({ onComplete, onExit }: MelodicDictationGam
     setShowCorrectNotes(false);
     setCurrentNoteIndex(0);
     setQuestion(generateQuestion(nextIndex));
-  }, [currentQuestion, totalQuestions, score, onComplete, generateQuestion]);
+  }, [currentQuestion, totalQuestions, score, onComplete, generateQuestion, clearScheduledNotes]);
 
   // Clear user input
   const handleClear = useCallback(() => {
