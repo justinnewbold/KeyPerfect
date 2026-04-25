@@ -524,17 +524,25 @@ export function playChord(
   arpeggioDelay: number = 0.1
 ): { stop: () => void } {
   const sounds: { stop: () => void }[] = [];
+  const timeouts: ReturnType<typeof setTimeout>[] = [];
+  let cancelled = false;
 
   midiNotes.forEach((midi, index) => {
     const delay = arpeggio ? index * arpeggioDelay : 0;
-    setTimeout(() => {
+    const timeout = setTimeout(() => {
+      if (cancelled) return;
       const sound = playNote(midi, instrument, duration - delay, velocity);
       sounds.push(sound);
     }, delay * 1000);
+    timeouts.push(timeout);
   });
 
   return {
-    stop: () => sounds.forEach(s => s.stop()),
+    stop: () => {
+      cancelled = true;
+      timeouts.forEach(clearTimeout);
+      sounds.forEach(s => s.stop());
+    },
   };
 }
 
