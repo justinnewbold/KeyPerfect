@@ -11,6 +11,7 @@ interface Particle {
   left: number;
   color: string;
   delay: number;
+  duration: number;
   size: number;
   shape: 'square' | 'circle';
 }
@@ -36,6 +37,7 @@ export function Confetti({ active, duration = 3000, particleCount = 50 }: Confet
         left: Math.random() * 100,
         color: COLORS[Math.floor(Math.random() * COLORS.length)],
         delay: Math.random() * 0.8,
+        duration: 2 + Math.random(),
         size: Math.random() * 8 + 4,
         shape: Math.random() > 0.5 ? 'square' : 'circle',
       }));
@@ -63,7 +65,7 @@ export function Confetti({ active, duration = 3000, particleCount = 50 }: Confet
             backgroundColor: p.color,
             borderRadius: p.shape === 'circle' ? '50%' : '2px',
             animationDelay: `${p.delay}s`,
-            animationDuration: `${2 + Math.random()}s`,
+            animationDuration: `${p.duration}s`,
           }}
         />
       ))}
