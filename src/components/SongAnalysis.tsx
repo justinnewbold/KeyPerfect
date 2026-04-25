@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { X, Music2, Play, Pause, Plus, Trash2, Search, BookOpen } from 'lucide-react';
 import { Card, Button, Badge } from './ui';
 import { ChordQuality, CHORD_TYPES, PROGRESSIONS, ProgressionType } from '../types/music';
@@ -76,6 +76,10 @@ export function SongAnalysis({ onClose }: SongAnalysisProps) {
   const [currentPlayingIndex, setCurrentPlayingIndex] = useState(-1);
   const [analysisResult, setAnalysisResult] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  // Synchronous flag used by the playSequence loop. The isPlaying state is
+  // captured by useCallback's closure, so it would still read `false` on the
+  // very first iteration and break out before any chord plays.
+  const isPlayingRef = useRef(false);
 
   const addChord = useCallback(() => {
     const newChord: ChordEntry = {
@@ -113,10 +117,11 @@ export function SongAnalysis({ onClose }: SongAnalysisProps) {
     if (chordSequence.length === 0) return;
 
     getAudioContext();
+    isPlayingRef.current = true;
     setIsPlaying(true);
 
     for (let i = 0; i < chordSequence.length; i++) {
-      if (!isPlaying) break;
+      if (!isPlayingRef.current) break;
 
       setCurrentPlayingIndex(i);
       const entry = chordSequence[i];
@@ -128,12 +133,14 @@ export function SongAnalysis({ onClose }: SongAnalysisProps) {
       await new Promise(resolve => setTimeout(resolve, 1200));
     }
 
+    isPlayingRef.current = false;
     setIsPlaying(false);
     setCurrentPlayingIndex(-1);
-  }, [chordSequence, isPlaying]);
+  }, [chordSequence]);
 
   const stopPlayback = useCallback(() => {
     stopAllSounds();
+    isPlayingRef.current = false;
     setIsPlaying(false);
     setCurrentPlayingIndex(-1);
   }, []);
