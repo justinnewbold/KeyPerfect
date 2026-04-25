@@ -49,6 +49,10 @@ export function useGameState(): UseGameStateReturn {
   const [isPlaying, setIsPlaying] = useState(false);
   const [timeExpired, setTimeExpired] = useState(false);
   const timerRef = useRef<number | null>(null);
+  // Synchronous guard so two near-simultaneous endGame() calls (e.g. the
+  // timeExpired effect firing while the user clicks Next) don't both
+  // execute the post-game side effects against the same closure snapshot.
+  const endingRef = useRef(false);
 
   // Timer effect for timed game modes
   useEffect(() => {
@@ -99,6 +103,7 @@ export function useGameState(): UseGameStateReturn {
     levelId: number = 1
   ) => {
     setTimeExpired(false);
+    endingRef.current = false;
 
     let questions: GameQuestion[];
     let totalQuestions: number;
@@ -156,6 +161,7 @@ export function useGameState(): UseGameStateReturn {
   // Start game with a preset configuration
   const startWithPreset = useCallback((preset: PracticePreset) => {
     setTimeExpired(false);
+    endingRef.current = false;
     const level = LEVELS[0]; // Use level 1 as base
     const totalQuestions = preset.questionCount;
 
@@ -328,9 +334,10 @@ export function useGameState(): UseGameStateReturn {
     if (!gameState) {
       throw new Error('No active game');
     }
-    if (gameState.isComplete) {
+    if (endingRef.current) {
       throw new Error('Game already ended');
     }
+    endingRef.current = true;
 
     const correctAnswers = gameState.answers.filter(a => a.isCorrect).length;
     const totalXPEarned = gameState.answers.reduce((sum, a) => sum + a.xpEarned, 0);
