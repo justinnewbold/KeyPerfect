@@ -342,21 +342,28 @@ export async function processPendingSync(): Promise<void> {
 
   if (pendingSync.length === 0) return;
 
+  let processed = 0;
   for (const data of pendingSync) {
     try {
       await apiRequest('/sync/upload', {
         method: 'POST',
         body: JSON.stringify({ data, deviceInfo: navigator.userAgent }),
       });
+      processed++;
     } catch (error) {
       console.error('Failed to sync pending data:', error);
-      return; // Stop processing on first failure
+      break; // Stop processing on first failure
     }
   }
 
-  // Clear pending syncs
-  pendingSync = [];
-  localStorage.removeItem('keyperfect_pending_sync');
+  // Drop only the items that were actually uploaded so the next attempt
+  // resumes from the first failure instead of replaying successful uploads.
+  pendingSync = pendingSync.slice(processed);
+  if (pendingSync.length === 0) {
+    localStorage.removeItem('keyperfect_pending_sync');
+  } else {
+    localStorage.setItem('keyperfect_pending_sync', JSON.stringify(pendingSync));
+  }
 }
 
 // Auto-sync when online
