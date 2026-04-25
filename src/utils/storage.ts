@@ -997,10 +997,16 @@ export function exportData(): string {
     chordStats: getChordStats(),
     scaleStats: getScaleStats(),
     intervalStats: getIntervalStats(),
+    keyStats: getKeyStats(),
+    noteStats: getNoteStats(),
+    musicKeysProgress: getMusicKeysProgress(),
+    notesProgress: getNotesProgress(),
     dailyStats: getDailyStats(),
     gameModeStats: getGameModeStats(),
     achievements: getItem<string[]>(STORAGE_KEYS.ACHIEVEMENTS, []),
     settings: getSettings(),
+    sessionHistory: getSessionHistory(),
+    usedInstruments: getUsedInstruments(),
     weeklyGoals: getWeeklyGoals(),
     streakFreeze: getStreakFreezeData(),
     socialChallenges: getSocialChallenges(),
@@ -1020,10 +1026,16 @@ export function importData(jsonString: string): boolean {
     if (data.chordStats) setItem(STORAGE_KEYS.CHORD_STATS, data.chordStats);
     if (data.scaleStats) setItem(STORAGE_KEYS.SCALE_STATS, data.scaleStats);
     if (data.intervalStats) setItem(STORAGE_KEYS.INTERVAL_STATS, data.intervalStats);
+    if (data.keyStats) setItem(STORAGE_KEYS.KEY_STATS, data.keyStats);
+    if (data.noteStats) setItem(STORAGE_KEYS.NOTE_STATS, data.noteStats);
+    if (data.musicKeysProgress) setItem(STORAGE_KEYS.MUSIC_KEYS_PROGRESS, data.musicKeysProgress);
+    if (data.notesProgress) setItem(STORAGE_KEYS.NOTES_PROGRESS, data.notesProgress);
     if (data.dailyStats) setItem(STORAGE_KEYS.DAILY_STATS, data.dailyStats);
     if (data.gameModeStats) setItem(STORAGE_KEYS.GAME_MODE_STATS, data.gameModeStats);
     if (data.achievements) setItem(STORAGE_KEYS.ACHIEVEMENTS, data.achievements);
     if (data.settings) setItem(STORAGE_KEYS.SETTINGS, data.settings);
+    if (data.sessionHistory) setItem(STORAGE_KEYS.SESSION_HISTORY, data.sessionHistory);
+    if (data.usedInstruments) setItem(STORAGE_KEYS.USED_INSTRUMENTS, data.usedInstruments);
     if (data.weeklyGoals) setItem(STORAGE_KEYS.WEEKLY_GOALS, data.weeklyGoals);
     if (data.streakFreeze) setItem(STORAGE_KEYS.STREAK_FREEZE, data.streakFreeze);
     if (data.socialChallenges) setItem(STORAGE_KEYS.SOCIAL_CHALLENGES, data.socialChallenges);
