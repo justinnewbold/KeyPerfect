@@ -78,16 +78,25 @@ export function CustomPractice({ onBack }: { onBack: () => void }) {
   const handleAnswer = useCallback((answer: string): AnswerRecord => {
     const record = submitAnswer(answer);
 
-    // Update spaced repetition data
+    // Update spaced repetition data. The SRS layer only models the three
+    // singular item types — map question.type accordingly and skip modes
+    // it doesn't track instead of writing under a mismatched key.
     if (gameState) {
       const question = gameState.questions[gameState.currentQuestion];
-      updateReviewItem(
-        question.type as 'chord' | 'scale' | 'interval',
-        question.correctAnswer,
-        record.isCorrect,
-        record.timeToAnswer,
-        gameState.streak
-      );
+      const srsType =
+        question.type === 'chords' ? 'chord' :
+        question.type === 'scales' ? 'scale' :
+        question.type === 'intervals' ? 'interval' :
+        null;
+      if (srsType) {
+        updateReviewItem(
+          srsType,
+          question.correctAnswer,
+          record.isCorrect,
+          record.timeToAnswer,
+          gameState.streak
+        );
+      }
     }
 
     return record;
