@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { ArrowLeft, Play, Check, X, RotateCcw, ChevronRight } from 'lucide-react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
@@ -74,10 +74,17 @@ export function ChordProgressionDictation({ onBack }: ChordProgressionDictationP
 
   const totalChords = progression.chords.length;
 
-  const playProgression = useCallback(() => {
-    // Clear previous timeouts
+  const clearScheduledChords = useCallback(() => {
     playTimeoutRef.current.forEach(t => clearTimeout(t));
     playTimeoutRef.current = [];
+  }, []);
+
+  // Cancel any pending chord playback when the component unmounts so audio
+  // doesn't keep firing after the user navigates away.
+  useEffect(() => clearScheduledChords, [clearScheduledChords]);
+
+  const playProgression = useCallback(() => {
+    clearScheduledChords();
 
     progression.chords.forEach((chord, i) => {
       const timeout = setTimeout(() => {
@@ -86,7 +93,7 @@ export function ChordProgressionDictation({ onBack }: ChordProgressionDictationP
       }, i * 1500);
       playTimeoutRef.current.push(timeout);
     });
-  }, [progression, audio]);
+  }, [progression, audio, clearScheduledChords]);
 
   const playSingleChord = useCallback((index: number) => {
     const chord = progression.chords[index];
@@ -122,11 +129,12 @@ export function ChordProgressionDictation({ onBack }: ChordProgressionDictationP
   }, [progression, userGuesses, totalChords]);
 
   const handleNext = useCallback(() => {
+    clearScheduledChords();
     setProgression(generateRound());
     setUserGuesses([]);
     setCurrentChordIndex(0);
     setIsRevealed(false);
-  }, []);
+  }, [clearScheduledChords]);
 
   const allGuessed = userGuesses.filter(g => g !== null && g !== undefined).length === totalChords;
 
