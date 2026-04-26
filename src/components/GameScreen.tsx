@@ -62,7 +62,20 @@ export function GameScreen({
     feedbackTimeouts.current = [];
   }, [question.id]);
 
-  // Play context notes (cadence) before the question if available
+  // Cancel any pending audio timeouts (cadence chain, comparison, wrong-
+  // answer feedback) when the component unmounts so audio doesn't keep
+  // firing after the user navigates away from the game.
+  useEffect(() => {
+    return () => {
+      feedbackTimeouts.current.forEach(clearTimeout);
+      feedbackTimeouts.current = [];
+    };
+  }, []);
+
+  // Play context notes (cadence) before the question if available. All
+  // setTimeouts run through feedbackTimeouts so changing question or
+  // unmounting cancels them - otherwise the cadence + main + comparison
+  // chain (up to ~4s) would keep firing audio after the user moved on.
   const playContextThenAudio = useCallback((audioData: typeof question.audioData) => {
     const { notes, playbackMode, rhythmPattern, duration, contextNotes, comparisonNotes } = audioData;
 
@@ -81,23 +94,26 @@ export function GameScreen({
 
       // For comparison mode: play second sound after a pause
       if (comparisonNotes && comparisonNotes.length > 0) {
-        setTimeout(() => {
+        const cmpTimeout = setTimeout(() => {
           if (playbackMode === 'chord') {
             audio.playChord(comparisonNotes);
           } else if (playbackMode === 'scale') {
             audio.playScale(comparisonNotes);
           }
         }, 2000);
+        feedbackTimeouts.current.push(cmpTimeout);
       }
     };
 
     // Play context (cadence) first, then the main question
     if (contextNotes && contextNotes.length > 0) {
       audio.playChord(contextNotes.slice(0, 3));
-      setTimeout(() => {
+      const ctx1 = setTimeout(() => {
         audio.playChord(contextNotes.slice(3, 6));
-        setTimeout(playMain, 1200);
+        const ctx2 = setTimeout(playMain, 1200);
+        feedbackTimeouts.current.push(ctx2);
       }, 1200);
+      feedbackTimeouts.current.push(ctx1);
     } else {
       playMain();
     }
