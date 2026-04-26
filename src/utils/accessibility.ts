@@ -232,11 +232,59 @@ export function useAccessibility() {
 
 // Inject accessibility CSS into the document once
 export function injectAccessibilityStyles() {
-  if (document.getElementById('keyperfect-a11y-styles')) return;
-  const style = document.createElement('style');
-  style.id = 'keyperfect-a11y-styles';
-  style.textContent = accessibilityStyles;
-  document.head.appendChild(style);
+  if (!document.getElementById('keyperfect-a11y-styles')) {
+    const style = document.createElement('style');
+    style.id = 'keyperfect-a11y-styles';
+    style.textContent = accessibilityStyles;
+    document.head.appendChild(style);
+  }
+
+  // The .protanopia / .deuteranopia / .tritanopia classes resolve to
+  // filter: url('#<name>-filter'), but those SVG filters were never
+  // defined - so toggling color-blind mode added the class and did
+  // nothing visible. Inject the matching <filter> elements once so the
+  // CSS actually has something to point at. Matrices are the standard
+  // dichromacy simulation values from the LMS-space transforms.
+  if (!document.getElementById('keyperfect-a11y-filters')) {
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.id = 'keyperfect-a11y-filters';
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('focusable', 'false');
+    svg.style.cssText =
+      'position:absolute;width:0;height:0;overflow:hidden;pointer-events:none;';
+
+    const matrices: Record<string, string> = {
+      'protanopia-filter':
+        '0.567 0.433 0     0 0 ' +
+        '0.558 0.442 0     0 0 ' +
+        '0     0.242 0.758 0 0 ' +
+        '0     0     0     1 0',
+      'deuteranopia-filter':
+        '0.625 0.375 0   0 0 ' +
+        '0.7   0.3   0   0 0 ' +
+        '0     0.3   0.7 0 0 ' +
+        '0     0     0   1 0',
+      'tritanopia-filter':
+        '0.95 0.05  0     0 0 ' +
+        '0    0.433 0.567 0 0 ' +
+        '0    0.475 0.525 0 0 ' +
+        '0    0     0     1 0',
+    };
+
+    const defs = document.createElementNS(svgNS, 'defs');
+    for (const [id, values] of Object.entries(matrices)) {
+      const filter = document.createElementNS(svgNS, 'filter');
+      filter.setAttribute('id', id);
+      const matrix = document.createElementNS(svgNS, 'feColorMatrix');
+      matrix.setAttribute('type', 'matrix');
+      matrix.setAttribute('values', values);
+      filter.appendChild(matrix);
+      defs.appendChild(filter);
+    }
+    svg.appendChild(defs);
+    document.body.appendChild(svg);
+  }
 }
 
 // CSS to inject for accessibility modes
