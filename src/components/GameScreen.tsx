@@ -105,15 +105,28 @@ export function GameScreen({
       }
     };
 
-    // Play context (cadence) first, then the main question
+    // Play context (cadence) first, then the main question. Split
+    // contextNotes into 3-note chord chunks so a short reference like the
+    // solfege Do (one note) doesn't sit in silence for 2.4s waiting for a
+    // second chord that never comes.
     if (contextNotes && contextNotes.length > 0) {
-      audio.playChord(contextNotes.slice(0, 3));
-      const ctx1 = setTimeout(() => {
-        audio.playChord(contextNotes.slice(3, 6));
-        const ctx2 = setTimeout(playMain, 1200);
-        feedbackTimeouts.current.push(ctx2);
-      }, 1200);
-      feedbackTimeouts.current.push(ctx1);
+      const CHUNK_SIZE = 3;
+      const CHUNK_GAP_MS = 1200;
+      const chunks: number[][] = [];
+      for (let i = 0; i < contextNotes.length; i += CHUNK_SIZE) {
+        const chunk = contextNotes.slice(i, i + CHUNK_SIZE);
+        if (chunk.length > 0) chunks.push(chunk);
+      }
+      audio.playChord(chunks[0]);
+      let delay = CHUNK_GAP_MS;
+      for (let i = 1; i < chunks.length; i++) {
+        const chunk = chunks[i];
+        const t = setTimeout(() => audio.playChord(chunk), delay);
+        feedbackTimeouts.current.push(t);
+        delay += CHUNK_GAP_MS;
+      }
+      const mainT = setTimeout(playMain, delay);
+      feedbackTimeouts.current.push(mainT);
     } else {
       playMain();
     }
