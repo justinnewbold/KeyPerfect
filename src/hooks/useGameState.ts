@@ -375,6 +375,10 @@ export function useGameState(): UseGameStateReturn {
       currentStreak: dailyStats.currentStreak,
       longestStreak: Math.max(userStats.longestStreak, longestStreak),
       currentLevel: getLevelFromXP(userStats.totalXP + totalXPEarned),
+      // sessionsPlayed and totalPlayTime are read by StatsScreen (Games Played
+      // / Minutes Played); without bumping them here they sat at 0 forever.
+      sessionsPlayed: userStats.sessionsPlayed + 1,
+      totalPlayTime: userStats.totalPlayTime + totalTime,
       lastPlayedDate: new Date().toISOString().split('T')[0],
     });
 
