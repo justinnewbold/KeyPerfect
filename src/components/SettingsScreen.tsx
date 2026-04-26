@@ -74,6 +74,12 @@ export function SettingsScreen({ onReplayTutorial }: SettingsScreenProps = {}) {
   const handleThemeChange = useCallback((theme: AppSettings['theme']) => {
     setSettings(prev => ({ ...prev, theme }));
     updateSettings({ theme });
+    // App.tsx's theme effect only fires on appState changes, so without
+    // applying the class here the new theme wouldn't show until the user
+    // navigated away from Settings.
+    const root = document.documentElement;
+    root.classList.remove('theme-dark', 'theme-purple', 'theme-blue', 'theme-light');
+    root.classList.add(`theme-${theme}`);
   }, []);
 
   const handlePlayModeChange = useCallback((playMode: AppSettings['playMode']) => {
