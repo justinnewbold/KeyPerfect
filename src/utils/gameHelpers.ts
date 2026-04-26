@@ -984,7 +984,13 @@ export function generateAdaptiveQuestion(
       return {
         ...question,
         correctAnswer: quality,
-        options: shuffleArray([quality, ...level.chords.filter(c => c !== quality)]).slice(0, 4),
+        // Pick 3 wrong options first then mix in the correct answer; otherwise
+        // shuffleArray + slice could drop the correct answer when level.chords
+        // has more than four entries.
+        options: shuffleArray([
+          quality,
+          ...shuffleArray(level.chords.filter(c => c !== quality)).slice(0, 3),
+        ]),
         audioData: { ...question.audioData, notes, type: quality },
       };
     }
@@ -1062,7 +1068,13 @@ export function generateComparisonQuestion(
     type: 'comparison',
     prompt: `Two chords are played. What is the second chord?`,
     correctAnswer: chord2,
-    options: shuffleArray([chord2, ...level.chords.filter(c => c !== chord2)]).slice(0, 4),
+    // Pick the wrong options first (max 3) then shuffle them with the
+    // correct answer; the previous '[correct, ...all] -> shuffle -> slice 4'
+    // pattern could drop the correct answer for any level with >3 distractors.
+    options: shuffleArray([
+      chord2,
+      ...shuffleArray(level.chords.filter(c => c !== chord2)).slice(0, 3),
+    ]),
     audioData: {
       notes: notes1,
       rootNote: rootMidi,
@@ -1098,8 +1110,14 @@ export function generateTranspositionQuestion(
   const originalNotes = melodyIntervals.map(i => originalMidi + i);
   const transposedNotes = melodyIntervals.map(i => targetMidi + i);
 
-  // Ask what key the transposed melody is in
-  const options = shuffleArray([targetRoot, ...targetRoots.filter(n => n !== targetRoot)]).slice(0, 4);
+  // Ask what key the transposed melody is in. There are 12 candidate keys,
+  // so pick three wrong distractors first and then shuffle the four options;
+  // the old '[target, ...all] -> shuffle -> slice 4' pattern could drop
+  // targetRoot from the options entirely.
+  const options = shuffleArray([
+    targetRoot,
+    ...shuffleArray(targetRoots.filter(n => n !== targetRoot)).slice(0, 3),
+  ]);
 
   return {
     id,
