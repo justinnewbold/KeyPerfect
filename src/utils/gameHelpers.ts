@@ -749,23 +749,23 @@ function generateMusicKeyQuestion(
     notes = scaleIntervals.map(interval => rootMidi + interval);
     actualPlaybackMode = 'scale';
   } else if (effectivePlaybackType === 'chords') {
-    // Play I-IV-V chord pattern in the key
-    const majorScale = [0, 2, 4, 5, 7, 9, 11];
+    // Play I-IV-V-I (harmonic minor: i-iv-V-i, keeping the raised leading
+    // tone in the V chord so the cadence resolves the way ear-training
+    // listeners expect).
     const iChord = [rootMidi, rootMidi + 4, rootMidi + 7]; // I chord
     const ivChord = [rootMidi + 5, rootMidi + 9, rootMidi + 12]; // IV chord
-    const vChord = [rootMidi + 7, rootMidi + 11, rootMidi + 14]; // V chord
+    const vChord = [rootMidi + 7, rootMidi + 11, rootMidi + 14]; // V chord (major)
 
     if (keyData.type === 'minor') {
-      // Adjust for minor: i-iv-v
-      iChord[1] = rootMidi + 3; // Minor third
-      ivChord[1] = rootMidi + 8; // Minor iv
+      iChord[1] = rootMidi + 3; // i: minor third
+      ivChord[1] = rootMidi + 8; // iv: minor third above the 4th degree
+      // vChord intentionally stays major (harmonic minor V).
     }
 
     notes = [...iChord, ...ivChord, ...vChord, ...iChord];
     actualPlaybackMode = 'chord';
   } else {
     // Play a simple progression
-    const majorScale = [0, 2, 4, 5, 7, 9, 11];
     if (keyData.type === 'major') {
       // I-V-vi-IV progression
       const iChord = getChordNotes(rootMidi, 'major');
