@@ -505,6 +505,9 @@ export function updateWeeklyGoalProgress(type: WeeklyGoal['type'], amount: numbe
         const sessions = (goal.accuracySessions ?? 0) + 1;
         newCurrent = (goal.current * (sessions - 1) + amount) / sessions;
         updatedFields = { accuracySessions: sessions };
+      } else if (type === 'streak') {
+        // 'Best Streak' is a high-water mark, not a sum.
+        newCurrent = Math.max(goal.current, amount);
       } else {
         newCurrent = goal.current + amount;
       }

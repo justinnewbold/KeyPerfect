@@ -30,6 +30,7 @@ import {
   updateGameModeStats,
   addSessionToHistory,
   getDailyStats,
+  updateWeeklyGoalProgress,
 } from '../utils/storage';
 import { calculateQuestionXP, getLevelFromXP } from '../types/stats';
 import { updateReviewItem } from '../utils/spacedRepetition';
@@ -429,6 +430,16 @@ export function useGameState(): UseGameStateReturn {
       xpEarned: totalXPEarned,
       streak: longestStreak,
     });
+
+    // Update weekly goal progress. Without this, updateWeeklyGoalProgress
+    // was never called from anywhere, so a goal set in the Weekly Goals UI
+    // sat at 0 / target forever and totalWeeksCompleted never increased.
+    if (gameState.answers.length > 0) {
+      updateWeeklyGoalProgress('questions', gameState.answers.length);
+      updateWeeklyGoalProgress('minutes', totalTime / 60);
+      updateWeeklyGoalProgress('accuracy', accuracy);
+      updateWeeklyGoalProgress('streak', longestStreak);
+    }
 
     // Check for new achievements
     const newAchievements = checkAndUnlockAchievements(updatedStats);
