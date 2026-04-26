@@ -20,6 +20,9 @@ import {
   updateIntervalStats,
   updateKeyStats,
   updateNoteStats,
+  getLevelProgress,
+  getMusicKeysProgress,
+  getNotesProgress,
   updateLevelProgress,
   updateMusicKeysProgress,
   updateNotesProgress,
@@ -374,23 +377,39 @@ export function useGameState(): UseGameStateReturn {
       lastPlayedDate: new Date().toISOString().split('T')[0],
     });
 
-    // Update level progress
+    // Update level progress. Take the max of the existing high-water mark
+    // and this session, and bump timesCompleted whenever the player actually
+    // played through the whole level (rather than rage-quitting). Without
+    // this, bestScore / questionsCompleted regressed on every session and
+    // timesCompleted never left zero - so the level-complete check marks,
+    // 'X / N levels' counters, and level_complete_* achievements all
+    // stayed dark even after finishing a level cleanly.
+    const finishedFullSession =
+      gameState.answers.length >= gameState.totalQuestions ||
+      (gameState.mode === 'survival' && gameState.lives <= 0);
+
     if (gameState.mode === 'musickeys') {
+      const prev = getMusicKeysProgress().find(p => p.levelId === gameState.level);
       updateMusicKeysProgress(gameState.level, {
-        questionsCompleted: correctAnswers,
-        bestScore: Math.max(0, gameState.score),
+        questionsCompleted: Math.max(prev?.questionsCompleted ?? 0, correctAnswers),
+        bestScore: Math.max(prev?.bestScore ?? 0, gameState.score),
+        timesCompleted: (prev?.timesCompleted ?? 0) + (finishedFullSession ? 1 : 0),
       });
     } else if (gameState.mode === 'notes') {
+      const prev = getNotesProgress().find(p => p.levelId === gameState.level);
       updateNotesProgress(gameState.level, {
-        questionsCompleted: correctAnswers,
-        bestScore: Math.max(0, gameState.score),
+        questionsCompleted: Math.max(prev?.questionsCompleted ?? 0, correctAnswers),
+        bestScore: Math.max(prev?.bestScore ?? 0, gameState.score),
+        timesCompleted: (prev?.timesCompleted ?? 0) + (finishedFullSession ? 1 : 0),
       });
     } else {
       const level = LEVELS.find(l => l.id === gameState.level);
       if (level) {
+        const prev = getLevelProgress().find(p => p.levelId === gameState.level);
         updateLevelProgress(gameState.level, {
-          questionsCompleted: correctAnswers,
-          bestScore: Math.max(0, gameState.score),
+          questionsCompleted: Math.max(prev?.questionsCompleted ?? 0, correctAnswers),
+          bestScore: Math.max(prev?.bestScore ?? 0, gameState.score),
+          timesCompleted: (prev?.timesCompleted ?? 0) + (finishedFullSession ? 1 : 0),
         });
       }
     }
