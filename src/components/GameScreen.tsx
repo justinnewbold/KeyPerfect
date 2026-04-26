@@ -146,7 +146,17 @@ export function GameScreen({
           playQuestionAudio();
         }
       } else if (question.type === 'intervals') {
-        audio.playInterval(rootNote || 60, (rootNote || 60) + parseInt(correctAnswer));
+        // correctAnswer is an IntervalType key like 'minor3' / 'perfect5',
+        // not a number. parseInt(...) returned NaN, so the second note
+        // played at NaN frequency and the user heard nothing useful as
+        // 'correct answer' feedback. Read the semitone count from the
+        // INTERVALS table instead.
+        const interval = INTERVALS[correctAnswer as keyof typeof INTERVALS];
+        if (interval) {
+          audio.playInterval(rootNote || 60, (rootNote || 60) + interval.semitones);
+        } else {
+          playQuestionAudio();
+        }
       } else {
         // For other types, just replay the question audio
         playQuestionAudio();
