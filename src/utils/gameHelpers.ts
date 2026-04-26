@@ -551,6 +551,14 @@ function generateHarmonyQuestion(id: string, level: LevelConfig, difficultyModif
       const vChord = getChordNotes(rootMidi + 7, 'major');
       const iChord = getChordNotes(rootMidi, 'major');
       notes = [...vChord, ...iChord];
+    } else if (cadence.pattern === 'V-I (inverted)') {
+      // Imperfect Authentic: still V → I, but with one chord inverted so it
+      // doesn't end with the tonic on top. Without this branch the cadence
+      // fell through to the half-cadence audio (I → V), which is the wrong
+      // direction and indistinguishable from the Half Cadence option.
+      const vChord = getChordNotes(rootMidi + 7, 'major');
+      const iChord = getChordNotes(rootMidi, 'major', 'first');
+      notes = [...vChord, ...iChord];
     } else if (cadence.pattern === 'IV-I') {
       const ivChord = getChordNotes(rootMidi + 5, 'major');
       const iChord = getChordNotes(rootMidi, 'major');
@@ -560,9 +568,10 @@ function generateHarmonyQuestion(id: string, level: LevelConfig, difficultyModif
       const viChord = getChordNotes(rootMidi + 9, 'minor');
       notes = [...vChord, ...viChord];
     } else {
-      const anyChord = getChordNotes(rootMidi, 'major');
+      // Half Cadence ('any-V'): something unresolved that lands on V.
+      const iChord = getChordNotes(rootMidi, 'major');
       const vChord = getChordNotes(rootMidi + 7, 'major');
-      notes = [...anyChord, ...vChord];
+      notes = [...iChord, ...vChord];
     }
 
     return {
