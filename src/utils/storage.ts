@@ -985,11 +985,21 @@ export function trackInstrumentUsage(instrument: InstrumentType): InstrumentType
   return used;
 }
 
-// Reset all data
+// Reset all data. STORAGE_KEYS misses several stores written elsewhere
+// (keyperfect_srs, keyperfect_accessibility, keyperfect_tutorial_completed,
+// keyperfect_leaderboard, keyperfect_achievements_with_dates, the cloud-sync
+// auth/token/pending-sync keys, keyperfect_custom_sets, ...). Iterate the
+// whole localStorage keyspace so 'Reset All Data' really wipes everything
+// the app owns.
 export function resetAllData(): void {
-  Object.values(STORAGE_KEYS).forEach(key => {
-    localStorage.removeItem(key);
-  });
+  const keysToRemove: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith('keyperfect_')) {
+      keysToRemove.push(key);
+    }
+  }
+  keysToRemove.forEach(key => localStorage.removeItem(key));
 }
 
 // Export data
