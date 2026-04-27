@@ -552,33 +552,31 @@ function generateHarmonyQuestion(id: string, level: LevelConfig, difficultyModif
     const wrongOptions = shuffleArray(otherCadences.map(c => c.name)).slice(0, 3);
     const options = shuffleArray([cadence.name, ...wrongOptions]);
 
-    // Generate chord notes for the cadence
-    let notes: number[] = [];
+    // Generate chord notes for the cadence. Track the two chords
+    // separately so GameScreen can play them sequentially via the
+    // comparisonNotes path - if we flatten them into one notes array
+    // playChord plays all 6 pitches simultaneously and the user just
+    // hears one cluster, making every cadence indistinguishable.
+    let firstChord: number[] = [];
+    let secondChord: number[] = [];
     if (cadence.pattern === 'V-I') {
-      const vChord = getChordNotes(rootMidi + 7, 'major');
-      const iChord = getChordNotes(rootMidi, 'major');
-      notes = [...vChord, ...iChord];
+      firstChord = getChordNotes(rootMidi + 7, 'major');
+      secondChord = getChordNotes(rootMidi, 'major');
     } else if (cadence.pattern === 'V-I (inverted)') {
-      // Imperfect Authentic: still V → I, but with one chord inverted so it
-      // doesn't end with the tonic on top. Without this branch the cadence
-      // fell through to the half-cadence audio (I → V), which is the wrong
-      // direction and indistinguishable from the Half Cadence option.
-      const vChord = getChordNotes(rootMidi + 7, 'major');
-      const iChord = getChordNotes(rootMidi, 'major', 'first');
-      notes = [...vChord, ...iChord];
+      // Imperfect Authentic: still V → I, but with the tonic chord
+      // inverted so it doesn't end with the tonic on top.
+      firstChord = getChordNotes(rootMidi + 7, 'major');
+      secondChord = getChordNotes(rootMidi, 'major', 'first');
     } else if (cadence.pattern === 'IV-I') {
-      const ivChord = getChordNotes(rootMidi + 5, 'major');
-      const iChord = getChordNotes(rootMidi, 'major');
-      notes = [...ivChord, ...iChord];
+      firstChord = getChordNotes(rootMidi + 5, 'major');
+      secondChord = getChordNotes(rootMidi, 'major');
     } else if (cadence.pattern === 'V-vi') {
-      const vChord = getChordNotes(rootMidi + 7, 'major');
-      const viChord = getChordNotes(rootMidi + 9, 'minor');
-      notes = [...vChord, ...viChord];
+      firstChord = getChordNotes(rootMidi + 7, 'major');
+      secondChord = getChordNotes(rootMidi + 9, 'minor');
     } else {
       // Half Cadence ('any-V'): something unresolved that lands on V.
-      const iChord = getChordNotes(rootMidi, 'major');
-      const vChord = getChordNotes(rootMidi + 7, 'major');
-      notes = [...iChord, ...vChord];
+      firstChord = getChordNotes(rootMidi, 'major');
+      secondChord = getChordNotes(rootMidi + 7, 'major');
     }
 
     return {
@@ -588,11 +586,12 @@ function generateHarmonyQuestion(id: string, level: LevelConfig, difficultyModif
       correctAnswer: cadence.name,
       options,
       audioData: {
-        notes,
+        notes: firstChord,
         rootNote: rootMidi,
         type: cadence.name,
         playbackMode: 'chord',
         duration: 1.5,
+        comparisonNotes: secondChord,
       },
       difficulty: level.id,
       xpValue: 15 + level.id * 2 + Math.floor(difficultyModifier * 5),
@@ -623,11 +622,16 @@ function generateHarmonyQuestion(id: string, level: LevelConfig, difficultyModif
       correctAnswer: voiceLeading.name,
       options,
       audioData: {
-        notes: [...chord1, ...chord2],
+        // Play chord1 first, then chord2 via the comparison path so the
+        // listener can actually hear the voices move. Flattening into one
+        // notes array used to play all six pitches at once, which made
+        // every voice-leading type sound identical.
+        notes: chord1,
         rootNote: rootMidi,
         type: voiceLeading.name,
         playbackMode: 'chord',
         duration: 1.5,
+        comparisonNotes: chord2,
       },
       difficulty: level.id,
       xpValue: 15 + level.id * 2 + Math.floor(difficultyModifier * 5),
