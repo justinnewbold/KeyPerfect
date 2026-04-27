@@ -341,6 +341,13 @@ function generateInversionQuestion(id: string, level: LevelConfig): GameQuestion
 }
 
 function generateProgressionQuestion(id: string, level: LevelConfig): GameQuestion {
+  // Level 1 ships with no progressions, but the home screen still exposes
+  // the Chord Progressions tile - so without a fallback the very first
+  // question generation calls randomElement([]) and crashes. Drop back to
+  // a chord question if the level doesn't define progressions.
+  if (level.progressions.length === 0) {
+    return generateChordQuestion(id, level);
+  }
   const progression = randomElement(level.progressions);
   const rootNote = randomElement(NOTE_NAMES);
   const rootMidi = getMidiFromNote(rootNote, 4);
