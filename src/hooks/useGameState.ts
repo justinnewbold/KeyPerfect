@@ -362,25 +362,34 @@ export function useGameState(): UseGameStateReturn {
       }
     });
 
+    // Practice Mode advertises 'No XP' on the GameScreen badge - honour
+    // that by skipping the persistence side effects entirely. The result
+    // is still computed and shown on the result screen, but XP, level
+    // progress, game-mode stats, session history, weekly goals, and
+    // achievement unlocks all stay untouched.
+    const isPractice = gameState.isPracticeMode;
+
     // Update user stats.
     // currentStreak reflects daily play streak (see AnalyticsDashboard "days in a row"),
     // so keep it synced with DailyStats rather than the per-session answer streak.
     const userStats = getUserStats();
     const dailyStats = getDailyStats();
-    const updatedStats = updateUserStats({
-      totalXP: userStats.totalXP + totalXPEarned,
-      totalQuestionsAnswered: userStats.totalQuestionsAnswered + gameState.answers.length,
-      totalCorrect: userStats.totalCorrect + correctAnswers,
-      totalIncorrect: userStats.totalIncorrect + (gameState.answers.length - correctAnswers),
-      currentStreak: dailyStats.currentStreak,
-      longestStreak: Math.max(userStats.longestStreak, longestStreak),
-      currentLevel: getLevelFromXP(userStats.totalXP + totalXPEarned),
-      // sessionsPlayed and totalPlayTime are read by StatsScreen (Games Played
-      // / Minutes Played); without bumping them here they sat at 0 forever.
-      sessionsPlayed: userStats.sessionsPlayed + 1,
-      totalPlayTime: userStats.totalPlayTime + totalTime,
-      lastPlayedDate: new Date().toISOString().split('T')[0],
-    });
+    const updatedStats = isPractice
+      ? userStats
+      : updateUserStats({
+          totalXP: userStats.totalXP + totalXPEarned,
+          totalQuestionsAnswered: userStats.totalQuestionsAnswered + gameState.answers.length,
+          totalCorrect: userStats.totalCorrect + correctAnswers,
+          totalIncorrect: userStats.totalIncorrect + (gameState.answers.length - correctAnswers),
+          currentStreak: dailyStats.currentStreak,
+          longestStreak: Math.max(userStats.longestStreak, longestStreak),
+          currentLevel: getLevelFromXP(userStats.totalXP + totalXPEarned),
+          // sessionsPlayed and totalPlayTime are read by StatsScreen (Games Played
+          // / Minutes Played); without bumping them here they sat at 0 forever.
+          sessionsPlayed: userStats.sessionsPlayed + 1,
+          totalPlayTime: userStats.totalPlayTime + totalTime,
+          lastPlayedDate: new Date().toISOString().split('T')[0],
+        });
 
     // Update level progress. Take the max of the existing high-water mark
     // and this session, and bump timesCompleted whenever the player actually
@@ -393,60 +402,63 @@ export function useGameState(): UseGameStateReturn {
       gameState.answers.length >= gameState.totalQuestions ||
       (gameState.mode === 'survival' && gameState.lives <= 0);
 
-    if (gameState.mode === 'musickeys') {
-      const prev = getMusicKeysProgress().find(p => p.levelId === gameState.level);
-      updateMusicKeysProgress(gameState.level, {
-        questionsCompleted: Math.max(prev?.questionsCompleted ?? 0, correctAnswers),
-        bestScore: Math.max(prev?.bestScore ?? 0, gameState.score),
-        timesCompleted: (prev?.timesCompleted ?? 0) + (finishedFullSession ? 1 : 0),
-      });
-    } else if (gameState.mode === 'notes') {
-      const prev = getNotesProgress().find(p => p.levelId === gameState.level);
-      updateNotesProgress(gameState.level, {
-        questionsCompleted: Math.max(prev?.questionsCompleted ?? 0, correctAnswers),
-        bestScore: Math.max(prev?.bestScore ?? 0, gameState.score),
-        timesCompleted: (prev?.timesCompleted ?? 0) + (finishedFullSession ? 1 : 0),
-      });
-    } else {
-      const level = LEVELS.find(l => l.id === gameState.level);
-      if (level) {
-        const prev = getLevelProgress().find(p => p.levelId === gameState.level);
-        updateLevelProgress(gameState.level, {
+    if (!isPractice) {
+      if (gameState.mode === 'musickeys') {
+        const prev = getMusicKeysProgress().find(p => p.levelId === gameState.level);
+        updateMusicKeysProgress(gameState.level, {
           questionsCompleted: Math.max(prev?.questionsCompleted ?? 0, correctAnswers),
           bestScore: Math.max(prev?.bestScore ?? 0, gameState.score),
           timesCompleted: (prev?.timesCompleted ?? 0) + (finishedFullSession ? 1 : 0),
         });
+      } else if (gameState.mode === 'notes') {
+        const prev = getNotesProgress().find(p => p.levelId === gameState.level);
+        updateNotesProgress(gameState.level, {
+          questionsCompleted: Math.max(prev?.questionsCompleted ?? 0, correctAnswers),
+          bestScore: Math.max(prev?.bestScore ?? 0, gameState.score),
+          timesCompleted: (prev?.timesCompleted ?? 0) + (finishedFullSession ? 1 : 0),
+        });
+      } else {
+        const level = LEVELS.find(l => l.id === gameState.level);
+        if (level) {
+          const prev = getLevelProgress().find(p => p.levelId === gameState.level);
+          updateLevelProgress(gameState.level, {
+            questionsCompleted: Math.max(prev?.questionsCompleted ?? 0, correctAnswers),
+            bestScore: Math.max(prev?.bestScore ?? 0, gameState.score),
+            timesCompleted: (prev?.timesCompleted ?? 0) + (finishedFullSession ? 1 : 0),
+          });
+        }
+      }
+
+      // Update game mode stats
+      updateGameModeStats(gameState.mode, gameState.score, totalTime);
+
+      // Save session to history
+      addSessionToHistory({
+        date: new Date().toISOString().split('T')[0],
+        mode: gameState.mode,
+        score: gameState.score,
+        totalQuestions: gameState.answers.length,
+        correctAnswers,
+        accuracy,
+        duration: Math.round(totalTime),
+        xpEarned: totalXPEarned,
+        streak: longestStreak,
+      });
+
+      // Update weekly goal progress. Without this, updateWeeklyGoalProgress
+      // was never called from anywhere, so a goal set in the Weekly Goals UI
+      // sat at 0 / target forever and totalWeeksCompleted never increased.
+      if (gameState.answers.length > 0) {
+        updateWeeklyGoalProgress('questions', gameState.answers.length);
+        updateWeeklyGoalProgress('minutes', totalTime / 60);
+        updateWeeklyGoalProgress('accuracy', accuracy);
+        updateWeeklyGoalProgress('streak', longestStreak);
       }
     }
 
-    // Update game mode stats
-    updateGameModeStats(gameState.mode, gameState.score, totalTime);
-
-    // Save session to history
-    addSessionToHistory({
-      date: new Date().toISOString().split('T')[0],
-      mode: gameState.mode,
-      score: gameState.score,
-      totalQuestions: gameState.answers.length,
-      correctAnswers,
-      accuracy,
-      duration: Math.round(totalTime),
-      xpEarned: totalXPEarned,
-      streak: longestStreak,
-    });
-
-    // Update weekly goal progress. Without this, updateWeeklyGoalProgress
-    // was never called from anywhere, so a goal set in the Weekly Goals UI
-    // sat at 0 / target forever and totalWeeksCompleted never increased.
-    if (gameState.answers.length > 0) {
-      updateWeeklyGoalProgress('questions', gameState.answers.length);
-      updateWeeklyGoalProgress('minutes', totalTime / 60);
-      updateWeeklyGoalProgress('accuracy', accuracy);
-      updateWeeklyGoalProgress('streak', longestStreak);
-    }
-
-    // Check for new achievements
-    const newAchievements = checkAndUnlockAchievements(updatedStats);
+    // Check for new achievements (no-op in practice mode since stats
+    // didn't change, but keep the call to keep the result shape stable).
+    const newAchievements = isPractice ? [] : checkAndUnlockAchievements(updatedStats);
 
     // Build category breakdown for session summary
     const categoryMap = new Map<string, { correct: number; total: number }>();
