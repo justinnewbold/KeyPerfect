@@ -192,7 +192,15 @@ export function useAccessibility() {
   const [settings, setSettings] = useState<AccessibilitySettings>(loadAccessibilitySettings);
 
   useEffect(() => {
-    // Check for system preferences
+    // Adopt the system 'prefers-reduced-motion' / 'prefers-contrast: more'
+    // values - but only on the very first launch, while the user hasn't
+    // saved any explicit accessibility choices yet. Without this guard,
+    // every mount re-applied the system prefs over the saved values, so
+    // a user with the OS-level reduced-motion pref enabled could never
+    // turn the in-app toggle off: the next reload silently flipped it
+    // back on.
+    if (localStorage.getItem(STORAGE_KEY)) return;
+
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const prefersHighContrast = window.matchMedia('(prefers-contrast: more)').matches;
 
