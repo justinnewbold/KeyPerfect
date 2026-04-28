@@ -418,14 +418,31 @@ export function useGameState(): UseGameStateReturn {
           timesCompleted: (prev?.timesCompleted ?? 0) + (finishedFullSession ? 1 : 0),
         });
       } else {
-        const level = LEVELS.find(l => l.id === gameState.level);
-        if (level) {
-          const prev = getLevelProgress().find(p => p.levelId === gameState.level);
-          updateLevelProgress(gameState.level, {
-            questionsCompleted: Math.max(prev?.questionsCompleted ?? 0, correctAnswers),
-            bestScore: Math.max(prev?.bestScore ?? 0, gameState.score),
-            timesCompleted: (prev?.timesCompleted ?? 0) + (finishedFullSession ? 1 : 0),
-          });
+        // Challenge modes (daily / speedrun / survival / timeattack) all
+        // run on level=1 with overridden totalQuestions (10 / 50 / 100), so
+        // their correctAnswers regularly exceeds level 1's questionsToComplete
+        // (20). Writing those into LEVEL_PROGRESS made the LevelSelect
+        // percentage shoot past 100% (e.g. 50/20 = 250%) and inflated
+        // timesCompleted with sessions that weren't actually that level.
+        const isChallengeMode =
+          gameState.mode === 'daily' ||
+          gameState.mode === 'speedrun' ||
+          gameState.mode === 'survival' ||
+          gameState.mode === 'timeattack';
+        if (!isChallengeMode) {
+          const level = LEVELS.find(l => l.id === gameState.level);
+          if (level) {
+            const prev = getLevelProgress().find(p => p.levelId === gameState.level);
+            const cap = level.questionsToComplete;
+            updateLevelProgress(gameState.level, {
+              questionsCompleted: Math.min(
+                cap,
+                Math.max(prev?.questionsCompleted ?? 0, correctAnswers)
+              ),
+              bestScore: Math.max(prev?.bestScore ?? 0, gameState.score),
+              timesCompleted: (prev?.timesCompleted ?? 0) + (finishedFullSession ? 1 : 0),
+            });
+          }
         }
       }
 
