@@ -245,9 +245,20 @@ export function GameScreen({
     // For notes/musickeys questions, match the note name to answer options
     if (question.type === 'notes' || question.type === 'musickeys') {
       const noteName = NOTE_NAMES[note % 12];
-      const optionIndex = question.options.findIndex(opt =>
-        opt === noteName || opt.startsWith(noteName)
-      );
+      const octave = Math.floor(note / 12) - 1;
+      const fullName = `${noteName}${octave}`;
+      // Try the exact note+octave first so an 'includeOctaveInAnswer'
+      // notes question (options like ['C3', 'C4', 'D4']) doesn't always
+      // pick whichever octave appears first in the list. Only fall back
+      // to the bare note name for questions where options carry no
+      // octave (Levels 1-3, music-keys) or when the played octave
+      // simply isn't on offer.
+      let optionIndex = question.options.findIndex(opt => opt === fullName);
+      if (optionIndex < 0) {
+        optionIndex = question.options.findIndex(opt =>
+          opt === noteName || opt.startsWith(noteName)
+        );
+      }
       if (optionIndex >= 0) {
         handleAnswer(question.options[optionIndex]);
         return;
