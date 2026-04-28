@@ -31,6 +31,7 @@ import {
   addSessionToHistory,
   getDailyStats,
   updateWeeklyGoalProgress,
+  checkAndUpdateDailyStreak,
 } from '../utils/storage';
 import { calculateQuestionXP, getLevelFromXP } from '../types/stats';
 import { updateReviewItem } from '../utils/spacedRepetition';
@@ -374,6 +375,17 @@ export function useGameState(): UseGameStateReturn {
     // progress, game-mode stats, session history, weekly goals, and
     // achievement unlocks all stay untouched.
     const isPractice = gameState.isPracticeMode;
+
+    // Mark today as played for the daily login streak. Previously this
+    // only fired when the user started the Daily Challenge mode (see
+    // App.tsx handleStartChallenge), so a player who practised Chords
+    // every day and never opened the Daily Challenge tile kept the
+    // 'Play X days in a row' achievements at zero. Calling it here is
+    // idempotent within the same UTC day so the existing daily-mode
+    // call still works fine.
+    if (!isPractice && gameState.answers.length > 0) {
+      checkAndUpdateDailyStreak();
+    }
 
     // Update user stats.
     // currentStreak reflects daily play streak (see AnalyticsDashboard "days in a row"),
