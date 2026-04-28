@@ -237,20 +237,26 @@ export function useGameState(): UseGameStateReturn {
       questionType: question.type,
     };
 
-    // Update stats based on question type
-    if (question.type === 'chords') {
-      updateChordStats(question.correctAnswer, isCorrect);
-      updateReviewItem('chord', question.correctAnswer, isCorrect, timeToAnswer, gameState.streak);
-    } else if (question.type === 'scales') {
-      updateScaleStats(question.correctAnswer, isCorrect);
-      updateReviewItem('scale', question.correctAnswer, isCorrect, timeToAnswer, gameState.streak);
-    } else if (question.type === 'intervals') {
-      updateIntervalStats(question.correctAnswer, isCorrect);
-      updateReviewItem('interval', question.correctAnswer, isCorrect, timeToAnswer, gameState.streak);
-    } else if (question.type === 'musickeys') {
-      updateKeyStats(question.correctAnswer, isCorrect);
-    } else if (question.type === 'notes') {
-      updateNoteStats(question.correctAnswer, isCorrect);
+    // Update stats based on question type. Practice mode advertises 'no
+    // stats are tracked' (see GameState.isPracticeMode) and endGame skips
+    // session-level persistence accordingly - mirror that here so the
+    // per-item Chord / Scale / Interval / Key / Note stats and the SRS
+    // review entries don't get bumped during a practice session either.
+    if (!gameState.isPracticeMode) {
+      if (question.type === 'chords') {
+        updateChordStats(question.correctAnswer, isCorrect);
+        updateReviewItem('chord', question.correctAnswer, isCorrect, timeToAnswer, gameState.streak);
+      } else if (question.type === 'scales') {
+        updateScaleStats(question.correctAnswer, isCorrect);
+        updateReviewItem('scale', question.correctAnswer, isCorrect, timeToAnswer, gameState.streak);
+      } else if (question.type === 'intervals') {
+        updateIntervalStats(question.correctAnswer, isCorrect);
+        updateReviewItem('interval', question.correctAnswer, isCorrect, timeToAnswer, gameState.streak);
+      } else if (question.type === 'musickeys') {
+        updateKeyStats(question.correctAnswer, isCorrect);
+      } else if (question.type === 'notes') {
+        updateNoteStats(question.correctAnswer, isCorrect);
+      }
     }
 
     // Update game state
