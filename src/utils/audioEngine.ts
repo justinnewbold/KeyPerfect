@@ -462,13 +462,21 @@ export function playNote(
     gainNode.connect(compressor!);
   }
 
-  // ADSR envelope
+  // ADSR envelope. If the requested duration is shorter than the sum of
+  // attack+decay+release, scale those phases proportionally; otherwise the
+  // computed sustainEnd would land before decayEnd, scheduling envelope
+  // events out of order and producing a malformed gain curve.
   const { attack, decay, sustain, release } = config.envelope;
   const now = ctx.currentTime;
-  const attackEnd = now + attack;
-  const decayEnd = attackEnd + decay;
-  const sustainEnd = now + duration - release;
-  const releaseEnd = sustainEnd + release;
+  const totalEnv = attack + decay + release;
+  const envScale = totalEnv > 0 && duration < totalEnv ? duration / totalEnv : 1;
+  const a = attack * envScale;
+  const d = decay * envScale;
+  const r = release * envScale;
+  const attackEnd = now + a;
+  const decayEnd = attackEnd + d;
+  const sustainEnd = Math.max(decayEnd, now + duration - r);
+  const releaseEnd = sustainEnd + r;
 
   // Start at 0
   gainNode.gain.setValueAtTime(0, now);
@@ -524,17 +532,25 @@ export function playChord(
   arpeggioDelay: number = 0.1
 ): { stop: () => void } {
   const sounds: { stop: () => void }[] = [];
+  const timeouts: ReturnType<typeof setTimeout>[] = [];
+  let cancelled = false;
 
   midiNotes.forEach((midi, index) => {
     const delay = arpeggio ? index * arpeggioDelay : 0;
-    setTimeout(() => {
+    const timeout = setTimeout(() => {
+      if (cancelled) return;
       const sound = playNote(midi, instrument, duration - delay, velocity);
       sounds.push(sound);
     }, delay * 1000);
+    timeouts.push(timeout);
   });
 
   return {
-    stop: () => sounds.forEach(s => s.stop()),
+    stop: () => {
+      cancelled = true;
+      timeouts.forEach(clearTimeout);
+      sounds.forEach(s => s.stop());
+    },
   };
 }
 

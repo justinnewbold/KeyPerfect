@@ -233,12 +233,24 @@ export function CustomPracticeBuilder({
                   {Object.entries(CHORD_CATEGORIES).map(([category, chords]) => {
                     const selectedCount = chords.filter(c => selectedChords.includes(c)).length;
                     const isExpanded = expandedCategory === `chord-${category}`;
+                    const toggle = () =>
+                      setExpandedCategory(isExpanded ? null : `chord-${category}`);
 
                     return (
                       <div key={category} className="bg-white/5 rounded-lg overflow-hidden">
-                        <button
-                          onClick={() => setExpandedCategory(isExpanded ? null : `chord-${category}`)}
-                          className="w-full flex items-center justify-between p-3 hover:bg-white/5"
+                        {/* Header is a div, not a button, so the Select All
+                            button below isn't nested inside another button. */}
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={toggle}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              toggle();
+                            }
+                          }}
+                          className="w-full flex items-center justify-between p-3 hover:bg-white/5 cursor-pointer"
                         >
                           <span className="font-medium">{category}</span>
                           <div className="flex items-center gap-2">
@@ -255,7 +267,7 @@ export function CustomPracticeBuilder({
                               {selectedCount === chords.length ? 'Deselect All' : 'Select All'}
                             </button>
                           </div>
-                        </button>
+                        </div>
                         {isExpanded && (
                           <div className="p-3 pt-0 flex flex-wrap gap-2">
                             {chords.map(chord => (
@@ -289,12 +301,22 @@ export function CustomPracticeBuilder({
                   {Object.entries(SCALE_CATEGORIES).map(([category, scales]) => {
                     const selectedCount = scales.filter(s => selectedScales.includes(s)).length;
                     const isExpanded = expandedCategory === `scale-${category}`;
+                    const toggle = () =>
+                      setExpandedCategory(isExpanded ? null : `scale-${category}`);
 
                     return (
                       <div key={category} className="bg-white/5 rounded-lg overflow-hidden">
-                        <button
-                          onClick={() => setExpandedCategory(isExpanded ? null : `scale-${category}`)}
-                          className="w-full flex items-center justify-between p-3 hover:bg-white/5"
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={toggle}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              toggle();
+                            }
+                          }}
+                          className="w-full flex items-center justify-between p-3 hover:bg-white/5 cursor-pointer"
                         >
                           <span className="font-medium">{category}</span>
                           <div className="flex items-center gap-2">
@@ -311,7 +333,7 @@ export function CustomPracticeBuilder({
                               {selectedCount === scales.length ? 'Deselect All' : 'Select All'}
                             </button>
                           </div>
-                        </button>
+                        </div>
                         {isExpanded && (
                           <div className="p-3 pt-0 flex flex-wrap gap-2">
                             {scales.map(scale => (

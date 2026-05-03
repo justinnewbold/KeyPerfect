@@ -341,6 +341,13 @@ function generateInversionQuestion(id: string, level: LevelConfig): GameQuestion
 }
 
 function generateProgressionQuestion(id: string, level: LevelConfig): GameQuestion {
+  // Level 1 ships with no progressions, but the home screen still exposes
+  // the Chord Progressions tile - so without a fallback the very first
+  // question generation calls randomElement([]) and crashes. Drop back to
+  // a chord question if the level doesn't define progressions.
+  if (level.progressions.length === 0) {
+    return generateChordQuestion(id, level);
+  }
   const progression = randomElement(level.progressions);
   const rootNote = randomElement(NOTE_NAMES);
   const rootMidi = getMidiFromNote(rootNote, 4);
@@ -376,29 +383,41 @@ function getProgressionChords(rootMidi: number, progression: ProgressionType): n
   const numerals = progression.split('-');
   const majorScale = [0, 2, 4, 5, 7, 9, 11];
 
+  // Parse e.g. 'I', 'ii', 'bVII', 'I7', 'IVmaj7', 'iii7' into:
+  //   accidental ('b' or '')  -- flat marker
+  //   roman      ('I'..'VII') -- degree numeral, case preserved
+  //   suffix     ('', '7', 'maj7', 'm7') -- chord extension
+  const numeralRe = /^([bB]?)([ivIV]+)(.*)$/;
+  const degreeMap: Record<string, number> = {
+    I: 0, II: 1, III: 2, IV: 3, V: 4, VI: 5, VII: 6,
+  };
+
   return numerals.map(numeral => {
-    const isMinor = numeral === numeral.toLowerCase() && numeral !== 'I' && numeral !== 'IV' && numeral !== 'V';
-    let degree = 0;
+    const match = numeral.match(numeralRe);
+    if (!match) {
+      return getChordNotes(rootMidi, 'major');
+    }
+    const [, accidental, romanRaw, suffix] = match;
+    const isFlat = accidental.toLowerCase() === 'b';
+    const isMinor = romanRaw === romanRaw.toLowerCase();
+    const degree = degreeMap[romanRaw.toUpperCase()] ?? 0;
+    const chordRoot = rootMidi + majorScale[degree] - (isFlat ? 1 : 0);
 
-    switch (numeral.replace('b', '').toUpperCase()) {
-      case 'I': degree = 0; break;
-      case 'II': degree = 1; break;
-      case 'III': degree = 2; break;
-      case 'IV': degree = 3; break;
-      case 'V': degree = 4; break;
-      case 'VI': degree = 5; break;
-      case 'VII': degree = 6; break;
-      case 'BVII': degree = 6; break;
+    // Map the suffix (combined with case) to a chord quality. Without this,
+    // anything carrying a 7th extension fell through the old switch and
+    // resolved to degree 0 with a plain triad.
+    let quality: ChordQuality;
+    if (suffix === 'maj7') {
+      quality = 'major7';
+    } else if (suffix === 'm7') {
+      quality = 'minor7';
+    } else if (suffix === '7') {
+      quality = isMinor ? 'minor7' : 'dominant7';
+    } else {
+      quality = isMinor ? 'minor' : 'major';
     }
 
-    const chordRoot = rootMidi + majorScale[degree];
-    const isFlat = numeral.includes('b');
-    const adjustedRoot = isFlat ? chordRoot - 1 : chordRoot;
-
-    if (isMinor || numeral === 'ii' || numeral === 'iii' || numeral === 'vi') {
-      return getChordNotes(adjustedRoot, 'minor');
-    }
-    return getChordNotes(adjustedRoot, 'major');
+    return getChordNotes(chordRoot, quality);
   });
 }
 
@@ -533,24 +552,31 @@ function generateHarmonyQuestion(id: string, level: LevelConfig, difficultyModif
     const wrongOptions = shuffleArray(otherCadences.map(c => c.name)).slice(0, 3);
     const options = shuffleArray([cadence.name, ...wrongOptions]);
 
-    // Generate chord notes for the cadence
-    let notes: number[] = [];
+    // Generate chord notes for the cadence. Track the two chords
+    // separately so GameScreen can play them sequentially via the
+    // comparisonNotes path - if we flatten them into one notes array
+    // playChord plays all 6 pitches simultaneously and the user just
+    // hears one cluster, making every cadence indistinguishable.
+    let firstChord: number[] = [];
+    let secondChord: number[] = [];
     if (cadence.pattern === 'V-I') {
-      const vChord = getChordNotes(rootMidi + 7, 'major');
-      const iChord = getChordNotes(rootMidi, 'major');
-      notes = [...vChord, ...iChord];
+      firstChord = getChordNotes(rootMidi + 7, 'major');
+      secondChord = getChordNotes(rootMidi, 'major');
+    } else if (cadence.pattern === 'V-I (inverted)') {
+      // Imperfect Authentic: still V → I, but with the tonic chord
+      // inverted so it doesn't end with the tonic on top.
+      firstChord = getChordNotes(rootMidi + 7, 'major');
+      secondChord = getChordNotes(rootMidi, 'major', 'first');
     } else if (cadence.pattern === 'IV-I') {
-      const ivChord = getChordNotes(rootMidi + 5, 'major');
-      const iChord = getChordNotes(rootMidi, 'major');
-      notes = [...ivChord, ...iChord];
+      firstChord = getChordNotes(rootMidi + 5, 'major');
+      secondChord = getChordNotes(rootMidi, 'major');
     } else if (cadence.pattern === 'V-vi') {
-      const vChord = getChordNotes(rootMidi + 7, 'major');
-      const viChord = getChordNotes(rootMidi + 9, 'minor');
-      notes = [...vChord, ...viChord];
+      firstChord = getChordNotes(rootMidi + 7, 'major');
+      secondChord = getChordNotes(rootMidi + 9, 'minor');
     } else {
-      const anyChord = getChordNotes(rootMidi, 'major');
-      const vChord = getChordNotes(rootMidi + 7, 'major');
-      notes = [...anyChord, ...vChord];
+      // Half Cadence ('any-V'): something unresolved that lands on V.
+      firstChord = getChordNotes(rootMidi, 'major');
+      secondChord = getChordNotes(rootMidi + 7, 'major');
     }
 
     return {
@@ -560,11 +586,12 @@ function generateHarmonyQuestion(id: string, level: LevelConfig, difficultyModif
       correctAnswer: cadence.name,
       options,
       audioData: {
-        notes,
+        notes: firstChord,
         rootNote: rootMidi,
         type: cadence.name,
         playbackMode: 'chord',
         duration: 1.5,
+        comparisonNotes: secondChord,
       },
       difficulty: level.id,
       xpValue: 15 + level.id * 2 + Math.floor(difficultyModifier * 5),
@@ -595,11 +622,16 @@ function generateHarmonyQuestion(id: string, level: LevelConfig, difficultyModif
       correctAnswer: voiceLeading.name,
       options,
       audioData: {
-        notes: [...chord1, ...chord2],
+        // Play chord1 first, then chord2 via the comparison path so the
+        // listener can actually hear the voices move. Flattening into one
+        // notes array used to play all six pitches at once, which made
+        // every voice-leading type sound identical.
+        notes: chord1,
         rootNote: rootMidi,
         type: voiceLeading.name,
         playbackMode: 'chord',
         duration: 1.5,
+        comparisonNotes: chord2,
       },
       difficulty: level.id,
       xpValue: 15 + level.id * 2 + Math.floor(difficultyModifier * 5),
@@ -728,23 +760,23 @@ function generateMusicKeyQuestion(
     notes = scaleIntervals.map(interval => rootMidi + interval);
     actualPlaybackMode = 'scale';
   } else if (effectivePlaybackType === 'chords') {
-    // Play I-IV-V chord pattern in the key
-    const majorScale = [0, 2, 4, 5, 7, 9, 11];
+    // Play I-IV-V-I (harmonic minor: i-iv-V-i, keeping the raised leading
+    // tone in the V chord so the cadence resolves the way ear-training
+    // listeners expect).
     const iChord = [rootMidi, rootMidi + 4, rootMidi + 7]; // I chord
     const ivChord = [rootMidi + 5, rootMidi + 9, rootMidi + 12]; // IV chord
-    const vChord = [rootMidi + 7, rootMidi + 11, rootMidi + 14]; // V chord
+    const vChord = [rootMidi + 7, rootMidi + 11, rootMidi + 14]; // V chord (major)
 
     if (keyData.type === 'minor') {
-      // Adjust for minor: i-iv-v
-      iChord[1] = rootMidi + 3; // Minor third
-      ivChord[1] = rootMidi + 8; // Minor iv
+      iChord[1] = rootMidi + 3; // i: minor third
+      ivChord[1] = rootMidi + 8; // iv: minor third above the 4th degree
+      // vChord intentionally stays major (harmonic minor V).
     }
 
     notes = [...iChord, ...ivChord, ...vChord, ...iChord];
     actualPlaybackMode = 'chord';
   } else {
     // Play a simple progression
-    const majorScale = [0, 2, 4, 5, 7, 9, 11];
     if (keyData.type === 'major') {
       // I-V-vi-IV progression
       const iChord = getChordNotes(rootMidi, 'major');
@@ -963,7 +995,13 @@ export function generateAdaptiveQuestion(
       return {
         ...question,
         correctAnswer: quality,
-        options: shuffleArray([quality, ...level.chords.filter(c => c !== quality)]).slice(0, 4),
+        // Pick 3 wrong options first then mix in the correct answer; otherwise
+        // shuffleArray + slice could drop the correct answer when level.chords
+        // has more than four entries.
+        options: shuffleArray([
+          quality,
+          ...shuffleArray(level.chords.filter(c => c !== quality)).slice(0, 3),
+        ]),
         audioData: { ...question.audioData, notes, type: quality },
       };
     }
@@ -1041,7 +1079,13 @@ export function generateComparisonQuestion(
     type: 'comparison',
     prompt: `Two chords are played. What is the second chord?`,
     correctAnswer: chord2,
-    options: shuffleArray([chord2, ...level.chords.filter(c => c !== chord2)]).slice(0, 4),
+    // Pick the wrong options first (max 3) then shuffle them with the
+    // correct answer; the previous '[correct, ...all] -> shuffle -> slice 4'
+    // pattern could drop the correct answer for any level with >3 distractors.
+    options: shuffleArray([
+      chord2,
+      ...shuffleArray(level.chords.filter(c => c !== chord2)).slice(0, 3),
+    ]),
     audioData: {
       notes: notes1,
       rootNote: rootMidi,
@@ -1077,8 +1121,14 @@ export function generateTranspositionQuestion(
   const originalNotes = melodyIntervals.map(i => originalMidi + i);
   const transposedNotes = melodyIntervals.map(i => targetMidi + i);
 
-  // Ask what key the transposed melody is in
-  const options = shuffleArray([targetRoot, ...targetRoots.filter(n => n !== targetRoot)]).slice(0, 4);
+  // Ask what key the transposed melody is in. There are 12 candidate keys,
+  // so pick three wrong distractors first and then shuffle the four options;
+  // the old '[target, ...all] -> shuffle -> slice 4' pattern could drop
+  // targetRoot from the options entirely.
+  const options = shuffleArray([
+    targetRoot,
+    ...shuffleArray(targetRoots.filter(n => n !== targetRoot)).slice(0, 3),
+  ]);
 
   return {
     id,
@@ -1227,8 +1277,9 @@ export function generateSolfegeQuestion(
 
 // Format time as mm:ss
 export function formatTime(seconds: number): string {
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
+  const total = Math.max(0, Math.floor(seconds));
+  const mins = Math.floor(total / 60);
+  const secs = total % 60;
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 

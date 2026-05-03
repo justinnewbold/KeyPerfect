@@ -2,7 +2,16 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Mic, MicOff, Volume2, Target, Award } from 'lucide-react';
 import { Card, Button, Badge } from './ui';
 import { createPitchDetector, playNote, getAudioContext } from '../utils/audioEngine';
-import { NOTE_NAMES } from '../types/music';
+import { NOTE_NAMES, getMidiFromNote, NoteName, Octave } from '../types/music';
+
+function parseNoteString(noteStr: string): { name: NoteName; octave: Octave } | null {
+  const match = noteStr.match(/^([A-G]#?)(-?\d+)$/);
+  if (!match) return null;
+  const name = match[1] as NoteName;
+  const octave = parseInt(match[2], 10) as Octave;
+  if (!NOTE_NAMES.includes(name)) return null;
+  return { name, octave };
+}
 
 interface PitchDetectorProps {
   mode: 'tuner' | 'singback' | 'interval';
@@ -31,16 +40,24 @@ export function PitchDetector({
   const [currentTarget, setCurrentTarget] = useState(targetNote || 'C4');
   const [matchCount, setMatchCount] = useState(0);
   const [history, setHistory] = useState<string[]>([]);
+  const [totalHits, setTotalHits] = useState(0);
+  const [attempts, setAttempts] = useState(0);
 
   const detectorRef = useRef<ReturnType<typeof createPitchDetector> | null>(null);
   const matchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const generateNewTarget = useCallback(() => {
+  const pickRandomTarget = useCallback(() => {
     const notes = ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5'];
     const newTarget = notes[Math.floor(Math.random() * notes.length)];
     setCurrentTarget(newTarget);
     setMatchCount(0);
   }, []);
+
+  const skipTarget = useCallback(() => {
+    setAttempts(a => a + 1);
+    setStreak(0);
+    pickRandomTarget();
+  }, [pickRandomTarget]);
 
   const handlePitchUpdate = useCallback(
     (frequency: number, note: string, cents: number) => {
@@ -58,9 +75,11 @@ export function PitchDetector({
             if (newCount >= 5) {
               setScore(s => s + 10);
               setStreak(s => s + 1);
+              setTotalHits(h => h + 1);
+              setAttempts(a => a + 1);
               setHistory(h => [...h.slice(-9), `${currentTarget}`]);
               onCorrect?.();
-              generateNewTarget();
+              pickRandomTarget();
               return 0;
             }
             return newCount;
@@ -70,7 +89,7 @@ export function PitchDetector({
         }
       }
     },
-    [mode, currentTarget, onCorrect, generateNewTarget]
+    [mode, currentTarget, onCorrect, pickRandomTarget]
   );
 
   const startListening = useCallback(async () => {
@@ -96,11 +115,8 @@ export function PitchDetector({
 
   const playTargetNote = useCallback(() => {
     getAudioContext();
-    const noteMap: Record<string, number> = {
-      'C4': 60, 'D4': 62, 'E4': 64, 'F4': 65, 'G4': 67, 'A4': 69, 'B4': 71,
-      'C5': 72, 'D5': 74, 'E5': 76, 'F5': 77, 'G5': 79,
-    };
-    const midi = noteMap[currentTarget] || 60;
+    const parsed = parseNoteString(currentTarget);
+    const midi = parsed ? getMidiFromNote(parsed.name, parsed.octave) : 60;
     playNote(midi, 'piano', 1.5);
   }, [currentTarget]);
 
@@ -259,7 +275,7 @@ export function PitchDetector({
             )}
           </Button>
           {mode === 'singback' && (
-            <Button variant="secondary" onClick={generateNewTarget}>
+            <Button variant="secondary" onClick={skipTarget}>
               <Target className="w-5 h-5 mr-2" />
               New Note
             </Button>
@@ -274,12 +290,12 @@ export function PitchDetector({
               <div className="text-sm text-white/60">Streak</div>
             </div>
             <div className="bg-white/5 rounded-lg p-4 text-center">
-              <div className="text-2xl font-bold">{history.length}</div>
+              <div className="text-2xl font-bold">{totalHits}</div>
               <div className="text-sm text-white/60">Notes Hit</div>
             </div>
             <div className="bg-white/5 rounded-lg p-4 text-center">
               <div className="text-2xl font-bold">
-                {history.length > 0 ? Math.round((streak / history.length) * 100) : 0}%
+                {attempts > 0 ? Math.round((totalHits / attempts) * 100) : 0}%
               </div>
               <div className="text-sm text-white/60">Accuracy</div>
             </div>

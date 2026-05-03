@@ -19,7 +19,7 @@ import { GameScreen } from './GameScreen';
 import { CHORD_TYPES, SCALE_TYPES, INTERVALS, ChordQuality, ScaleType, IntervalType } from '../types/music';
 import { LevelConfig, LEVELS } from '../types/levels';
 import { GameQuestion, AnswerRecord, GameResult } from '../types/gameModes';
-import { generateAdaptivePractice, getPracticeRecommendation, updateReviewItem, getLearningProgress } from '../utils/spacedRepetition';
+import { generateAdaptivePractice, getPracticeRecommendation, getLearningProgress } from '../utils/spacedRepetition';
 import { useGameState } from '../hooks/useGameState';
 import { generateQuestion } from '../utils/gameHelpers';
 
@@ -74,24 +74,15 @@ export function CustomPractice({ onBack }: { onBack: () => void }) {
     startGame(config.type === 'mixed' ? 'chords' : `${config.type}s` as any, levelId);
   }, [config, startGame]);
 
-  // Handle answer with SRS update
-  const handleAnswer = useCallback((answer: string): AnswerRecord => {
-    const record = submitAnswer(answer);
-
-    // Update spaced repetition data
-    if (gameState) {
-      const question = gameState.questions[gameState.currentQuestion];
-      updateReviewItem(
-        question.type as 'chord' | 'scale' | 'interval',
-        question.correctAnswer,
-        record.isCorrect,
-        record.timeToAnswer,
-        gameState.streak
-      );
-    }
-
-    return record;
-  }, [submitAnswer, gameState]);
+  // submitAnswer already updates the SRS layer for chord / scale /
+  // interval questions, so a second call here would double every
+  // review entry's correct/incorrect counters and double-step the SM-2
+  // interval/easeFactor each session - mastered items would drift and
+  // weak items would rebound twice as fast as intended.
+  const handleAnswer = useCallback(
+    (answer: string): AnswerRecord => submitAnswer(answer),
+    [submitAnswer]
+  );
 
   // Handle practice complete
   const handlePracticeComplete = useCallback(() => {

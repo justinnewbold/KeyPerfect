@@ -110,7 +110,7 @@ export function PianoKeyboard({
     const octaveOffset = Math.floor((midi - startNote) / 12);
     const whiteKeysBeforeThisOctave = whiteKeys.filter(k => k < startNote + octaveOffset * 12).length;
 
-    // Position based on which white key it's after
+    // Position based on which white key it's after, within the local octave.
     const positions: Record<number, number> = {
       1: 0.7,   // C# is 70% from C to D
       3: 1.7,   // D# is 70% from D to E
@@ -120,7 +120,9 @@ export function PianoKeyboard({
     };
 
     const basePosition = positions[noteInOctave] || 0;
-    return (whiteKeysBeforeThisOctave + octaveOffset * 7 + basePosition) / whiteKeys.length * 100;
+    // whiteKeysBeforeThisOctave already accounts for the keys in earlier
+    // octaves, so combine it with the in-octave offset directly.
+    return (whiteKeysBeforeThisOctave + basePosition) / whiteKeys.length * 100;
   };
 
   const isHighlighted = (midi: number) => highlightNotes.includes(midi);

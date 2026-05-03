@@ -62,7 +62,20 @@ export function GameScreen({
     feedbackTimeouts.current = [];
   }, [question.id]);
 
-  // Play context notes (cadence) before the question if available
+  // Cancel any pending audio timeouts (cadence chain, comparison, wrong-
+  // answer feedback) when the component unmounts so audio doesn't keep
+  // firing after the user navigates away from the game.
+  useEffect(() => {
+    return () => {
+      feedbackTimeouts.current.forEach(clearTimeout);
+      feedbackTimeouts.current = [];
+    };
+  }, []);
+
+  // Play context notes (cadence) before the question if available. All
+  // setTimeouts run through feedbackTimeouts so changing question or
+  // unmounting cancels them - otherwise the cadence + main + comparison
+  // chain (up to ~4s) would keep firing audio after the user moved on.
   const playContextThenAudio = useCallback((audioData: typeof question.audioData) => {
     const { notes, playbackMode, rhythmPattern, duration, contextNotes, comparisonNotes } = audioData;
 
@@ -81,23 +94,39 @@ export function GameScreen({
 
       // For comparison mode: play second sound after a pause
       if (comparisonNotes && comparisonNotes.length > 0) {
-        setTimeout(() => {
+        const cmpTimeout = setTimeout(() => {
           if (playbackMode === 'chord') {
             audio.playChord(comparisonNotes);
           } else if (playbackMode === 'scale') {
             audio.playScale(comparisonNotes);
           }
         }, 2000);
+        feedbackTimeouts.current.push(cmpTimeout);
       }
     };
 
-    // Play context (cadence) first, then the main question
+    // Play context (cadence) first, then the main question. Split
+    // contextNotes into 3-note chord chunks so a short reference like the
+    // solfege Do (one note) doesn't sit in silence for 2.4s waiting for a
+    // second chord that never comes.
     if (contextNotes && contextNotes.length > 0) {
-      audio.playChord(contextNotes.slice(0, 3));
-      setTimeout(() => {
-        audio.playChord(contextNotes.slice(3, 6));
-        setTimeout(playMain, 1200);
-      }, 1200);
+      const CHUNK_SIZE = 3;
+      const CHUNK_GAP_MS = 1200;
+      const chunks: number[][] = [];
+      for (let i = 0; i < contextNotes.length; i += CHUNK_SIZE) {
+        const chunk = contextNotes.slice(i, i + CHUNK_SIZE);
+        if (chunk.length > 0) chunks.push(chunk);
+      }
+      audio.playChord(chunks[0]);
+      let delay = CHUNK_GAP_MS;
+      for (let i = 1; i < chunks.length; i++) {
+        const chunk = chunks[i];
+        const t = setTimeout(() => audio.playChord(chunk), delay);
+        feedbackTimeouts.current.push(t);
+        delay += CHUNK_GAP_MS;
+      }
+      const mainT = setTimeout(playMain, delay);
+      feedbackTimeouts.current.push(mainT);
     } else {
       playMain();
     }
@@ -130,7 +159,17 @@ export function GameScreen({
           playQuestionAudio();
         }
       } else if (question.type === 'intervals') {
-        audio.playInterval(rootNote || 60, (rootNote || 60) + parseInt(correctAnswer));
+        // correctAnswer is an IntervalType key like 'minor3' / 'perfect5',
+        // not a number. parseInt(...) returned NaN, so the second note
+        // played at NaN frequency and the user heard nothing useful as
+        // 'correct answer' feedback. Read the semitone count from the
+        // INTERVALS table instead.
+        const interval = INTERVALS[correctAnswer as keyof typeof INTERVALS];
+        if (interval) {
+          audio.playInterval(rootNote || 60, (rootNote || 60) + interval.semitones);
+        } else {
+          playQuestionAudio();
+        }
       } else {
         // For other types, just replay the question audio
         playQuestionAudio();
@@ -206,9 +245,20 @@ export function GameScreen({
     // For notes/musickeys questions, match the note name to answer options
     if (question.type === 'notes' || question.type === 'musickeys') {
       const noteName = NOTE_NAMES[note % 12];
-      const optionIndex = question.options.findIndex(opt =>
-        opt === noteName || opt.startsWith(noteName)
-      );
+      const octave = Math.floor(note / 12) - 1;
+      const fullName = `${noteName}${octave}`;
+      // Try the exact note+octave first so an 'includeOctaveInAnswer'
+      // notes question (options like ['C3', 'C4', 'D4']) doesn't always
+      // pick whichever octave appears first in the list. Only fall back
+      // to the bare note name for questions where options carry no
+      // octave (Levels 1-3, music-keys) or when the played octave
+      // simply isn't on offer.
+      let optionIndex = question.options.findIndex(opt => opt === fullName);
+      if (optionIndex < 0) {
+        optionIndex = question.options.findIndex(opt =>
+          opt === noteName || opt.startsWith(noteName)
+        );
+      }
       if (optionIndex >= 0) {
         handleAnswer(question.options[optionIndex]);
         return;

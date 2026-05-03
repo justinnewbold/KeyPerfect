@@ -32,7 +32,6 @@ import { useGameState } from './hooks/useGameState';
 import {
   getDailyStats,
   updateDailyStats,
-  checkAndUpdateDailyStreak,
   PRACTICE_PRESETS,
   PracticePresetId,
   SocialChallenge,
@@ -180,12 +179,12 @@ function App() {
     setAppState({ screen: 'notesGame', notesLevel: level });
   }, [startGame]);
 
-  // Start challenge mode
+  // Start challenge mode. The daily-login streak is credited from
+  // useGameState.endGame once the user has actually played a question
+  // (any mode), so we no longer need a pre-emptive call here - the old
+  // version let players inflate the streak by tapping Daily Challenge
+  // and immediately exiting without answering.
   const handleStartChallenge = useCallback((mode: ChallengeModeType) => {
-    // For Daily Challenge, update streak
-    if (mode === 'daily') {
-      checkAndUpdateDailyStreak();
-    }
     startGame(mode, 1);
     setAppState({ screen: 'game', level: LEVELS[0] });
   }, [startGame]);
@@ -246,11 +245,30 @@ function App() {
 
   // Play again
   const handlePlayAgain = useCallback(() => {
-    if (appState.screen === 'result') {
-      startGame(appState.result.mode, appState.result.level);
-      const level = LEVELS.find(l => l.id === appState.result.level) || LEVELS[0];
-      setAppState({ screen: 'game', level });
+    if (appState.screen !== 'result') return;
+    const { mode, level: levelId } = appState.result;
+
+    if (mode === 'musickeys') {
+      const level = MUSIC_KEYS_LEVELS.find(l => l.id === levelId);
+      if (level) {
+        startGame('musickeys', level.id);
+        setAppState({ screen: 'musicKeysGame', musicKeysLevel: level });
+      }
+      return;
     }
+
+    if (mode === 'notes') {
+      const level = NOTES_LEVELS.find(l => l.id === levelId);
+      if (level) {
+        startGame('notes', level.id);
+        setAppState({ screen: 'notesGame', notesLevel: level });
+      }
+      return;
+    }
+
+    startGame(mode, levelId);
+    const level = LEVELS.find(l => l.id === levelId) || LEVELS[0];
+    setAppState({ screen: 'game', level });
   }, [appState, startGame]);
 
   // Go home

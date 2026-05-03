@@ -32,6 +32,7 @@ import {
   updateStreakFreezeSettings,
 } from '../utils/storage';
 import { useAudio } from '../hooks/useAudio';
+import { playChord as playChordRaw } from '../utils/audioEngine';
 import { useAccessibility, AccessibilitySettings } from '../utils/accessibility';
 
 interface SettingsScreenProps {
@@ -58,8 +59,12 @@ export function SettingsScreen({ onReplayTutorial }: SettingsScreenProps = {}) {
     updateSettings({ instrument });
     trackInstrumentUsage(instrument);
     audio.setInstrument(instrument);
-    // Play a sample chord with the new instrument
-    audio.playChord([60, 64, 67]);
+    // Play a sample chord with the new instrument. audio.playChord uses
+    // useAudio's instrument state from closure, which is still the old
+    // value at this synchronous moment - so the preview would otherwise
+    // play the previously selected instrument. Call the raw audio engine
+    // function with the freshly chosen instrument.
+    playChordRaw([60, 64, 67], instrument, 1.5);
   }, [audio]);
 
   const handleSoundEffectsToggle = useCallback(() => {
@@ -74,6 +79,12 @@ export function SettingsScreen({ onReplayTutorial }: SettingsScreenProps = {}) {
   const handleThemeChange = useCallback((theme: AppSettings['theme']) => {
     setSettings(prev => ({ ...prev, theme }));
     updateSettings({ theme });
+    // App.tsx's theme effect only fires on appState changes, so without
+    // applying the class here the new theme wouldn't show until the user
+    // navigated away from Settings.
+    const root = document.documentElement;
+    root.classList.remove('theme-dark', 'theme-purple', 'theme-blue', 'theme-light');
+    root.classList.add(`theme-${theme}`);
   }, []);
 
   const handlePlayModeChange = useCallback((playMode: AppSettings['playMode']) => {

@@ -218,12 +218,14 @@ export function generateLeaderboard(mode: string = 'daily'): Leaderboard {
       isCurrentUser: true,
     };
 
-    // Find position in daily
-    const dailyPos = daily.findIndex(e => e.score < userEntry.score);
-    if (dailyPos !== -1) {
-      daily.splice(dailyPos, 0, userEntry);
-      daily.pop();
-    }
+    // Insert into every time-frame board the user qualifies for, not just daily.
+    [daily, weekly, allTime].forEach(board => {
+      const pos = board.findIndex(e => e.score < userEntry.score);
+      if (pos !== -1) {
+        board.splice(pos, 0, { ...userEntry });
+        board.pop();
+      }
+    });
   }
 
   // Update ranks

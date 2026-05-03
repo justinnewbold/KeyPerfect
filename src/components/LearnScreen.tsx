@@ -133,66 +133,78 @@ function ChordsSection() {
 
   return (
     <div className="space-y-3 animate-in">
-      {Object.entries(CHORD_TYPES).map(([key, chord]) => (
-        <Card
-          key={key}
-          className="overflow-hidden"
-        >
-          <button
-            onClick={() => setExpandedChord(expandedChord === key ? null : key)}
-            className="w-full p-4 flex items-center justify-between text-left"
-          >
-            <div>
-              <div className="font-semibold">{chord.name}</div>
-              <div className="text-sm text-white/60">{chord.description}</div>
+      {Object.entries(CHORD_TYPES).map(([key, chord]) => {
+        const isExpanded = expandedChord === key;
+        const toggle = () => setExpandedChord(isExpanded ? null : key);
+        return (
+          <Card key={key} className="overflow-hidden">
+            {/* Disclosure row: a div, not a button, because it contains the
+                Volume2 play button. Nested <button>s are invalid HTML and
+                browsers auto-close the outer one mid-parse. */}
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={toggle}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  toggle();
+                }
+              }}
+              className="w-full p-4 flex items-center justify-between text-left cursor-pointer"
+            >
+              <div>
+                <div className="font-semibold">{chord.name}</div>
+                <div className="text-sm text-white/60">{chord.description}</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    playChordDemo(key);
+                  }}
+                  className="p-2 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 transition-colors"
+                >
+                  <Volume2 className="w-4 h-4 text-purple-400" />
+                </button>
+                <ChevronRight
+                  className={`w-5 h-5 text-white/40 transition-transform ${
+                    isExpanded ? 'rotate-90' : ''
+                  }`}
+                />
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  playChordDemo(key);
-                }}
-                className="p-2 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 transition-colors"
-              >
-                <Volume2 className="w-4 h-4 text-purple-400" />
-              </button>
-              <ChevronRight
-                className={`w-5 h-5 text-white/40 transition-transform ${
-                  expandedChord === key ? 'rotate-90' : ''
-                }`}
-              />
-            </div>
-          </button>
 
-          {expandedChord === key && (
-            <div className="px-4 pb-4 border-t border-white/10 pt-4">
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-white/60">Symbol:</span>
-                  <span className="ml-2 font-mono">C{chord.shortName}</span>
+            {isExpanded && (
+              <div className="px-4 pb-4 border-t border-white/10 pt-4">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-white/60">Symbol:</span>
+                    <span className="ml-2 font-mono">C{chord.shortName}</span>
+                  </div>
+                  <div>
+                    <span className="text-white/60">Intervals:</span>
+                    <span className="ml-2 font-mono">{chord.intervals.join('-')}</span>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-white/60">Intervals:</span>
-                  <span className="ml-2 font-mono">{chord.intervals.join('-')}</span>
+                <div className="mt-3">
+                  <span className="text-white/60 text-sm">Notes in C:</span>
+                  <div className="flex gap-2 mt-2">
+                    {chord.intervals.map((interval, i) => (
+                      <span
+                        key={i}
+                        className="px-3 py-1 rounded-lg bg-purple-500/20 text-sm font-mono"
+                      >
+                        {NOTE_NAMES[interval % 12]}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
-              <div className="mt-3">
-                <span className="text-white/60 text-sm">Notes in C:</span>
-                <div className="flex gap-2 mt-2">
-                  {chord.intervals.map((interval, i) => (
-                    <span
-                      key={i}
-                      className="px-3 py-1 rounded-lg bg-purple-500/20 text-sm font-mono"
-                    >
-                      {NOTE_NAMES[interval % 12]}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-        </Card>
-      ))}
+            )}
+          </Card>
+        );
+      })}
     </div>
   );
 }
@@ -212,60 +224,69 @@ function ScalesSection() {
 
   return (
     <div className="space-y-3 animate-in">
-      {Object.entries(SCALE_TYPES).map(([key, scale]) => (
-        <Card
-          key={key}
-          className="overflow-hidden"
-        >
-          <button
-            onClick={() => setExpandedScale(expandedScale === key ? null : key)}
-            className="w-full p-4 flex items-center justify-between text-left"
-          >
-            <div>
-              <div className="font-semibold">{scale.name}</div>
-              <div className="text-sm text-white/60">{scale.description}</div>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  playScaleDemo(key);
-                }}
-                className="p-2 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 transition-colors"
-              >
-                <Volume2 className="w-4 h-4 text-purple-400" />
-              </button>
-              <ChevronRight
-                className={`w-5 h-5 text-white/40 transition-transform ${
-                  expandedScale === key ? 'rotate-90' : ''
-                }`}
-              />
-            </div>
-          </button>
-
-          {expandedScale === key && (
-            <div className="px-4 pb-4 border-t border-white/10 pt-4">
-              <div className="mb-3">
-                <span className="text-white/60 text-sm">Mood:</span>
-                <Badge variant="purple" size="sm" className="ml-2">{scale.mood}</Badge>
-              </div>
+      {Object.entries(SCALE_TYPES).map(([key, scale]) => {
+        const isExpanded = expandedScale === key;
+        const toggle = () => setExpandedScale(isExpanded ? null : key);
+        return (
+          <Card key={key} className="overflow-hidden">
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={toggle}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  toggle();
+                }
+              }}
+              className="w-full p-4 flex items-center justify-between text-left cursor-pointer"
+            >
               <div>
-                <span className="text-white/60 text-sm">Notes in C:</span>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {scale.intervals.map((interval, i) => (
-                    <span
-                      key={i}
-                      className="px-3 py-1 rounded-lg bg-purple-500/20 text-sm font-mono"
-                    >
-                      {NOTE_NAMES[interval % 12]}
-                    </span>
-                  ))}
+                <div className="font-semibold">{scale.name}</div>
+                <div className="text-sm text-white/60">{scale.description}</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    playScaleDemo(key);
+                  }}
+                  className="p-2 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 transition-colors"
+                >
+                  <Volume2 className="w-4 h-4 text-purple-400" />
+                </button>
+                <ChevronRight
+                  className={`w-5 h-5 text-white/40 transition-transform ${
+                    isExpanded ? 'rotate-90' : ''
+                  }`}
+                />
+              </div>
+            </div>
+
+            {isExpanded && (
+              <div className="px-4 pb-4 border-t border-white/10 pt-4">
+                <div className="mb-3">
+                  <span className="text-white/60 text-sm">Mood:</span>
+                  <Badge variant="purple" size="sm" className="ml-2">{scale.mood}</Badge>
+                </div>
+                <div>
+                  <span className="text-white/60 text-sm">Notes in C:</span>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {scale.intervals.map((interval, i) => (
+                      <span
+                        key={i}
+                        className="px-3 py-1 rounded-lg bg-purple-500/20 text-sm font-mono"
+                      >
+                        {NOTE_NAMES[interval % 12]}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
-        </Card>
-      ))}
+            )}
+          </Card>
+        );
+      })}
     </div>
   );
 }

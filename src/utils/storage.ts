@@ -505,6 +505,9 @@ export function updateWeeklyGoalProgress(type: WeeklyGoal['type'], amount: numbe
         const sessions = (goal.accuracySessions ?? 0) + 1;
         newCurrent = (goal.current * (sessions - 1) + amount) / sessions;
         updatedFields = { accuracySessions: sessions };
+      } else if (type === 'streak') {
+        // 'Best Streak' is a high-water mark, not a sum.
+        newCurrent = Math.max(goal.current, amount);
       } else {
         newCurrent = goal.current + amount;
       }
@@ -982,11 +985,21 @@ export function trackInstrumentUsage(instrument: InstrumentType): InstrumentType
   return used;
 }
 
-// Reset all data
+// Reset all data. STORAGE_KEYS misses several stores written elsewhere
+// (keyperfect_srs, keyperfect_accessibility, keyperfect_tutorial_completed,
+// keyperfect_leaderboard, keyperfect_achievements_with_dates, the cloud-sync
+// auth/token/pending-sync keys, keyperfect_custom_sets, ...). Iterate the
+// whole localStorage keyspace so 'Reset All Data' really wipes everything
+// the app owns.
 export function resetAllData(): void {
-  Object.values(STORAGE_KEYS).forEach(key => {
-    localStorage.removeItem(key);
-  });
+  const keysToRemove: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith('keyperfect_')) {
+      keysToRemove.push(key);
+    }
+  }
+  keysToRemove.forEach(key => localStorage.removeItem(key));
 }
 
 // Export data
@@ -997,10 +1010,16 @@ export function exportData(): string {
     chordStats: getChordStats(),
     scaleStats: getScaleStats(),
     intervalStats: getIntervalStats(),
+    keyStats: getKeyStats(),
+    noteStats: getNoteStats(),
+    musicKeysProgress: getMusicKeysProgress(),
+    notesProgress: getNotesProgress(),
     dailyStats: getDailyStats(),
     gameModeStats: getGameModeStats(),
     achievements: getItem<string[]>(STORAGE_KEYS.ACHIEVEMENTS, []),
     settings: getSettings(),
+    sessionHistory: getSessionHistory(),
+    usedInstruments: getUsedInstruments(),
     weeklyGoals: getWeeklyGoals(),
     streakFreeze: getStreakFreezeData(),
     socialChallenges: getSocialChallenges(),
@@ -1020,10 +1039,16 @@ export function importData(jsonString: string): boolean {
     if (data.chordStats) setItem(STORAGE_KEYS.CHORD_STATS, data.chordStats);
     if (data.scaleStats) setItem(STORAGE_KEYS.SCALE_STATS, data.scaleStats);
     if (data.intervalStats) setItem(STORAGE_KEYS.INTERVAL_STATS, data.intervalStats);
+    if (data.keyStats) setItem(STORAGE_KEYS.KEY_STATS, data.keyStats);
+    if (data.noteStats) setItem(STORAGE_KEYS.NOTE_STATS, data.noteStats);
+    if (data.musicKeysProgress) setItem(STORAGE_KEYS.MUSIC_KEYS_PROGRESS, data.musicKeysProgress);
+    if (data.notesProgress) setItem(STORAGE_KEYS.NOTES_PROGRESS, data.notesProgress);
     if (data.dailyStats) setItem(STORAGE_KEYS.DAILY_STATS, data.dailyStats);
     if (data.gameModeStats) setItem(STORAGE_KEYS.GAME_MODE_STATS, data.gameModeStats);
     if (data.achievements) setItem(STORAGE_KEYS.ACHIEVEMENTS, data.achievements);
     if (data.settings) setItem(STORAGE_KEYS.SETTINGS, data.settings);
+    if (data.sessionHistory) setItem(STORAGE_KEYS.SESSION_HISTORY, data.sessionHistory);
+    if (data.usedInstruments) setItem(STORAGE_KEYS.USED_INSTRUMENTS, data.usedInstruments);
     if (data.weeklyGoals) setItem(STORAGE_KEYS.WEEKLY_GOALS, data.weeklyGoals);
     if (data.streakFreeze) setItem(STORAGE_KEYS.STREAK_FREEZE, data.streakFreeze);
     if (data.socialChallenges) setItem(STORAGE_KEYS.SOCIAL_CHALLENGES, data.socialChallenges);

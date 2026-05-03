@@ -43,11 +43,33 @@ export function useAudio(): UseAudioReturn {
   const [volume, setVolumeState] = useState(settings.volume);
   const [isPlaying, setIsPlaying] = useState(false);
   const currentSound = useRef<{ stop: () => void } | null>(null);
+  // Track the timeout that flips isPlaying back to false after each play.
+  // Without this, a previous play's timeout could fire mid-way through
+  // the next play and incorrectly clear the 'playing' UI indicator.
+  const isPlayingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Initialize audio context on first user interaction
+  const scheduleStopPlaying = useCallback((delayMs: number) => {
+    if (isPlayingTimeoutRef.current) {
+      clearTimeout(isPlayingTimeoutRef.current);
+    }
+    isPlayingTimeoutRef.current = setTimeout(() => {
+      setIsPlaying(false);
+      isPlayingTimeoutRef.current = null;
+    }, delayMs);
+  }, []);
+
+  // Initialize audio context on first user interaction. Push the user's
+  // saved volume into masterGain whenever the context is (re)used: the
+  // engine hard-codes masterGain at 0.7 in setupMasterChain, so without
+  // this the Settings volume preference was silently ignored until the
+  // user nudged the slider for the first time. Also try right away in
+  // case the context was already initialised by a previous mount.
   useEffect(() => {
+    setMasterVolume(volume);
+
     const initAudio = () => {
       getAudioContext();
+      setMasterVolume(volume);
       document.removeEventListener('click', initAudio);
       document.removeEventListener('touchstart', initAudio);
     };
@@ -66,6 +88,10 @@ export function useAudio(): UseAudioReturn {
       currentSound.current.stop();
       currentSound.current = null;
     }
+    if (isPlayingTimeoutRef.current) {
+      clearTimeout(isPlayingTimeoutRef.current);
+      isPlayingTimeoutRef.current = null;
+    }
     setIsPlaying(false);
   }, []);
 
@@ -73,16 +99,16 @@ export function useAudio(): UseAudioReturn {
     stopCurrentSound();
     setIsPlaying(true);
     currentSound.current = playNote(midi, instrument, duration);
-    setTimeout(() => setIsPlaying(false), duration * 1000);
-  }, [instrument, stopCurrentSound]);
+    scheduleStopPlaying(duration * 1000);
+  }, [instrument, stopCurrentSound, scheduleStopPlaying]);
 
   const handlePlayChord = useCallback((notes: number[], arpeggio: boolean = false) => {
     stopCurrentSound();
     setIsPlaying(true);
     const duration = arpeggio ? 2 : 1.5;
     currentSound.current = playChord(notes, instrument, duration, 0.6, arpeggio);
-    setTimeout(() => setIsPlaying(false), duration * 1000);
-  }, [instrument, stopCurrentSound]);
+    scheduleStopPlaying(duration * 1000);
+  }, [instrument, stopCurrentSound, scheduleStopPlaying]);
 
   const handlePlayScale = useCallback((notes: number[]) => {
     stopCurrentSound();
@@ -90,24 +116,24 @@ export function useAudio(): UseAudioReturn {
     const noteDelay = 0.3;
     const totalDuration = notes.length * noteDelay + 0.4;
     currentSound.current = playScale(notes, instrument, noteDelay, 0.4);
-    setTimeout(() => setIsPlaying(false), totalDuration * 1000);
-  }, [instrument, stopCurrentSound]);
+    scheduleStopPlaying(totalDuration * 1000);
+  }, [instrument, stopCurrentSound, scheduleStopPlaying]);
 
   const handlePlayInterval = useCallback((note1: number, note2: number, sequential: boolean = true) => {
     stopCurrentSound();
     setIsPlaying(true);
     const duration = sequential ? 2 : 1.5;
     currentSound.current = playInterval(note1, note2, instrument, sequential);
-    setTimeout(() => setIsPlaying(false), duration * 1000);
-  }, [instrument, stopCurrentSound]);
+    scheduleStopPlaying(duration * 1000);
+  }, [instrument, stopCurrentSound, scheduleStopPlaying]);
 
   const handlePlayRhythm = useCallback((pattern: number[], midi: number = 60) => {
     stopCurrentSound();
     setIsPlaying(true);
     const totalDuration = pattern.reduce((sum, dur) => sum + dur, 0);
     currentSound.current = playRhythm(pattern, instrument, midi);
-    setTimeout(() => setIsPlaying(false), totalDuration + 200);
-  }, [instrument, stopCurrentSound]);
+    scheduleStopPlaying(totalDuration + 200);
+  }, [instrument, stopCurrentSound, scheduleStopPlaying]);
 
   const handlePlaySuccess = useCallback(() => {
     const settings = getSettings();
@@ -187,6 +213,18 @@ export function useMetronome() {
   const intervalRef = useRef<number | null>(null);
   const nextNoteTimeRef = useRef(0);
   const beatRef = useRef(0);
+  const bpmRef = useRef(bpm);
+  const timeSignatureRef = useRef(timeSignature);
+
+  // Keep refs current so the scheduler (running inside setInterval) picks up
+  // tempo and time-signature changes without being restarted.
+  useEffect(() => {
+    bpmRef.current = bpm;
+  }, [bpm]);
+
+  useEffect(() => {
+    timeSignatureRef.current = timeSignature;
+  }, [timeSignature]);
 
   const start = useCallback(() => {
     if (isRunning) return;
@@ -197,14 +235,15 @@ export function useMetronome() {
     beatRef.current = 0;
 
     const scheduleNote = () => {
-      const secondsPerBeat = 60 / bpm;
+      const secondsPerBeat = 60 / bpmRef.current;
+      const beatsPerBar = timeSignatureRef.current[0];
       const ctx = getAudioContext();
 
       while (nextNoteTimeRef.current < ctx.currentTime + 0.1) {
-        const beat = beatRef.current % timeSignature[0];
+        const beat = beatRef.current % beatsPerBar;
         playMetronomeClick(beat === 0);
 
-        beatRef.current = (beatRef.current + 1) % timeSignature[0];
+        beatRef.current = (beatRef.current + 1) % beatsPerBar;
         setCurrentBeat(beatRef.current);
         nextNoteTimeRef.current += secondsPerBeat;
       }
@@ -212,7 +251,7 @@ export function useMetronome() {
 
     nextNoteTimeRef.current = getAudioContext().currentTime;
     intervalRef.current = window.setInterval(scheduleNote, 25);
-  }, [isRunning, bpm, timeSignature]);
+  }, [isRunning]);
 
   const stop = useCallback(() => {
     setIsRunning(false);

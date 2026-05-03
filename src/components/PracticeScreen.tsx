@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Play, Volume2, RefreshCw, ChevronLeft, Music } from 'lucide-react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
@@ -26,7 +26,9 @@ export function PracticeScreen({ onBack }: PracticeScreenProps) {
   const [currentItem, setCurrentItem] = useState<string | null>(null);
   const [showAnswer, setShowAnswer] = useState(false);
   const [rootNote, setRootNote] = useState(60); // Middle C
+  const [autoPlayToken, setAutoPlayToken] = useState(0);
   const audio = useAudio();
+  const autoPlayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const practiceTypes: { id: PracticeType; name: string; icon: string }[] = [
     { id: 'chords', name: 'Chords', icon: '🎹' },
@@ -68,13 +70,22 @@ export function PracticeScreen({ onBack }: PracticeScreenProps) {
       setCurrentItem(randomElement(intervalTypes));
     }
 
-    // Auto-play after a short delay
-    setTimeout(() => {
-      if (practiceType !== 'freeplay') {
-        playCurrentItem();
+    // Bump the token so the auto-play effect runs after the new item/root
+    // values are committed, instead of capturing the stale values here.
+    setAutoPlayToken(t => t + 1);
+  }, [practiceType]);
+
+  useEffect(() => {
+    if (autoPlayToken === 0 || practiceType === 'freeplay' || !currentItem) return;
+
+    autoPlayTimerRef.current = setTimeout(playCurrentItem, 300);
+    return () => {
+      if (autoPlayTimerRef.current) {
+        clearTimeout(autoPlayTimerRef.current);
+        autoPlayTimerRef.current = null;
       }
-    }, 300);
-  }, [practiceType, playCurrentItem]);
+    };
+  }, [autoPlayToken, practiceType, currentItem, playCurrentItem]);
 
   const getDisplayName = (type: string): string => {
     if (practiceType === 'chords') {
