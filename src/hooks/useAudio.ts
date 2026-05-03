@@ -44,10 +44,18 @@ export function useAudio(): UseAudioReturn {
   const [isPlaying, setIsPlaying] = useState(false);
   const currentSound = useRef<{ stop: () => void } | null>(null);
 
-  // Initialize audio context on first user interaction
+  // Initialize audio context on first user interaction. Push the user's
+  // saved volume into masterGain whenever the context is (re)used: the
+  // engine hard-codes masterGain at 0.7 in setupMasterChain, so without
+  // this the Settings volume preference was silently ignored until the
+  // user nudged the slider for the first time. Also try right away in
+  // case the context was already initialised by a previous mount.
   useEffect(() => {
+    setMasterVolume(volume);
+
     const initAudio = () => {
       getAudioContext();
+      setMasterVolume(volume);
       document.removeEventListener('click', initAudio);
       document.removeEventListener('touchstart', initAudio);
     };
