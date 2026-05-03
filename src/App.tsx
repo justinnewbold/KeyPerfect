@@ -32,7 +32,6 @@ import { useGameState } from './hooks/useGameState';
 import {
   getDailyStats,
   updateDailyStats,
-  checkAndUpdateDailyStreak,
   PRACTICE_PRESETS,
   PracticePresetId,
   SocialChallenge,
@@ -180,12 +179,12 @@ function App() {
     setAppState({ screen: 'notesGame', notesLevel: level });
   }, [startGame]);
 
-  // Start challenge mode
+  // Start challenge mode. The daily-login streak is credited from
+  // useGameState.endGame once the user has actually played a question
+  // (any mode), so we no longer need a pre-emptive call here - the old
+  // version let players inflate the streak by tapping Daily Challenge
+  // and immediately exiting without answering.
   const handleStartChallenge = useCallback((mode: ChallengeModeType) => {
-    // For Daily Challenge, update streak
-    if (mode === 'daily') {
-      checkAndUpdateDailyStreak();
-    }
     startGame(mode, 1);
     setAppState({ screen: 'game', level: LEVELS[0] });
   }, [startGame]);
