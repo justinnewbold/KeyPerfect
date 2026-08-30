@@ -30,6 +30,8 @@ import { MusicKeysLevelConfig, MUSIC_KEYS_LEVELS } from './types/musicKeysLevels
 import { NotesLevelConfig, NOTES_LEVELS } from './types/notesLevels';
 import { GameModeType, ChallengeModeType, GameResult, AnswerRecord } from './types/gameModes';
 import { useGameState } from './hooks/useGameState';
+import { useSwipe } from './hooks/useSwipe';
+import { usePrefersReducedMotion } from './hooks/usePrefersReducedMotion';
 import {
   getDailyStats,
   updateDailyStats,
@@ -69,6 +71,24 @@ type AppState =
   | { screen: 'progressionDictation' }
   | { screen: 'circleOfFifths' };
 
+/** Left-to-right order of the bottom nav; must match Navigation's navItems. */
+const NAV_ORDER: Screen[] = ['home', 'play', 'learn', 'tools', 'stats'];
+
+/**
+ * Screens that belong to a bottom-nav tab, and so can be swiped between.
+ * Deliberately partial: 'settings' renders the nav without being one of the
+ * five tabs, and every game screen is absent.
+ */
+const SCREEN_TO_NAV_TAB: Partial<Record<AppState['screen'], Screen>> = {
+  home: 'home',
+  levelSelect: 'play',
+  musicKeysSelect: 'play',
+  notesSelect: 'play',
+  learn: 'learn',
+  tools: 'tools',
+  stats: 'stats',
+};
+
 function App() {
   // Check if this is a first-time user (auto-trigger tutorial)
   const isFirstUser = () => {
@@ -80,7 +100,11 @@ function App() {
     isFirstUser() ? { screen: 'tutorial' } : { screen: 'home' }
   );
   const [currentNavScreen, setCurrentNavScreen] = useState<Screen>('home');
+  const [swipeTransition, setSwipeTransition] = useState<
+    { tab: Screen; dir: 'forward' | 'back' } | null
+  >(null);
   const prevScreenRef = useRef<string>('home');
+  const reducedMotion = usePrefersReducedMotion();
   const {
     gameState,
     startGame,
@@ -555,8 +579,56 @@ function App() {
   const hideNavScreens = ['game', 'musicKeysGame', 'notesGame', 'result', 'guidedLessons', 'comparison', 'weeklyGoals', 'mastery', 'socialChallenges', 'tutorial', 'mistakeReview', 'intervalSinging', 'progressionDictation', 'circleOfFifths'];
   const showNavigation = !hideNavScreens.includes(appState.screen);
 
+  // Which bottom-nav tab the current screen belongs to. Screens absent from
+  // this map are not swipeable: Settings renders the nav but is not one of the
+  // five tabs, so swiping there would jump somewhere arbitrary.
+  const swipeTab = SCREEN_TO_NAV_TAB[appState.screen];
+  const swipeIndex = swipeTab ? NAV_ORDER.indexOf(swipeTab) : -1;
+
+  const stepTab = useCallback((delta: number) => {
+    const next = swipeIndex + delta;
+    // No wrap-around: home and stats are the ends of the bar, and wrapping
+    // between them reads as a glitch rather than as navigation.
+    if (swipeIndex < 0 || next < 0 || next >= NAV_ORDER.length) return;
+    const target = NAV_ORDER[next];
+    // Tagged with its target tab so the directional animation applies only to
+    // the screen the swipe actually produced; navigating any other way falls
+    // back to the default transition without needing to clear this.
+    setSwipeTransition({ tab: target, dir: delta > 0 ? 'forward' : 'back' });
+    handleNavigate(target);
+  }, [swipeIndex, handleNavigate]);
+
+  /*
+   * Edge-swipe only. The gesture has to start within ~20px of a screen edge,
+   * which is the iOS back-gesture convention and, more importantly, means it
+   * structurally cannot compete with the horizontal scroll strips on Home,
+   * Learn, Stats, Tools and Guided Lessons, or with the piano's scroller.
+   *
+   * `showNavigation` already excludes all fourteen game and feature screens,
+   * so reusing it means a stray swipe can never cost quiz progress, and any
+   * screen added to hideNavScreens is protected automatically.
+   */
+  const { ref: swipeRef } = useSwipe<HTMLDivElement>({
+    axis: 'horizontal',
+    edgeOnly: true,
+    enabled: showNavigation && swipeIndex >= 0,
+    onSwipeLeft: () => stepTab(1),
+    onSwipeRight: () => stepTab(-1),
+  });
+
+  const direction =
+    swipeTransition && swipeTransition.tab === swipeTab ? swipeTransition.dir : null;
+  const transitionClass = reducedMotion
+    ? ''
+    : direction === 'forward'
+    ? 'screen-enter-right'
+    : direction === 'back'
+    ? 'screen-enter-left'
+    : 'screen-enter';
+
   return (
     <div
+      ref={swipeRef}
       className="min-h-dvh safe-area-x bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] text-white"
       /*
        * Screens read this to size their bottom clearance and to position their
@@ -565,7 +637,7 @@ function App() {
        */
       style={{ '--kp-nav-h': showNavigation ? `${NAV_HEIGHT_PX}px` : '0px' } as React.CSSProperties}
     >
-      <div key={appState.screen} className="screen-enter">
+      <div key={appState.screen} className={transitionClass}>
         {renderScreen()}
       </div>
       {showNavigation && (

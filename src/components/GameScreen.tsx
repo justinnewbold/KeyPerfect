@@ -8,6 +8,7 @@ import { Button } from './ui/Button';
 import { Progress } from './ui/Progress';
 import { Badge, StreakBadge, XPBadge } from './ui/Badge';
 import { useAudio } from '../hooks/useAudio';
+import { useLongPress } from '../hooks/useLongPress';
 import { useGameKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { triggerHapticFeedback } from '../utils/haptics';
 import { getChordNotes, getScaleNotes } from '../utils/gameHelpers';
@@ -137,12 +138,14 @@ export function GameScreen({
     setHasPlayed(true);
   }, [question.audioData, playContextThenAudio]);
 
-  // Play the correct answer audio for wrong answer feedback
-  const playCorrectAnswerAudio = useCallback(() => {
-    const { playbackMode, rootNote } = question.audioData;
-    const correctAnswer = question.correctAnswer;
+  // Synthesise the audio for any one answer option, at the question's root.
+  // Used both for wrong-answer feedback (with the correct answer) and for the
+  // long-press preview on an option.
+  const playAnswerAudio = useCallback((answer: string) => {
+    const { rootNote } = question.audioData;
+    const correctAnswer = answer;
 
-    // Try to generate the correct answer's audio
+    // Try to generate that answer's audio
     try {
       if (question.type === 'chords' || question.type === 'comparison') {
         if (correctAnswer in CHORD_TYPES) {
@@ -179,6 +182,11 @@ export function GameScreen({
       playQuestionAudio();
     }
   }, [question, audio, playQuestionAudio]);
+
+  const playCorrectAnswerAudio = useCallback(
+    () => playAnswerAudio(question.correctAnswer),
+    [playAnswerAudio, question.correctAnswer],
+  );
 
   // Auto-play once on first load of each question
   useEffect(() => {
@@ -399,32 +407,17 @@ export function GameScreen({
             const isWrong = result && isSelected && !result.isCorrect;
 
             return (
-              <button
+              <AnswerOption
                 key={option}
-                onClick={() => handleAnswer(option)}
-                disabled={!!result}
-                className={`p-4 rounded-xl border-2 text-center font-medium transition-all duration-200 relative ${
-                  isCorrect
-                    ? 'bg-green-500/20 border-green-500 text-green-300'
-                    : isWrong
-                    ? 'bg-red-500/20 border-red-500 text-red-300'
-                    : isSelected
-                    ? 'bg-purple-500/20 border-purple-500'
-                    : 'bg-white/10 border-white/20 hover:bg-white/20 hover:border-white/30'
-                } ${result ? 'cursor-default' : 'active:scale-95'}`}
-              >
-                {/* Keyboard hint */}
-                {!result && (
-                  <span className="absolute top-1 left-2 text-xs text-white/40 hidden sm:block">
-                    {index + 1}
-                  </span>
-                )}
-                <div className="flex items-center justify-center gap-2">
-                  {isCorrect && <Check className="w-5 h-5" />}
-                  {isWrong && <X className="w-5 h-5" />}
-                  <span>{getDisplayName(option)}</span>
-                </div>
-              </button>
+                index={index}
+                label={getDisplayName(option)}
+                answered={!!result}
+                isCorrect={!!isCorrect}
+                isWrong={!!isWrong}
+                isSelected={isSelected}
+                onSelect={() => handleAnswer(option)}
+                onPreview={() => playAnswerAudio(option)}
+              />
             );
           })}
         </div>
@@ -503,5 +496,76 @@ export function GameScreen({
         )}
       </div>
     </div>
+  );
+}
+
+interface AnswerOptionProps {
+  index: number;
+  label: string;
+  answered: boolean;
+  isCorrect: boolean;
+  isWrong: boolean;
+  isSelected: boolean;
+  onSelect: () => void;
+  onPreview: () => void;
+}
+
+/**
+ * One answer button.
+ *
+ * Its own component because each option needs its own long-press hook and the
+ * number of options varies per question, so they cannot be called in a loop
+ * from the parent.
+ *
+ * Press and hold to hear what an option sounds like before committing — the
+ * ear-training equivalent of a hint, and it costs nothing in score because it
+ * plays audio without touching game state. The hook swallows the click that
+ * follows a completed press, so holding an option never also answers with it.
+ */
+function AnswerOption({
+  index,
+  label,
+  answered,
+  isCorrect,
+  isWrong,
+  isSelected,
+  onSelect,
+  onPreview,
+}: AnswerOptionProps) {
+  const { ref, isPressing } = useLongPress<HTMLButtonElement>({
+    onLongPress: onPreview,
+    enabled: !answered,
+  });
+
+  return (
+    <button
+      ref={ref}
+      onClick={onSelect}
+      disabled={answered}
+      aria-label={`${label}. Press and hold to preview.`}
+      className={`no-callout p-4 rounded-xl border-2 text-center font-medium transition-all duration-200 relative ${
+        isCorrect
+          ? 'bg-green-500/20 border-green-500 text-green-300'
+          : isWrong
+          ? 'bg-red-500/20 border-red-500 text-red-300'
+          : isSelected
+          ? 'bg-purple-500/20 border-purple-500'
+          : 'bg-white/10 border-white/20 hover:bg-white/20 hover:border-white/30'
+      } ${answered ? 'cursor-default' : 'active:scale-95'} ${
+        isPressing ? 'ring-2 ring-purple-400/60' : ''
+      }`}
+    >
+      {/* Keyboard hint */}
+      {!answered && (
+        <span className="absolute top-1 left-2 text-xs text-white/40 hidden sm:block">
+          {index + 1}
+        </span>
+      )}
+      <div className="flex items-center justify-center gap-2">
+        {isCorrect && <Check className="w-5 h-5" />}
+        {isWrong && <X className="w-5 h-5" />}
+        <span>{label}</span>
+      </div>
+    </button>
   );
 }

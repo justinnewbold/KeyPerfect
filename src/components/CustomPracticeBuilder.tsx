@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { X, Plus, Play, Save, Trash2, Music, Settings2 } from 'lucide-react';
 import { ChordQuality, ScaleType, CHORD_TYPES, SCALE_TYPES } from '../types/music';
+import { useSwipe } from '../hooks/useSwipe';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import { Card, Button, Badge } from './ui';
 
 export interface CustomPracticeSet {
@@ -127,9 +129,27 @@ export function CustomPracticeBuilder({
     onStartPractice?.(quickSet);
   };
 
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  useBodyScrollLock(true);
+
+  // Swipe down to dismiss. The guard limits it to the top of the scroll area:
+  // without it, flicking back up through a long list would close the sheet.
+  const { ref: panelRef } = useSwipe<HTMLDivElement>({
+    axis: 'vertical',
+    onSwipeDown: onClose,
+    shouldStart: () => (bodyRef.current?.scrollTop ?? 0) <= 0,
+    thresholds: { distance: 80 },
+  });
+
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 safe-area-top safe-area-bottom">
+      <Card
+        ref={panelRef}
+        className="w-full max-w-4xl max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-2rem)] overflow-hidden flex flex-col"
+      >
+        {/* Grab handle: the affordance for swipe-down-to-dismiss on touch. */}
+        <div className="sm:hidden mx-auto mt-2 mb-1 h-1 w-10 rounded-full bg-white/30" />
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-white/10">
           <div className="flex items-center gap-3">
@@ -162,7 +182,7 @@ export function CustomPracticeBuilder({
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4">
+        <div ref={bodyRef} className="flex-1 overflow-y-auto overscroll-contain p-4">
           {activeTab === 'create' ? (
             <div className="space-y-6">
               {/* Name & Description */}

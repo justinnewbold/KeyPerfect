@@ -6,9 +6,11 @@ interface CardProps {
   hover?: boolean;
   gradient?: boolean;
   onClick?: () => void;
+  /** React 19 passes ref as an ordinary prop, so no forwardRef needed. */
+  ref?: React.Ref<HTMLDivElement>;
 }
 
-export function Card({ children, className = '', hover = false, gradient = false, onClick }: CardProps) {
+export function Card({ children, className = '', hover = false, gradient = false, onClick, ref }: CardProps) {
   const baseStyles = 'bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl';
   const hoverStyles = hover ? 'transition-all duration-300 hover:bg-white/15 hover:border-white/30 hover:transform hover:scale-[1.02] cursor-pointer' : '';
   const gradientStyles = gradient ? 'gradient-border' : '';
@@ -27,6 +29,7 @@ export function Card({ children, className = '', hover = false, gradient = false
 
   return (
     <div
+      ref={ref}
       className={`${baseStyles} ${hoverStyles} ${gradientStyles} ${className}`}
       onClick={onClick}
       onKeyDown={onClick ? handleKeyDown : undefined}
