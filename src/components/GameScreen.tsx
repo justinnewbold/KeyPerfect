@@ -302,7 +302,7 @@ export function GameScreen({
         <div className="flex items-center gap-3 mb-3">
           <button
             onClick={onExit}
-            className="p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
+            className="tap-target rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>

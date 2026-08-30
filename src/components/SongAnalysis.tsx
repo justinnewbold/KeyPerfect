@@ -302,14 +302,27 @@ export function SongAnalysis({ onClose }: SongAnalysisProps) {
                 ) : (
                   <div className="flex flex-wrap gap-2">
                     {chordSequence.map((entry, index) => (
+                      /* Stays a div rather than a button because it contains
+                         the remove button below; the target check keeps that
+                         nested button's keypresses from also playing the
+                         chord. */
                       <div
                         key={entry.id}
+                        role="button"
+                        tabIndex={0}
                         className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors cursor-pointer ${
                           currentPlayingIndex === index
                             ? 'bg-purple-500 text-white'
                             : 'bg-white/10 hover:bg-white/20'
                         }`}
                         onClick={() => playIndividualChord(entry)}
+                        onKeyDown={(e) => {
+                          if (e.target !== e.currentTarget) return;
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            playIndividualChord(entry);
+                          }
+                        }}
                       >
                         <span className="font-medium">
                           {entry.rootNote}{CHORD_TYPES[entry.chord].shortName}
@@ -362,8 +375,16 @@ export function SongAnalysis({ onClose }: SongAnalysisProps) {
                 {filteredSongs.map((song, index) => (
                   <div
                     key={index}
+                    role="button"
+                    tabIndex={0}
                     className="bg-white/5 rounded-lg p-4 hover:bg-white/10 transition-colors cursor-pointer"
                     onClick={() => loadSongTemplate(song)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        loadSongTemplate(song);
+                      }
+                    }}
                   >
                     <div className="flex items-start justify-between">
                       <div>

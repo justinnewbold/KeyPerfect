@@ -203,7 +203,7 @@ export function MasteryIndicators({ onBack }: MasteryIndicatorsProps) {
       </div>
 
       {/* Category Tabs */}
-      <div className="flex gap-2 mb-6 overflow-x-auto">
+      <div className="flex gap-2 mb-6 overflow-x-auto snap-strip">
         {categories.map(cat => (
           <button
             key={cat.id}

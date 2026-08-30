@@ -13,10 +13,23 @@ export function Card({ children, className = '', hover = false, gradient = false
   const hoverStyles = hover ? 'transition-all duration-300 hover:bg-white/15 hover:border-white/30 hover:transform hover:scale-[1.02] cursor-pointer' : '';
   const gradientStyles = gradient ? 'gradient-border' : '';
 
+  // A div carrying role="button" advertises itself to assistive tech as
+  // activatable, so it has to honour Enter/Space like a real button. The
+  // target check keeps a nested control's key events from firing this too.
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!onClick) return;
+    if (e.target !== e.currentTarget) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onClick();
+    }
+  };
+
   return (
     <div
       className={`${baseStyles} ${hoverStyles} ${gradientStyles} ${className}`}
       onClick={onClick}
+      onKeyDown={onClick ? handleKeyDown : undefined}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
     >

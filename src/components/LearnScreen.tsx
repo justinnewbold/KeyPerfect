@@ -17,7 +17,7 @@ export function LearnScreen() {
         <h1 className="text-2xl font-bold mb-4">Learn</h1>
 
         {/* Section Tabs */}
-        <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4">
+        <div className="flex gap-2 overflow-x-auto snap-strip pb-2 -mx-4 px-4">
           {[
             { id: 'overview', label: 'Overview' },
             { id: 'chords', label: 'Chords' },

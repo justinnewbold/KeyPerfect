@@ -64,16 +64,18 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
   const instruments = getInstrumentList();
   const instrumentDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close instrument dropdown when clicking outside
+  // Close instrument dropdown when tapping/clicking outside. `pointerdown`
+  // covers mouse, touch and pen in one listener; `mousedown` alone relied on
+  // the synthesised mouse event that touch only emits in some situations.
   useEffect(() => {
     if (!showInstrumentDropdown) return;
-    const handler = (e: MouseEvent) => {
+    const handler = (e: PointerEvent) => {
       if (instrumentDropdownRef.current && !instrumentDropdownRef.current.contains(e.target as Node)) {
         setShowInstrumentDropdown(false);
       }
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    document.addEventListener('pointerdown', handler);
+    return () => document.removeEventListener('pointerdown', handler);
   }, [showInstrumentDropdown]);
 
   const handleInstrumentChange = useCallback((instrument: InstrumentType) => {
@@ -606,7 +608,7 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
         {unlockedAchievements.length > 0 && (
           <div>
             <h2 className="text-lg font-semibold mb-3">Recent Achievements</h2>
-            <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4">
+            <div className="flex gap-3 overflow-x-auto snap-strip pb-2 -mx-4 px-4">
               {unlockedAchievements.slice(-4).reverse().map(achievement => (
                 <Card key={achievement.id} className="p-3 min-w-[140px] flex-shrink-0">
                   <div className="text-center">

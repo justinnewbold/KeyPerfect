@@ -200,7 +200,7 @@ export function CustomPracticeBuilder({
                     step={5}
                     value={questionCount}
                     onChange={(e) => setQuestionCount(Number(e.target.value))}
-                    className="w-full"
+                    className="range-slider"
                   />
                 </div>
                 <div>

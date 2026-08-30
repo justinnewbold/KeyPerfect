@@ -286,7 +286,7 @@ export function CircleOfFifthsGame({ onBack }: CircleOfFifthsGameProps) {
     <div className="screen-root flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-4 pt-6 pb-2">
-        <button onClick={onBack} className="p-2 rounded-full hover:bg-white/10 transition-colors">
+        <button onClick={onBack} className="tap-target rounded-full hover:bg-white/10 transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </button>
         <h1 className="text-sm font-semibold text-white/70">Circle of Fifths</h1>

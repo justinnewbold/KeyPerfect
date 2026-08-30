@@ -70,7 +70,7 @@ export function Header({ title, subtitle, onBack, rightAction }: HeaderProps) {
           {onBack && (
             <button
               onClick={onBack}
-              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
+              className="tap-target rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
             >
               <svg
                 className="w-5 h-5"

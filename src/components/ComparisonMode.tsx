@@ -139,7 +139,7 @@ export function ComparisonMode({ onBack }: ComparisonModeProps) {
       </div>
 
       {/* Category Filter */}
-      <div className="flex gap-2 mb-6 overflow-x-auto">
+      <div className="flex gap-2 mb-6 overflow-x-auto snap-strip">
         {(['all', 'chords', 'scales', 'intervals'] as const).map(cat => (
           <button
             key={cat}

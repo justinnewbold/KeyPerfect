@@ -682,7 +682,7 @@ export function GuidedLessons({ onBack, onStartPractice }: GuidedLessonsProps) {
           </div>
 
           {/* Category filter tabs */}
-          <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4">
+          <div className="flex gap-2 overflow-x-auto snap-strip pb-2 -mx-4 px-4">
             {(['all', 'chords', 'scales', 'intervals'] as const).map((cat) => (
               <button
                 key={cat}

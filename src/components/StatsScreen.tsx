@@ -79,7 +79,7 @@ export function StatsScreen({ onStartGameMode, initialTab }: StatsScreenProps = 
         <h1 className="text-2xl font-bold mb-4">Statistics</h1>
 
         {/* Tabs */}
-        <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4">
+        <div className="flex gap-2 overflow-x-auto snap-strip pb-2 -mx-4 px-4">
           {tabs.map(tab => (
             <button
               key={tab.id}

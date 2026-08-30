@@ -365,7 +365,7 @@ export function CustomPractice({ onBack }: { onBack: () => void }) {
             step="5"
             value={config.questionCount}
             onChange={e => setConfig(prev => ({ ...prev, questionCount: parseInt(e.target.value) }))}
-            className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-purple-500"
+            className="range-slider"
           />
         </div>
 
