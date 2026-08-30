@@ -166,6 +166,7 @@ export function PracticeScreen({ onBack }: PracticeScreenProps) {
             numOctaves={2}
             onNotePlay={handleNotePlay}
             showLabels={true}
+            glissando
           />
           <p className="text-sm text-white/50 text-center mt-3">
             Use keyboard (A-L keys) or tap the piano

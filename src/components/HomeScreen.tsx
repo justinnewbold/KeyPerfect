@@ -19,6 +19,7 @@ import {
   Layers,
   RotateCcw,
   RefreshCw,
+  Piano,
 } from 'lucide-react';
 import { Card, CardContent } from './ui/Card';
 import { Button } from './ui/Button';
@@ -49,9 +50,10 @@ interface HomeScreenProps {
   onOpenProgressionDictation?: () => void;
   onOpenFocusAreas?: () => void;
   onOpenCircleOfFifths?: () => void;
+  onOpenFreePlay?: () => void;
 }
 
-export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, onStartPreset, onStartMusicKeys, onStartNotes, onOpenGuidedLessons, onOpenComparison, onOpenWeeklyGoals, onOpenMastery, onOpenSocialChallenges, onOpenIntervalSinging, onOpenProgressionDictation, onOpenFocusAreas, onOpenCircleOfFifths }: HomeScreenProps) {
+export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, onStartPreset, onStartMusicKeys, onStartNotes, onOpenGuidedLessons, onOpenComparison, onOpenWeeklyGoals, onOpenMastery, onOpenSocialChallenges, onOpenIntervalSinging, onOpenProgressionDictation, onOpenFocusAreas, onOpenCircleOfFifths, onOpenFreePlay }: HomeScreenProps) {
   const userStats = getUserStats();
   const dailyStats = getDailyStats();
   const unlockedAchievements = getUnlockedAchievements();
@@ -537,6 +539,21 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
                 <h4 className="font-semibold text-sm">Progressions</h4>
               </div>
               <p className="text-xs text-white/60">Identify chord progressions</p>
+            </Card>
+
+            {/* Free Play piano */}
+            <Card
+              hover
+              onClick={onOpenFreePlay}
+              className="p-4 bg-gradient-to-br from-sky-500/10 to-blue-500/10 border-sky-500/20"
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center">
+                  <Piano className="w-5 h-5" />
+                </div>
+                <h4 className="font-semibold text-sm">Free Play</h4>
+              </div>
+              <p className="text-xs text-white/60">Explore chords on the piano</p>
             </Card>
 
             {/* Circle of Fifths */}

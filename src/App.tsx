@@ -23,6 +23,7 @@ import {
   IntervalSingingMode,
   ChordProgressionDictation,
   CircleOfFifthsGame,
+  PracticeScreen,
 } from './components';
 import type { Screen } from './components';
 import { LevelConfig, LEVELS } from './types/levels';
@@ -69,7 +70,8 @@ type AppState =
   | { screen: 'mistakeReview'; result: GameResult }
   | { screen: 'intervalSinging' }
   | { screen: 'progressionDictation' }
-  | { screen: 'circleOfFifths' };
+  | { screen: 'circleOfFifths' }
+  | { screen: 'practice' };
 
 /** Left-to-right order of the bottom nav; must match Navigation's navItems. */
 const NAV_ORDER: Screen[] = ['home', 'play', 'learn', 'tools', 'stats'];
@@ -82,6 +84,7 @@ const NAV_ORDER: Screen[] = ['home', 'play', 'learn', 'tools', 'stats'];
 const SCREEN_TO_NAV_TAB: Partial<Record<AppState['screen'], Screen>> = {
   home: 'home',
   levelSelect: 'play',
+  practice: 'play',
   musicKeysSelect: 'play',
   notesSelect: 'play',
   learn: 'learn',
@@ -358,6 +361,13 @@ function App() {
     setAppState({ screen: 'circleOfFifths' });
   }, []);
 
+  // Free play on the piano keyboard. Shows the bottom nav, so it counts as
+  // part of the Play tab for swipe navigation.
+  const handleOpenFreePlay = useCallback(() => {
+    setCurrentNavScreen('play');
+    setAppState({ screen: 'practice' });
+  }, []);
+
   const handleOpenFocusAreas = useCallback(() => {
     setCurrentNavScreen('stats');
     setAppState({ screen: 'stats', initialTab: 'insights' });
@@ -396,6 +406,7 @@ function App() {
             onOpenProgressionDictation={handleOpenProgressionDictation}
             onOpenFocusAreas={handleOpenFocusAreas}
             onOpenCircleOfFifths={handleOpenCircleOfFifths}
+            onOpenFreePlay={handleOpenFreePlay}
           />
         );
 
@@ -570,8 +581,11 @@ function App() {
       case 'circleOfFifths':
         return <CircleOfFifthsGame onBack={handleGoHome} />;
 
+      case 'practice':
+        return <PracticeScreen onBack={handleGoHome} />;
+
       default:
-        return <HomeScreen onStartLevel={handleStartLevel} onStartChallenge={handleStartChallenge} onStartGameMode={handleStartGameMode} onStartPreset={handleStartPreset} onStartMusicKeys={handleStartMusicKeys} onStartNotes={handleStartNotes} onOpenGuidedLessons={handleOpenGuidedLessons} onOpenComparison={handleOpenComparison} onOpenWeeklyGoals={handleOpenWeeklyGoals} onOpenMastery={handleOpenMastery} onOpenSocialChallenges={handleOpenSocialChallenges} onOpenIntervalSinging={handleOpenIntervalSinging} onOpenProgressionDictation={handleOpenProgressionDictation} onOpenCircleOfFifths={handleOpenCircleOfFifths} />;
+        return <HomeScreen onStartLevel={handleStartLevel} onStartChallenge={handleStartChallenge} onStartGameMode={handleStartGameMode} onStartPreset={handleStartPreset} onStartMusicKeys={handleStartMusicKeys} onStartNotes={handleStartNotes} onOpenGuidedLessons={handleOpenGuidedLessons} onOpenComparison={handleOpenComparison} onOpenWeeklyGoals={handleOpenWeeklyGoals} onOpenMastery={handleOpenMastery} onOpenSocialChallenges={handleOpenSocialChallenges} onOpenIntervalSinging={handleOpenIntervalSinging} onOpenProgressionDictation={handleOpenProgressionDictation} onOpenCircleOfFifths={handleOpenCircleOfFifths} onOpenFreePlay={handleOpenFreePlay} />;
     }
   };
 
