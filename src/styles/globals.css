@@ -451,6 +451,25 @@ html.theme-light .border-white\/10 { border-color: rgba(0, 0, 0, 0.06); }
   cursor: not-allowed;
 }
 
+/*
+ * Edge strips that host the tab-swipe gesture. `touch-action` is the whole
+ * point: without it the browser claims the drag for panning and cancels the
+ * pointer stream mid-gesture, so the swipe is never recognised. Naming pan-y
+ * and pinch-zoom hands those two back to the browser and keeps horizontal
+ * drags for us -- and confining that to a 16px strip means the page's
+ * horizontal scrollers, which an ancestor-level touch-action would forbid,
+ * are unaffected. They stop above the bottom nav so a tab button is never
+ * covered.
+ */
+.edge-swipe-zone {
+  position: fixed;
+  top: 0;
+  bottom: calc(var(--kp-nav-h, 0px) + env(safe-area-inset-bottom));
+  width: 16px;
+  z-index: 30;
+  touch-action: pan-y pinch-zoom;
+}
+
 /* Directional screen transitions for swipe navigation. */
 @keyframes screenEnterFromRight {
   from { opacity: 0; transform: translateX(24px); }

@@ -613,22 +613,34 @@ function App() {
   }, [swipeIndex, handleNavigate]);
 
   /*
-   * Edge-swipe only. The gesture has to start within ~20px of a screen edge,
-   * which is the iOS back-gesture convention and, more importantly, means it
-   * structurally cannot compete with the horizontal scroll strips on Home,
-   * Learn, Stats, Tools and Guided Lessons, or with the piano's scroller.
+   * Tab swiping happens on two narrow strips pinned to the screen edges
+   * rather than on the whole page, for a reason that only shows up on a real
+   * device: with the default touch-action the browser claims a drag for
+   * panning and fires pointercancel before the gesture finishes, so a
+   * passive listener on the page root never sees a completed swipe. The fix
+   * is `touch-action: pan-y pinch-zoom` -- the browser keeps vertical
+   * scrolling and zooming, we get horizontal drags -- but on the root that
+   * would also forbid horizontal panning in every descendant, breaking all
+   * seven horizontal scroll strips and the piano.
+   *
+   * Confining it to 16px edge strips gives the gesture somewhere it reliably
+   * works while leaving the rest of the page untouched. 16px is the screens'
+   * own horizontal padding, so the strips sit over margin, and they stop
+   * above the nav so they never cover a tab button.
    *
    * `showNavigation` already excludes all fourteen game and feature screens,
    * so reusing it means a stray swipe can never cost quiz progress, and any
    * screen added to hideNavScreens is protected automatically.
    */
-  const { ref: swipeRef } = useSwipe<HTMLDivElement>({
-    axis: 'horizontal',
-    edgeOnly: true,
-    enabled: showNavigation && swipeIndex >= 0,
+  const swipeEnabled = showNavigation && swipeIndex >= 0;
+  const edgeSwipeOptions = {
+    axis: 'horizontal' as const,
+    enabled: swipeEnabled,
     onSwipeLeft: () => stepTab(1),
     onSwipeRight: () => stepTab(-1),
-  });
+  };
+  const { ref: leftEdgeRef } = useSwipe<HTMLDivElement>(edgeSwipeOptions);
+  const { ref: rightEdgeRef } = useSwipe<HTMLDivElement>(edgeSwipeOptions);
 
   const direction =
     swipeTransition && swipeTransition.tab === swipeTab ? swipeTransition.dir : null;
@@ -642,7 +654,6 @@ function App() {
 
   return (
     <div
-      ref={swipeRef}
       className="min-h-dvh safe-area-x bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] text-white"
       /*
        * Screens read this to size their bottom clearance and to position their
@@ -654,6 +665,12 @@ function App() {
       <div key={appState.screen} className={transitionClass}>
         {renderScreen()}
       </div>
+      {swipeEnabled && (
+        <>
+          <div ref={leftEdgeRef} className="edge-swipe-zone left-0" aria-hidden="true" />
+          <div ref={rightEdgeRef} className="edge-swipe-zone right-0" aria-hidden="true" />
+        </>
+      )}
       {showNavigation && (
         <Navigation
           currentScreen={currentNavScreen}
