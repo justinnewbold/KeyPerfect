@@ -75,7 +75,7 @@ export function ResultScreen({ result, onPlayAgain, onHome, onNextLevel, onRevie
     .filter(Boolean);
 
   return (
-    <div className="min-h-screen pb-24 px-4 pt-8 animate-in">
+    <div className="screen-root px-4 pt-8 animate-in">
       {/* Celebration confetti for perfect/S-grade or achievements */}
       <Confetti active={showConfetti} />
 

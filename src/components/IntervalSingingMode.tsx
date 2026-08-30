@@ -144,7 +144,7 @@ export function IntervalSingingMode({ onBack }: IntervalSingingModeProps) {
     : 0;
 
   return (
-    <div className="min-h-screen pb-24 px-4 pt-6 animate-in">
+    <div className="screen-root px-4 pt-6 animate-in">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <button onClick={onBack} className="p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors">

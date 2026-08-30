@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   Navigation,
+  NAV_HEIGHT_PX,
   HomeScreen,
   LevelSelect,
   MusicKeysLevelSelect,
@@ -555,7 +556,15 @@ function App() {
   const showNavigation = !hideNavScreens.includes(appState.screen);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] text-white">
+    <div
+      className="min-h-dvh safe-area-x bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] text-white"
+      /*
+       * Screens read this to size their bottom clearance and to position their
+       * fixed action bars. It is 0 when the nav is hidden, so a `.action-bar`
+       * sits on the safe-area edge instead of floating above empty space.
+       */
+      style={{ '--kp-nav-h': showNavigation ? `${NAV_HEIGHT_PX}px` : '0px' } as React.CSSProperties}
+    >
       <div key={appState.screen} className="screen-enter">
         {renderScreen()}
       </div>

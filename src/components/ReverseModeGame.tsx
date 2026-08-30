@@ -151,7 +151,7 @@ export function ReverseModeGame({ onComplete, onExit }: ReverseModeGameProps) {
   if (!question) return <div>Loading...</div>;
 
   return (
-    <div className="min-h-screen pb-24 flex flex-col">
+    <div className="screen-root flex flex-col">
       {/* Header */}
       <div className="sticky top-0 z-40 bg-gradient-to-b from-[#0f0c29] via-[#0f0c29] to-transparent pb-4 px-4 pt-4">
         <div className="flex items-center gap-3 mb-3">
@@ -292,7 +292,7 @@ export function ReverseModeGame({ onComplete, onExit }: ReverseModeGameProps) {
       </div>
 
       {/* Bottom Action */}
-      <div className="fixed bottom-20 left-0 right-0 px-4 py-3 bg-gradient-to-t from-[#0f0c29] via-[#0f0c29] to-transparent">
+      <div className="action-bar px-4 py-3 bg-gradient-to-t from-[#0f0c29] via-[#0f0c29] to-transparent">
         {result && (
           <Button
             variant="primary"

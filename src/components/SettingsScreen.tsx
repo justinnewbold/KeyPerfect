@@ -162,7 +162,7 @@ export function SettingsScreen({ onReplayTutorial }: SettingsScreenProps = {}) {
   ] as const;
 
   return (
-    <div className="min-h-screen pb-24 px-4 pt-6">
+    <div className="screen-root px-4 pt-6">
       <h1 className="text-2xl font-bold mb-6">Settings</h1>
 
       {/* Volume Control */}

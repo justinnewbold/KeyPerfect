@@ -119,7 +119,7 @@ export function PracticeScreen({ onBack }: PracticeScreenProps) {
   };
 
   return (
-    <div className="min-h-screen pb-24 px-4 pt-6">
+    <div className="screen-root px-4 pt-6">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <button

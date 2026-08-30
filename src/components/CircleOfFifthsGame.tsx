@@ -250,7 +250,7 @@ export function CircleOfFifthsGame({ onBack }: CircleOfFifthsGameProps) {
     const accuracy = score.total > 0 ? Math.round((score.correct / score.total) * 100) : 0;
     const emoji = accuracy >= 80 ? '🎉' : accuracy >= 60 ? '👍' : '💪';
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-6">
+      <div className="screen-root flex flex-col items-center justify-center p-6">
         <div className="max-w-sm w-full text-center space-y-5">
           <div className="text-6xl">{emoji}</div>
           <h2 className="text-2xl font-bold gradient-text">Round Complete!</h2>
@@ -283,7 +283,7 @@ export function CircleOfFifthsGame({ onBack }: CircleOfFifthsGameProps) {
   // ─── Game screen ──────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="screen-root flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-4 pt-6 pb-2">
         <button onClick={onBack} className="p-2 rounded-full hover:bg-white/10 transition-colors">

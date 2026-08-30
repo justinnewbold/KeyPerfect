@@ -105,7 +105,7 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
   const goalsTotal = weeklyGoalsData.goals.length;
 
   return (
-    <div className="min-h-screen pb-24">
+    <div className="screen-root">
       {/* Header */}
       <div className="sticky top-0 z-40 bg-gradient-to-b from-[#0f0c29] via-[#0f0c29] to-transparent pb-4 px-4 pt-6">
         <div className="flex items-center justify-between mb-4">

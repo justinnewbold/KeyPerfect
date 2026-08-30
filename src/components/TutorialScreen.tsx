@@ -80,7 +80,7 @@ export function TutorialScreen({ onComplete, onSkip }: TutorialScreenProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] text-white flex flex-col p-4">
+    <div className="screen-root bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] text-white flex flex-col p-4">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <span className="text-sm text-white/60">Tutorial</span>

@@ -295,7 +295,7 @@ export function GameScreen({
   };
 
   return (
-    <div className="min-h-screen pb-24 flex flex-col">
+    <div className="screen-root flex flex-col">
       {/* Sticky Header */}
       <div className="sticky top-0 z-40 bg-gradient-to-b from-[#0f0c29] via-[#0f0c29] to-transparent pb-4 px-4 pt-4">
         {/* Progress Bar */}
@@ -489,7 +489,7 @@ export function GameScreen({
       </div>
 
       {/* Sticky Bottom */}
-      <div className="fixed bottom-20 left-0 right-0 px-4 py-3 bg-gradient-to-t from-[#0f0c29] via-[#0f0c29] to-transparent">
+      <div className="action-bar px-4 py-3 bg-gradient-to-t from-[#0f0c29] via-[#0f0c29] to-transparent">
         {result && (
           <Button
             variant="primary"
