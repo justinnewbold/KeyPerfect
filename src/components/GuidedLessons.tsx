@@ -663,7 +663,7 @@ export function GuidedLessons({ onBack, onStartPractice }: GuidedLessonsProps) {
   // ------- Lesson list view -------
   if (!activeLesson) {
     return (
-      <div className="min-h-screen pb-24">
+      <div className="screen-root">
         {/* Header */}
         <div className="sticky top-0 z-40 bg-gradient-to-b from-[#0f0c29] via-[#0f0c29] to-transparent pb-4 px-4 pt-6">
           <div className="flex items-center gap-3 mb-4">
@@ -682,7 +682,7 @@ export function GuidedLessons({ onBack, onStartPractice }: GuidedLessonsProps) {
           </div>
 
           {/* Category filter tabs */}
-          <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4">
+          <div className="flex gap-2 overflow-x-auto snap-strip pb-2 -mx-4 px-4">
             {(['all', 'chords', 'scales', 'intervals'] as const).map((cat) => (
               <button
                 key={cat}
@@ -739,7 +739,7 @@ export function GuidedLessons({ onBack, onStartPractice }: GuidedLessonsProps) {
   const progressValue = ((currentStepIndex + 1) / activeLesson.steps.length) * 100;
 
   return (
-    <div className="min-h-screen pb-24">
+    <div className="screen-root">
       {/* Lesson header */}
       <div className="sticky top-0 z-40 bg-gradient-to-b from-[#0f0c29] via-[#0f0c29] to-transparent pb-4 px-4 pt-6">
         <div className="flex items-center gap-3 mb-3">

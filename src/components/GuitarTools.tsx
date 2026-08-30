@@ -24,13 +24,13 @@ export function GuitarTools() {
   const [showCustomPractice, setShowCustomPractice] = useState(false);
 
   return (
-    <div className="min-h-screen pb-24">
+    <div className="screen-root">
       {/* Header */}
       <div className="sticky top-0 z-40 bg-gradient-to-b from-[#0f0c29] via-[#0f0c29] to-transparent pb-4 px-4 pt-6">
         <h1 className="text-2xl font-bold mb-4">Music Tools</h1>
 
         {/* Tab Selector - scrollable for more tabs */}
-        <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4">
+        <div className="flex gap-2 overflow-x-auto snap-strip pb-2 -mx-4 px-4">
           <button
             onClick={() => setActiveTool('metronome')}
             className={`py-3 px-4 rounded-xl font-medium transition-all whitespace-nowrap ${
@@ -170,7 +170,7 @@ function Metronome() {
       {/* Quick BPM Selection */}
       <Card className="p-4">
         <h3 className="text-sm font-medium text-white/60 mb-3">Quick Tempo</h3>
-        <div className="grid grid-cols-6 gap-2">
+        <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
           {commonBpms.map(tempo => (
             <button
               key={tempo}
@@ -190,7 +190,7 @@ function Metronome() {
       {/* Time Signature */}
       <Card className="p-4">
         <h3 className="text-sm font-medium text-white/60 mb-3">Time Signature</h3>
-        <div className="grid grid-cols-6 gap-2">
+        <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
           {timeSignatures.map(sig => (
             <button
               key={`${sig[0]}/${sig[1]}`}
@@ -216,7 +216,7 @@ function Metronome() {
           max="300"
           value={bpm}
           onChange={(e) => setBpm(parseInt(e.target.value))}
-          className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer slider"
+          className="range-slider"
         />
         <div className="flex justify-between text-xs text-white/40 mt-2">
           <span>30</span>

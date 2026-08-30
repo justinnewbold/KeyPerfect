@@ -11,13 +11,13 @@ export function LearnScreen() {
   const [activeSection, setActiveSection] = useState<LearnSection>('overview');
 
   return (
-    <div className="min-h-screen pb-24">
+    <div className="screen-root">
       {/* Header */}
       <div className="sticky top-0 z-40 bg-gradient-to-b from-[#0f0c29] via-[#0f0c29] to-transparent pb-4 px-4 pt-6">
         <h1 className="text-2xl font-bold mb-4">Learn</h1>
 
         {/* Section Tabs */}
-        <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4">
+        <div className="flex gap-2 overflow-x-auto snap-strip pb-2 -mx-4 px-4">
           {[
             { id: 'overview', label: 'Overview' },
             { id: 'chords', label: 'Chords' },

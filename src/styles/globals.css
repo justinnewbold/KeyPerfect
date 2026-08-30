@@ -1,13 +1,99 @@
 @import "tailwindcss";
 
+/* ---------------------------------------------------------------------------
+   Touch / mobile utilities
+   ---------------------------------------------------------------------------
+   `safe-area-bottom` is referenced by Navigation.tsx; it previously resolved to
+   nothing, so the bottom nav sat under the iPhone home indicator. These only do
+   anything because index.html now sets `viewport-fit=cover`.
+   --------------------------------------------------------------------------- */
+
+@utility safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+@utility safe-area-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+@utility safe-area-x {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/*
+ * Screen roots. `--kp-nav-h` is set on the App root and is 0 on screens that
+ * hide the bottom nav, so the clearance below content and the offset of any
+ * `.action-bar` always agree with whether the nav is actually rendered.
+ * `100dvh` tracks mobile browser chrome collapsing; the `100vh` line above is
+ * the fallback for browsers without dvh.
+ */
+@utility screen-root {
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding-bottom: calc(var(--kp-nav-h, 0px) + env(safe-area-inset-bottom) + 0.75rem);
+}
+
+@utility action-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--kp-nav-h, 0px) + env(safe-area-inset-bottom));
+}
+
+/* 44px minimum hit area without changing an element's visual size. */
+@utility tap-target {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Suppress the iOS selection/copy callout on long-pressable elements. */
+@utility no-callout {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Horizontal tab strips: snap to items, don't chain scroll to the page. */
+@utility snap-strip {
+  scroll-snap-type: x proximity;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+@utility snap-item {
+  scroll-snap-align: start;
+}
+
 /* Custom base styles */
 @layer base {
   * {
     -webkit-tap-highlight-color: transparent;
   }
 
+  :root {
+    /* Overridden inline by App.tsx per screen; see components/Navigation.tsx. */
+    --kp-nav-h: 0px;
+  }
+
   html {
     scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /*
+   * iOS zooms the page when focusing a control whose font-size is under 16px.
+   * `user-scalable=no` used to mask that; now that pinch-zoom is restored (an
+   * accessibility fix), the floor has to be explicit or every input focus
+   * zooms and never zooms back.
+   */
+  input,
+  select,
+  textarea {
+    font-size: max(16px, 1em);
   }
 
   body {
@@ -50,14 +136,21 @@
     @apply bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl p-4 transition-all duration-300;
   }
 
-  .glass-card:hover {
-    @apply bg-white/15 border-white/30 transform scale-[1.02];
-  }
-
   .glass-button {
     @apply bg-white/10 backdrop-blur-md border border-white/20 rounded-xl px-4 py-2
-           transition-all duration-200 hover:bg-white/20 hover:border-white/30
-           active:scale-95 cursor-pointer;
+           transition-all duration-200 active:scale-95 cursor-pointer;
+  }
+
+  /* Hover is a pointer affordance. On touch it latches after a tap and stays
+     latched until something else is tapped, which reads as a stuck selection. */
+  @media (hover: hover) {
+    .glass-card:hover {
+      @apply bg-white/15 border-white/30 transform scale-[1.02];
+    }
+
+    .glass-button:hover {
+      @apply bg-white/20 border-white/30;
+    }
   }
 
   .gradient-text {
@@ -79,26 +172,44 @@
   }
 
   .btn-primary {
-    @apply bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600
+    @apply bg-gradient-to-r from-purple-500 to-pink-500
            text-white font-semibold py-3 px-6 rounded-xl shadow-lg shadow-purple-500/25
            transition-all duration-200 active:scale-95;
   }
 
   .btn-secondary {
-    @apply bg-white/10 hover:bg-white/20 border border-white/20 hover:border-white/30
+    @apply bg-white/10 border border-white/20
            text-white font-medium py-2 px-4 rounded-xl transition-all duration-200 active:scale-95;
   }
 
   .btn-success {
-    @apply bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600
+    @apply bg-gradient-to-r from-green-500 to-emerald-500
            text-white font-semibold py-3 px-6 rounded-xl shadow-lg shadow-green-500/25
            transition-all duration-200 active:scale-95;
   }
 
   .btn-danger {
-    @apply bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600
+    @apply bg-gradient-to-r from-red-500 to-rose-500
            text-white font-semibold py-3 px-6 rounded-xl shadow-lg shadow-red-500/25
            transition-all duration-200 active:scale-95;
+  }
+
+  @media (hover: hover) {
+    .btn-primary:hover {
+      @apply from-purple-600 to-pink-600;
+    }
+
+    .btn-secondary:hover {
+      @apply bg-white/20 border-white/30;
+    }
+
+    .btn-success:hover {
+      @apply from-green-600 to-emerald-600;
+    }
+
+    .btn-danger:hover {
+      @apply from-red-600 to-rose-600;
+    }
   }
 
   .progress-bar {
@@ -238,18 +349,144 @@ html.theme-light .border-white\/10 { border-color: rgba(0, 0, 0, 0.06); }
 /* Piano keyboard styles */
 .piano-key-white {
   @apply bg-gradient-to-b from-white to-gray-100 border border-gray-300 rounded-b-lg
-         shadow-md hover:from-gray-50 hover:to-gray-200 active:from-gray-200 active:to-gray-300
+         shadow-md active:from-gray-200 active:to-gray-300
          transition-colors cursor-pointer;
 }
 
 .piano-key-black {
   @apply bg-gradient-to-b from-gray-900 to-black border border-gray-800 rounded-b-md
-         shadow-xl hover:from-gray-800 hover:to-gray-900 active:from-gray-700 active:to-gray-800
+         shadow-xl active:from-gray-700 active:to-gray-800
          transition-colors cursor-pointer z-10;
+}
+
+@media (hover: hover) {
+  .piano-key-white:hover {
+    @apply from-gray-50 to-gray-200;
+  }
+
+  .piano-key-black:hover {
+    @apply from-gray-800 to-gray-900;
+  }
 }
 
 .piano-key-active {
   @apply ring-4 ring-purple-500/50;
+}
+
+/*
+ * Tailwind's `hover:` variant is not gated behind `(hover: hover)` in the
+ * version pinned here, so every `hover:` utility in the components latches on
+ * touch. Guarding each of the ~180 call sites is not practical; the visually
+ * loud ones are the transforms, where a card stays enlarged after a tap. Reset
+ * those on devices that cannot hover. Colour/border tints are left alone: they
+ * read as "last tapped" rather than as a stuck state.
+ */
+@media (hover: none) {
+  [class*="hover\:scale-"]:hover {
+    scale: none;
+  }
+
+  [class*="hover\:transform"]:hover,
+  [class*="hover\:translate-"]:hover {
+    translate: none;
+    transform: none;
+  }
+}
+
+/*
+ * Range inputs. The components use `appearance-none` plus a `slider` class that
+ * was never defined, which left WebKit rendering no thumb at all. The input is
+ * 44px tall for the hit area while the visible track stays slim.
+ */
+.range-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 44px;
+  background: transparent;
+  cursor: pointer;
+  /* Let a vertical drag that starts on the slider still scroll the page. */
+  touch-action: pan-y;
+}
+
+.range-slider::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.range-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 28px;
+  height: 28px;
+  margin-top: -10px;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, #a855f7, #ec4899);
+  box-shadow: 0 2px 8px rgba(168, 85, 247, 0.5);
+}
+
+.range-slider::-moz-range-track {
+  height: 8px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.range-slider::-moz-range-thumb {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, #a855f7, #ec4899);
+  box-shadow: 0 2px 8px rgba(168, 85, 247, 0.5);
+}
+
+.range-slider:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+.range-slider:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/*
+ * Edge strips that host the tab-swipe gesture. `touch-action` is the whole
+ * point: without it the browser claims the drag for panning and cancels the
+ * pointer stream mid-gesture, so the swipe is never recognised. Naming pan-y
+ * and pinch-zoom hands those two back to the browser and keeps horizontal
+ * drags for us -- and confining that to a 16px strip means the page's
+ * horizontal scrollers, which an ancestor-level touch-action would forbid,
+ * are unaffected. They stop above the bottom nav so a tab button is never
+ * covered.
+ */
+.edge-swipe-zone {
+  position: fixed;
+  top: 0;
+  bottom: calc(var(--kp-nav-h, 0px) + env(safe-area-inset-bottom));
+  width: 16px;
+  z-index: 30;
+  touch-action: pan-y pinch-zoom;
+}
+
+/* Directional screen transitions for swipe navigation. */
+@keyframes screenEnterFromRight {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes screenEnterFromLeft {
+  from { opacity: 0; transform: translateX(-24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.screen-enter-left {
+  animation: screenEnterFromLeft 0.25s ease-out;
+}
+
+.screen-enter-right {
+  animation: screenEnterFromRight 0.25s ease-out;
 }
 
 /* Responsive grid for options */

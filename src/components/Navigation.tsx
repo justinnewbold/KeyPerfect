@@ -10,6 +10,15 @@ import {
 
 export type Screen = 'home' | 'play' | 'learn' | 'stats' | 'tools' | 'settings';
 
+/**
+ * Rendered height of the bar below, excluding the safe-area inset: 1px top
+ * border + 8px container padding + 54px button (8px padding, 20px icon, 2px
+ * gap, ~16px label, 8px padding). App.tsx publishes this as `--kp-nav-h` so
+ * screen padding and fixed action bars stay in step with whether the nav is
+ * actually rendered. Keep it in sync with the markup below.
+ */
+export const NAV_HEIGHT_PX = 64;
+
 interface NavigationProps {
   currentScreen: Screen;
   onNavigate: (screen: Screen) => void;
@@ -61,7 +70,7 @@ export function Header({ title, subtitle, onBack, rightAction }: HeaderProps) {
           {onBack && (
             <button
               onClick={onBack}
-              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
+              className="tap-target rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
             >
               <svg
                 className="w-5 h-5"

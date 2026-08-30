@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   Navigation,
+  NAV_HEIGHT_PX,
   HomeScreen,
   LevelSelect,
   MusicKeysLevelSelect,
@@ -22,6 +23,7 @@ import {
   IntervalSingingMode,
   ChordProgressionDictation,
   CircleOfFifthsGame,
+  PracticeScreen,
 } from './components';
 import type { Screen } from './components';
 import { LevelConfig, LEVELS } from './types/levels';
@@ -29,6 +31,8 @@ import { MusicKeysLevelConfig, MUSIC_KEYS_LEVELS } from './types/musicKeysLevels
 import { NotesLevelConfig, NOTES_LEVELS } from './types/notesLevels';
 import { GameModeType, ChallengeModeType, GameResult, AnswerRecord } from './types/gameModes';
 import { useGameState } from './hooks/useGameState';
+import { useSwipe } from './hooks/useSwipe';
+import { usePrefersReducedMotion } from './hooks/usePrefersReducedMotion';
 import {
   getDailyStats,
   updateDailyStats,
@@ -66,7 +70,27 @@ type AppState =
   | { screen: 'mistakeReview'; result: GameResult }
   | { screen: 'intervalSinging' }
   | { screen: 'progressionDictation' }
-  | { screen: 'circleOfFifths' };
+  | { screen: 'circleOfFifths' }
+  | { screen: 'practice' };
+
+/** Left-to-right order of the bottom nav; must match Navigation's navItems. */
+const NAV_ORDER: Screen[] = ['home', 'play', 'learn', 'tools', 'stats'];
+
+/**
+ * Screens that belong to a bottom-nav tab, and so can be swiped between.
+ * Deliberately partial: 'settings' renders the nav without being one of the
+ * five tabs, and every game screen is absent.
+ */
+const SCREEN_TO_NAV_TAB: Partial<Record<AppState['screen'], Screen>> = {
+  home: 'home',
+  levelSelect: 'play',
+  practice: 'play',
+  musicKeysSelect: 'play',
+  notesSelect: 'play',
+  learn: 'learn',
+  tools: 'tools',
+  stats: 'stats',
+};
 
 function App() {
   // Check if this is a first-time user (auto-trigger tutorial)
@@ -79,7 +103,11 @@ function App() {
     isFirstUser() ? { screen: 'tutorial' } : { screen: 'home' }
   );
   const [currentNavScreen, setCurrentNavScreen] = useState<Screen>('home');
+  const [swipeTransition, setSwipeTransition] = useState<
+    { tab: Screen; dir: 'forward' | 'back' } | null
+  >(null);
   const prevScreenRef = useRef<string>('home');
+  const reducedMotion = usePrefersReducedMotion();
   const {
     gameState,
     startGame,
@@ -333,6 +361,13 @@ function App() {
     setAppState({ screen: 'circleOfFifths' });
   }, []);
 
+  // Free play on the piano keyboard. Shows the bottom nav, so it counts as
+  // part of the Play tab for swipe navigation.
+  const handleOpenFreePlay = useCallback(() => {
+    setCurrentNavScreen('play');
+    setAppState({ screen: 'practice' });
+  }, []);
+
   const handleOpenFocusAreas = useCallback(() => {
     setCurrentNavScreen('stats');
     setAppState({ screen: 'stats', initialTab: 'insights' });
@@ -371,6 +406,7 @@ function App() {
             onOpenProgressionDictation={handleOpenProgressionDictation}
             onOpenFocusAreas={handleOpenFocusAreas}
             onOpenCircleOfFifths={handleOpenCircleOfFifths}
+            onOpenFreePlay={handleOpenFreePlay}
           />
         );
 
@@ -545,8 +581,11 @@ function App() {
       case 'circleOfFifths':
         return <CircleOfFifthsGame onBack={handleGoHome} />;
 
+      case 'practice':
+        return <PracticeScreen onBack={handleGoHome} />;
+
       default:
-        return <HomeScreen onStartLevel={handleStartLevel} onStartChallenge={handleStartChallenge} onStartGameMode={handleStartGameMode} onStartPreset={handleStartPreset} onStartMusicKeys={handleStartMusicKeys} onStartNotes={handleStartNotes} onOpenGuidedLessons={handleOpenGuidedLessons} onOpenComparison={handleOpenComparison} onOpenWeeklyGoals={handleOpenWeeklyGoals} onOpenMastery={handleOpenMastery} onOpenSocialChallenges={handleOpenSocialChallenges} onOpenIntervalSinging={handleOpenIntervalSinging} onOpenProgressionDictation={handleOpenProgressionDictation} onOpenCircleOfFifths={handleOpenCircleOfFifths} />;
+        return <HomeScreen onStartLevel={handleStartLevel} onStartChallenge={handleStartChallenge} onStartGameMode={handleStartGameMode} onStartPreset={handleStartPreset} onStartMusicKeys={handleStartMusicKeys} onStartNotes={handleStartNotes} onOpenGuidedLessons={handleOpenGuidedLessons} onOpenComparison={handleOpenComparison} onOpenWeeklyGoals={handleOpenWeeklyGoals} onOpenMastery={handleOpenMastery} onOpenSocialChallenges={handleOpenSocialChallenges} onOpenIntervalSinging={handleOpenIntervalSinging} onOpenProgressionDictation={handleOpenProgressionDictation} onOpenCircleOfFifths={handleOpenCircleOfFifths} onOpenFreePlay={handleOpenFreePlay} />;
     }
   };
 
@@ -554,11 +593,84 @@ function App() {
   const hideNavScreens = ['game', 'musicKeysGame', 'notesGame', 'result', 'guidedLessons', 'comparison', 'weeklyGoals', 'mastery', 'socialChallenges', 'tutorial', 'mistakeReview', 'intervalSinging', 'progressionDictation', 'circleOfFifths'];
   const showNavigation = !hideNavScreens.includes(appState.screen);
 
+  // Which bottom-nav tab the current screen belongs to. Screens absent from
+  // this map are not swipeable: Settings renders the nav but is not one of the
+  // five tabs, so swiping there would jump somewhere arbitrary.
+  const swipeTab = SCREEN_TO_NAV_TAB[appState.screen];
+  const swipeIndex = swipeTab ? NAV_ORDER.indexOf(swipeTab) : -1;
+
+  const stepTab = useCallback((delta: number) => {
+    const next = swipeIndex + delta;
+    // No wrap-around: home and stats are the ends of the bar, and wrapping
+    // between them reads as a glitch rather than as navigation.
+    if (swipeIndex < 0 || next < 0 || next >= NAV_ORDER.length) return;
+    const target = NAV_ORDER[next];
+    // Tagged with its target tab so the directional animation applies only to
+    // the screen the swipe actually produced; navigating any other way falls
+    // back to the default transition without needing to clear this.
+    setSwipeTransition({ tab: target, dir: delta > 0 ? 'forward' : 'back' });
+    handleNavigate(target);
+  }, [swipeIndex, handleNavigate]);
+
+  /*
+   * Tab swiping happens on two narrow strips pinned to the screen edges
+   * rather than on the whole page, for a reason that only shows up on a real
+   * device: with the default touch-action the browser claims a drag for
+   * panning and fires pointercancel before the gesture finishes, so a
+   * passive listener on the page root never sees a completed swipe. The fix
+   * is `touch-action: pan-y pinch-zoom` -- the browser keeps vertical
+   * scrolling and zooming, we get horizontal drags -- but on the root that
+   * would also forbid horizontal panning in every descendant, breaking all
+   * seven horizontal scroll strips and the piano.
+   *
+   * Confining it to 16px edge strips gives the gesture somewhere it reliably
+   * works while leaving the rest of the page untouched. 16px is the screens'
+   * own horizontal padding, so the strips sit over margin, and they stop
+   * above the nav so they never cover a tab button.
+   *
+   * `showNavigation` already excludes all fourteen game and feature screens,
+   * so reusing it means a stray swipe can never cost quiz progress, and any
+   * screen added to hideNavScreens is protected automatically.
+   */
+  const swipeEnabled = showNavigation && swipeIndex >= 0;
+  const edgeSwipeOptions = {
+    axis: 'horizontal' as const,
+    enabled: swipeEnabled,
+    onSwipeLeft: () => stepTab(1),
+    onSwipeRight: () => stepTab(-1),
+  };
+  const { ref: leftEdgeRef } = useSwipe<HTMLDivElement>(edgeSwipeOptions);
+  const { ref: rightEdgeRef } = useSwipe<HTMLDivElement>(edgeSwipeOptions);
+
+  const direction =
+    swipeTransition && swipeTransition.tab === swipeTab ? swipeTransition.dir : null;
+  const transitionClass = reducedMotion
+    ? ''
+    : direction === 'forward'
+    ? 'screen-enter-right'
+    : direction === 'back'
+    ? 'screen-enter-left'
+    : 'screen-enter';
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] text-white">
-      <div key={appState.screen} className="screen-enter">
+    <div
+      className="min-h-dvh safe-area-x bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] text-white"
+      /*
+       * Screens read this to size their bottom clearance and to position their
+       * fixed action bars. It is 0 when the nav is hidden, so a `.action-bar`
+       * sits on the safe-area edge instead of floating above empty space.
+       */
+      style={{ '--kp-nav-h': showNavigation ? `${NAV_HEIGHT_PX}px` : '0px' } as React.CSSProperties}
+    >
+      <div key={appState.screen} className={transitionClass}>
         {renderScreen()}
       </div>
+      {swipeEnabled && (
+        <>
+          <div ref={leftEdgeRef} className="edge-swipe-zone left-0" aria-hidden="true" />
+          <div ref={rightEdgeRef} className="edge-swipe-zone right-0" aria-hidden="true" />
+        </>
+      )}
       {showNavigation && (
         <Navigation
           currentScreen={currentNavScreen}

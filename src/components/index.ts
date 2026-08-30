@@ -1,5 +1,5 @@
 export * from './ui';
-export { Navigation, Header } from './Navigation';
+export { Navigation, Header, NAV_HEIGHT_PX } from './Navigation';
 export type { Screen } from './Navigation';
 export { HomeScreen } from './HomeScreen';
 export { LevelSelect } from './LevelSelect';

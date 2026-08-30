@@ -20,6 +20,13 @@ import { getSettings } from '../utils/storage';
 
 interface UseAudioReturn {
   playNote: (midi: number, duration?: number) => void;
+  /**
+   * Start a note that sustains until the caller releases it, and hand back the
+   * handle that does so. Unlike playNote this does not cancel whatever is
+   * already sounding, which is what makes chords on the piano keyboard
+   * possible; ownership of the handle is the caller's.
+   */
+  startNote: (midi: number, maxDuration?: number) => { stop: () => void };
   playChord: (notes: number[], arpeggio?: boolean) => void;
   playScale: (notes: number[]) => void;
   playInterval: (note1: number, note2: number, sequential?: boolean) => void;
@@ -101,6 +108,25 @@ export function useAudio(): UseAudioReturn {
     currentSound.current = playNote(midi, instrument, duration);
     scheduleStopPlaying(duration * 1000);
   }, [instrument, stopCurrentSound, scheduleStopPlaying]);
+
+  /*
+   * Polyphonic note-on.
+   *
+   * handlePlayNote deliberately calls stopCurrentSound first, and about
+   * fifteen components rely on "a new sound replaces the old one", so it
+   * cannot be made polyphonic. This is a separate path that touches neither
+   * currentSound nor isPlaying.
+   *
+   * The engine holds its envelope at the sustain level until maxDuration and
+   * its stop() ramps to silence over 50ms, so a long duration plus an explicit
+   * stop is a clean note-on/note-off pair with no engine changes. maxDuration
+   * also acts as the watchdog: a pointerup lost to the app being backgrounded
+   * mid-press cannot leave a note ringing forever.
+   */
+  const handleStartNote = useCallback(
+    (midi: number, maxDuration: number = 8) => playNote(midi, instrument, maxDuration),
+    [instrument],
+  );
 
   const handlePlayChord = useCallback((notes: number[], arpeggio: boolean = false) => {
     stopCurrentSound();
@@ -186,6 +212,7 @@ export function useAudio(): UseAudioReturn {
 
   return {
     playNote: handlePlayNote,
+    startNote: handleStartNote,
     playChord: handlePlayChord,
     playScale: handlePlayScale,
     playInterval: handlePlayInterval,

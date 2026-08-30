@@ -170,7 +170,7 @@ export function MasteryIndicators({ onBack }: MasteryIndicatorsProps) {
   ];
 
   return (
-    <div className="min-h-screen pb-24 px-4 pt-6">
+    <div className="screen-root px-4 pt-6">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <button onClick={onBack} className="p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors">
@@ -203,7 +203,7 @@ export function MasteryIndicators({ onBack }: MasteryIndicatorsProps) {
       </div>
 
       {/* Category Tabs */}
-      <div className="flex gap-2 mb-6 overflow-x-auto">
+      <div className="flex gap-2 mb-6 overflow-x-auto snap-strip">
         {categories.map(cat => (
           <button
             key={cat.id}

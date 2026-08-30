@@ -168,7 +168,7 @@ export function CustomPractice({ onBack }: { onBack: () => void }) {
   // Render results
   if (gameResult) {
     return (
-      <div className="min-h-screen pb-24 px-4 pt-6">
+      <div className="screen-root px-4 pt-6">
         <Card className="p-6 text-center">
           <div className="text-6xl mb-4">
             {gameResult.accuracy >= 90 ? '🏆' : gameResult.accuracy >= 70 ? '🌟' : '💪'}
@@ -209,7 +209,7 @@ export function CustomPractice({ onBack }: { onBack: () => void }) {
 
   // Render configuration screen
   return (
-    <div className="min-h-screen pb-24 px-4 pt-6">
+    <div className="screen-root px-4 pt-6">
       <div className="flex items-center gap-3 mb-6">
         <button onClick={onBack} className="p-2 rounded-xl bg-white/10 hover:bg-white/20">
           <X className="w-5 h-5" />
@@ -365,7 +365,7 @@ export function CustomPractice({ onBack }: { onBack: () => void }) {
             step="5"
             value={config.questionCount}
             onChange={e => setConfig(prev => ({ ...prev, questionCount: parseInt(e.target.value) }))}
-            className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-purple-500"
+            className="range-slider"
           />
         </div>
 

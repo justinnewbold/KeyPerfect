@@ -19,6 +19,7 @@ import {
   Layers,
   RotateCcw,
   RefreshCw,
+  Piano,
 } from 'lucide-react';
 import { Card, CardContent } from './ui/Card';
 import { Button } from './ui/Button';
@@ -49,9 +50,10 @@ interface HomeScreenProps {
   onOpenProgressionDictation?: () => void;
   onOpenFocusAreas?: () => void;
   onOpenCircleOfFifths?: () => void;
+  onOpenFreePlay?: () => void;
 }
 
-export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, onStartPreset, onStartMusicKeys, onStartNotes, onOpenGuidedLessons, onOpenComparison, onOpenWeeklyGoals, onOpenMastery, onOpenSocialChallenges, onOpenIntervalSinging, onOpenProgressionDictation, onOpenFocusAreas, onOpenCircleOfFifths }: HomeScreenProps) {
+export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, onStartPreset, onStartMusicKeys, onStartNotes, onOpenGuidedLessons, onOpenComparison, onOpenWeeklyGoals, onOpenMastery, onOpenSocialChallenges, onOpenIntervalSinging, onOpenProgressionDictation, onOpenFocusAreas, onOpenCircleOfFifths, onOpenFreePlay }: HomeScreenProps) {
   const userStats = getUserStats();
   const dailyStats = getDailyStats();
   const unlockedAchievements = getUnlockedAchievements();
@@ -64,16 +66,18 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
   const instruments = getInstrumentList();
   const instrumentDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close instrument dropdown when clicking outside
+  // Close instrument dropdown when tapping/clicking outside. `pointerdown`
+  // covers mouse, touch and pen in one listener; `mousedown` alone relied on
+  // the synthesised mouse event that touch only emits in some situations.
   useEffect(() => {
     if (!showInstrumentDropdown) return;
-    const handler = (e: MouseEvent) => {
+    const handler = (e: PointerEvent) => {
       if (instrumentDropdownRef.current && !instrumentDropdownRef.current.contains(e.target as Node)) {
         setShowInstrumentDropdown(false);
       }
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    document.addEventListener('pointerdown', handler);
+    return () => document.removeEventListener('pointerdown', handler);
   }, [showInstrumentDropdown]);
 
   const handleInstrumentChange = useCallback((instrument: InstrumentType) => {
@@ -105,7 +109,7 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
   const goalsTotal = weeklyGoalsData.goals.length;
 
   return (
-    <div className="min-h-screen pb-24">
+    <div className="screen-root">
       {/* Header */}
       <div className="sticky top-0 z-40 bg-gradient-to-b from-[#0f0c29] via-[#0f0c29] to-transparent pb-4 px-4 pt-6">
         <div className="flex items-center justify-between mb-4">
@@ -537,6 +541,21 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
               <p className="text-xs text-white/60">Identify chord progressions</p>
             </Card>
 
+            {/* Free Play piano */}
+            <Card
+              hover
+              onClick={onOpenFreePlay}
+              className="p-4 bg-gradient-to-br from-sky-500/10 to-blue-500/10 border-sky-500/20"
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center">
+                  <Piano className="w-5 h-5" />
+                </div>
+                <h4 className="font-semibold text-sm">Free Play</h4>
+              </div>
+              <p className="text-xs text-white/60">Explore chords on the piano</p>
+            </Card>
+
             {/* Circle of Fifths */}
             <Card
               hover
@@ -606,7 +625,7 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
         {unlockedAchievements.length > 0 && (
           <div>
             <h2 className="text-lg font-semibold mb-3">Recent Achievements</h2>
-            <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4">
+            <div className="flex gap-3 overflow-x-auto snap-strip pb-2 -mx-4 px-4">
               {unlockedAchievements.slice(-4).reverse().map(achievement => (
                 <Card key={achievement.id} className="p-3 min-w-[140px] flex-shrink-0">
                   <div className="text-center">

@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { X, Plus, Play, Save, Trash2, Music, Settings2 } from 'lucide-react';
 import { ChordQuality, ScaleType, CHORD_TYPES, SCALE_TYPES } from '../types/music';
+import { useSwipe } from '../hooks/useSwipe';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import { Card, Button, Badge } from './ui';
 
 export interface CustomPracticeSet {
@@ -127,18 +129,40 @@ export function CustomPracticeBuilder({
     onStartPractice?.(quickSet);
   };
 
+  useBodyScrollLock(true);
+
+  /*
+   * Swipe down to dismiss, attached to the handle and header rather than the
+   * whole sheet. That surface carries `touch-none`, which is what makes the
+   * gesture work at all: with the default touch-action the browser claims a
+   * vertical drag for scrolling and cancels the pointer stream mid-gesture.
+   * Claiming the whole panel that way would kill scrolling in the body, so
+   * the sheet is dragged by its header, as bottom sheets normally are.
+   */
+  const { ref: dragHandleRef } = useSwipe<HTMLDivElement>({
+    axis: 'vertical',
+    onSwipeDown: onClose,
+    thresholds: { distance: 60 },
+  });
+
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-white/10">
-          <div className="flex items-center gap-3">
-            <Settings2 className="w-6 h-6 text-purple-400" />
-            <h2 className="text-xl font-bold">Custom Practice Builder</h2>
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 safe-area-top safe-area-bottom">
+      <Card
+        className="w-full max-w-4xl max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-2rem)] overflow-hidden flex flex-col"
+      >
+        <div ref={dragHandleRef} className="touch-none shrink-0">
+          {/* Grab handle: the affordance for swipe-down-to-dismiss on touch. */}
+          <div className="sm:hidden mx-auto mt-2 mb-1 h-1 w-10 rounded-full bg-white/30" />
+          {/* Header */}
+          <div className="flex items-center justify-between p-4 border-b border-white/10">
+            <div className="flex items-center gap-3">
+              <Settings2 className="w-6 h-6 text-purple-400" />
+              <h2 className="text-xl font-bold">Custom Practice Builder</h2>
+            </div>
+            <button onClick={onClose} className="tap-target rounded-lg hover:bg-white/10 transition-colors">
+              <X className="w-5 h-5" />
+            </button>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
-            <X className="w-5 h-5" />
-          </button>
         </div>
 
         {/* Tabs */}
@@ -162,7 +186,7 @@ export function CustomPracticeBuilder({
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto overscroll-contain p-4">
           {activeTab === 'create' ? (
             <div className="space-y-6">
               {/* Name & Description */}
@@ -200,7 +224,7 @@ export function CustomPracticeBuilder({
                     step={5}
                     value={questionCount}
                     onChange={(e) => setQuestionCount(Number(e.target.value))}
-                    className="w-full"
+                    className="range-slider"
                   />
                 </div>
                 <div>

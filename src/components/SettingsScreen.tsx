@@ -162,7 +162,7 @@ export function SettingsScreen({ onReplayTutorial }: SettingsScreenProps = {}) {
   ] as const;
 
   return (
-    <div className="min-h-screen pb-24 px-4 pt-6">
+    <div className="screen-root px-4 pt-6">
       <h1 className="text-2xl font-bold mb-6">Settings</h1>
 
       {/* Volume Control */}
@@ -185,7 +185,7 @@ export function SettingsScreen({ onReplayTutorial }: SettingsScreenProps = {}) {
           step="0.01"
           value={settings.volume}
           onChange={handleVolumeChange}
-          className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-purple-500"
+          className="range-slider"
         />
       </Card>
 
@@ -195,7 +195,7 @@ export function SettingsScreen({ onReplayTutorial }: SettingsScreenProps = {}) {
           <Music className="w-5 h-5 text-purple-400" />
           <h3 className="font-semibold">Instrument</h3>
         </div>
-        <div className="grid grid-cols-5 gap-2">
+        <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
           {instruments.map(inst => (
             <button
               key={inst.id}

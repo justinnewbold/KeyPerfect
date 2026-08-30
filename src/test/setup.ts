@@ -1,5 +1,6 @@
 import { vi, beforeEach } from 'vitest';
 import '@testing-library/jest-dom';
+import { installPointerEventShims } from './pointerEvents';
 
 // Mock localStorage
 const localStorageMock = {
@@ -86,6 +87,33 @@ Object.defineProperty(navigator, 'mediaDevices', {
     }),
   },
 });
+
+// jsdom implements none of these; anything touch- or motion-related needs them.
+installPointerEventShims();
+
+if (typeof window.matchMedia !== 'function') {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: (query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }),
+  });
+}
+
+if (typeof globalThis.ResizeObserver === 'undefined') {
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  } as unknown as typeof ResizeObserver;
+}
 
 // Reset mocks before each test
 beforeEach(() => {
