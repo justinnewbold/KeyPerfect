@@ -30,7 +30,7 @@ const CX = 160;
 const CY = 160;
 const OUTER_R = 148;
 const MID_R = 100;
-const INNER_R = 58;
+const INNER_R = 48;
 
 const toRad = (deg: number) => (deg * Math.PI) / 180;
 
@@ -194,6 +194,45 @@ export function CircleOfFifthsGame({ onBack }: CircleOfFifthsGameProps) {
     [canClick, question.correctAnswer, audio],
   );
 
+  /*
+   * Interaction props shared by both wedge rings.
+   *
+   * The wedges were mouse-only: an <g> with onClick plus onMouseEnter /
+   * onMouseLeave, so the highlight was unreachable on touch and the wedges
+   * were invisible to the keyboard despite being the game's only control.
+   *
+   * Enter/leave stay mouse-specific (a touch "enter" fires once and never
+   * leaves, latching the highlight), while pointerdown/up give touch users
+   * equivalent press feedback, and focus/blur give it to keyboard users.
+   */
+  const wedgeProps = useCallback(
+    (key: string, quality: 'major' | 'minor', clickable: boolean) => ({
+      role: 'button',
+      tabIndex: clickable ? 0 : -1,
+      'aria-label': `${key} ${quality}`,
+      'aria-disabled': !clickable,
+      onClick: () => handleSegmentClick(key),
+      onKeyDown: (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleSegmentClick(key);
+        }
+      },
+      onPointerEnter: (e: React.PointerEvent) => {
+        if (e.pointerType === 'mouse') setHoveredKey(key);
+      },
+      onPointerLeave: (e: React.PointerEvent) => {
+        if (e.pointerType === 'mouse') setHoveredKey(null);
+      },
+      onPointerDown: () => setHoveredKey(key),
+      onPointerUp: () => setHoveredKey(null),
+      onPointerCancel: () => setHoveredKey(null),
+      onFocus: () => setHoveredKey(key),
+      onBlur: () => setHoveredKey(null),
+    }),
+    [handleSegmentClick],
+  );
+
   const handleNext = useCallback(() => {
     const next = questionIndex + 1;
     if (next >= TOTAL_QUESTIONS) {
@@ -326,8 +365,8 @@ export function CircleOfFifthsGame({ onBack }: CircleOfFifthsGameProps) {
 
       {/* Wheel */}
       <div className="flex-1 flex items-center justify-center px-3 py-2">
-        <div className="w-full" style={{ maxWidth: 360, maxHeight: 360 }}>
-          <svg viewBox="0 0 320 320" width="100%" height="100%">
+        <div className="w-full" style={{ maxWidth: 'min(94vw, 420px)', maxHeight: 'min(94vw, 420px)' }}>
+          <svg viewBox="0 0 320 320" width="100%" height="100%" role="group" aria-label="Circle of fifths">
 
             {/* Major key ring */}
             {MAJOR_KEYS.map((key, i) => {
@@ -342,9 +381,7 @@ export function CircleOfFifthsGame({ onBack }: CircleOfFifthsGameProps) {
                 <g
                   key={`major-${key}`}
                   style={{ cursor: clickable ? 'pointer' : 'default', opacity }}
-                  onClick={() => handleSegmentClick(key)}
-                  onMouseEnter={() => setHoveredKey(key)}
-                  onMouseLeave={() => setHoveredKey(null)}
+                  {...wedgeProps(key, 'major', clickable)}
                 >
                   <path
                     d={path}
@@ -358,7 +395,7 @@ export function CircleOfFifthsGame({ onBack }: CircleOfFifthsGameProps) {
                     y={lp.y}
                     textAnchor="middle"
                     dominantBaseline="central"
-                    fontSize={key.length > 2 ? '9' : '12'}
+                    fontSize={key.length > 2 ? '11' : '13'}
                     fontWeight="700"
                     fill="white"
                     style={{ userSelect: 'none', pointerEvents: 'none' }}
@@ -382,9 +419,7 @@ export function CircleOfFifthsGame({ onBack }: CircleOfFifthsGameProps) {
                 <g
                   key={`minor-${key}`}
                   style={{ cursor: clickable ? 'pointer' : 'default', opacity }}
-                  onClick={() => handleSegmentClick(key)}
-                  onMouseEnter={() => setHoveredKey(key)}
-                  onMouseLeave={() => setHoveredKey(null)}
+                  {...wedgeProps(key, 'minor', clickable)}
                 >
                   <path
                     d={path}
@@ -398,7 +433,7 @@ export function CircleOfFifthsGame({ onBack }: CircleOfFifthsGameProps) {
                     y={lp.y}
                     textAnchor="middle"
                     dominantBaseline="central"
-                    fontSize={key.length > 3 ? '7' : '9'}
+                    fontSize={key.length > 3 ? '9' : '11'}
                     fontWeight="500"
                     fill="rgba(255,255,255,0.85)"
                     style={{ userSelect: 'none', pointerEvents: 'none' }}
