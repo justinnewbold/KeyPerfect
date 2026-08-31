@@ -327,6 +327,20 @@ function App() {
       return;
     }
 
+    // These two have dedicated screens that generate their own questions.
+    // Falling through to the generic quiz hits generateQuestion's
+    // `default: generateChordQuestion`, so Play Again used to hand the player
+    // a chord-identification quiz labelled "Level 1" and then file the
+    // session under this mode's stats.
+    if (mode === 'reverse') {
+      setAppState({ screen: 'reverseMode' });
+      return;
+    }
+    if (mode === 'melodic') {
+      setAppState({ screen: 'melodicDictation' });
+      return;
+    }
+
     startGame(mode, levelId);
     const level = LEVELS.find(l => l.id === levelId) || LEVELS[0];
     setAppState({ screen: 'game', level });

@@ -15,11 +15,14 @@ import {
   MUSIC_KEYS,
   getMidiFromNote,
 } from '../types/music';
-import { LevelConfig } from '../types/levels';
-import { MusicKeysLevelConfig } from '../types/musicKeysLevels';
-import { NotesLevelConfig } from '../types/notesLevels';
+import { LevelConfig, LEVELS } from '../types/levels';
+import { MusicKeysLevelConfig, MUSIC_KEYS_LEVELS } from '../types/musicKeysLevels';
+import { NotesLevelConfig, NOTES_LEVELS } from '../types/notesLevels';
 import { GameQuestion, AudioQuestionData, GameModeType } from '../types/gameModes';
 import { loadSRSData } from './spacedRepetition';
+
+/** Genre modes are not part of the level ladder; see levelDifficulty. */
+const GENRE_DIFFICULTY = 0.7;
 
 // Genre-specific content configurations
 export const GENRE_CONTENT = {
@@ -100,6 +103,27 @@ export function getScaleNotes(rootMidi: number, scaleType: ScaleType): number[] 
 export function getIntervalNotes(rootMidi: number, intervalType: IntervalType): number[] {
   const interval = INTERVALS[intervalType];
   return [rootMidi, rootMidi + interval.semitones];
+}
+
+/**
+ * A question's `difficulty` on the 0-1 scale its consumers expect.
+ *
+ * Questions used to be built with `difficulty: level.id` (1-8), but
+ * useGameState.nextQuestion clamps that same field into [0.1, 1.0] as soon as
+ * it adjusts for performance — which happens on the first correct answer. At
+ * level 8 the field therefore went from 8 to exactly 1.0, and
+ * calculateQuestionXP's `difficulty * 10` bonus collapsed from +80 on the
+ * first question to +10 on every one after it.
+ *
+ * 0-1 is the scale the adjuster, startWithPreset (0.3/0.5/0.8) and the XP
+ * formula's clamp all assume, so that is the one kept.
+ */
+function normalisedLevel(levelId: number, ladderLength: number): number {
+  return Math.min(1, Math.max(0, levelId / Math.max(1, ladderLength)));
+}
+
+export function levelDifficulty(level: LevelConfig): number {
+  return normalisedLevel(level.id, LEVELS.length);
 }
 
 // Calculate difficulty modifier based on question progress
@@ -230,7 +254,7 @@ function generateChordQuestion(id: string, level: LevelConfig, difficultyModifie
       playbackMode: 'chord',
       duration,
     },
-    difficulty: level.id,
+    difficulty: levelDifficulty(level),
     xpValue: 10 + level.id * 2 + Math.floor(difficultyModifier * 5),
   };
 }
@@ -266,7 +290,7 @@ function generateScaleQuestion(id: string, level: LevelConfig, difficultyModifie
       playbackMode: 'scale',
       duration: noteDelay,
     },
-    difficulty: level.id,
+    difficulty: levelDifficulty(level),
     xpValue: 10 + level.id * 2 + Math.floor(difficultyModifier * 5),
   };
 }
@@ -303,7 +327,7 @@ function generateIntervalQuestion(id: string, level: LevelConfig, difficultyModi
       playbackMode: 'interval',
       duration: 1 - (difficultyModifier * 0.3), // 1s to 0.7s
     },
-    difficulty: level.id,
+    difficulty: levelDifficulty(level),
     xpValue: 10 + level.id * 2 + Math.floor(difficultyModifier * 5),
   };
 }
@@ -361,7 +385,7 @@ function generateInversionQuestion(id: string, level: LevelConfig): GameQuestion
       playbackMode: 'chord',
       duration: 1.5,
     },
-    difficulty: level.id,
+    difficulty: levelDifficulty(level),
     xpValue: 15 + level.id * 2,
   };
 }
@@ -401,7 +425,7 @@ function generateProgressionQuestion(id: string, level: LevelConfig): GameQuesti
       // Each chord in turn; `notes` alone is one simultaneous cluster.
       chordSequence: chordMidis,
     },
-    difficulty: level.id,
+    difficulty: levelDifficulty(level),
     xpValue: 20 + level.id * 2,
   };
 }
@@ -487,7 +511,7 @@ function generateNoteReadingQuestion(id: string, level: LevelConfig, difficultyM
       playbackMode: 'chord',
       duration: 1,
     },
-    difficulty: level.id,
+    difficulty: levelDifficulty(level),
     xpValue: 10 + level.id * 2 + Math.floor(difficultyModifier * 5),
   };
 }
@@ -546,7 +570,7 @@ function generateRhythmQuestion(id: string, level: LevelConfig, difficultyModifi
       duration: (pattern.beats * msPerBeat) / 1000,
       rhythmPattern,
     },
-    difficulty: level.id,
+    difficulty: levelDifficulty(level),
     xpValue: 10 + level.id * 2 + Math.floor(difficultyModifier * 5),
   };
 }
@@ -621,7 +645,7 @@ function generateHarmonyQuestion(id: string, level: LevelConfig, difficultyModif
         duration: 1.5,
         comparisonNotes: secondChord,
       },
-      difficulty: level.id,
+      difficulty: levelDifficulty(level),
       xpValue: 15 + level.id * 2 + Math.floor(difficultyModifier * 5),
     };
   } else {
@@ -661,7 +685,7 @@ function generateHarmonyQuestion(id: string, level: LevelConfig, difficultyModif
         duration: 1.5,
         comparisonNotes: chord2,
       },
-      difficulty: level.id,
+      difficulty: levelDifficulty(level),
       xpValue: 15 + level.id * 2 + Math.floor(difficultyModifier * 5),
     };
   }
@@ -700,7 +724,8 @@ function generateGenreQuestion(
         playbackMode: 'chord',
         duration: 1.5,
       },
-      difficulty: 1,
+      // Genre modes have no level; treat them as advanced but not maximal.
+      difficulty: GENRE_DIFFICULTY,
       xpValue: 12 + Math.floor(difficultyModifier * 8),
     };
   } else if (selectedType === 'scale') {
@@ -723,7 +748,8 @@ function generateGenreQuestion(
         playbackMode: 'scale',
         duration: 0.3,
       },
-      difficulty: 1,
+      // Genre modes have no level; treat them as advanced but not maximal.
+      difficulty: GENRE_DIFFICULTY,
       xpValue: 12 + Math.floor(difficultyModifier * 8),
     };
   } else {
@@ -750,7 +776,8 @@ function generateGenreQuestion(
         // Each chord in turn; `notes` alone is one simultaneous cluster.
         chordSequence: chordMidis,
       },
-      difficulty: 1,
+      // Genre modes have no level; treat them as advanced but not maximal.
+      difficulty: GENRE_DIFFICULTY,
       xpValue: 15 + Math.floor(difficultyModifier * 10),
     };
   }
@@ -881,7 +908,7 @@ function generateMusicKeyQuestion(
       // Undefined for the scale case, where `notes` is already a melody.
       chordSequence,
     },
-    difficulty: levelId,
+    difficulty: normalisedLevel(levelId, MUSIC_KEYS_LEVELS.length),
     xpValue: baseXP + Math.floor(difficultyModifier * 10),
   };
 }
@@ -995,7 +1022,7 @@ function generateNoteQuestion(
       playbackMode: 'note',
       duration: 1.5,
     },
-    difficulty: levelId,
+    difficulty: normalisedLevel(levelId, NOTES_LEVELS.length),
     xpValue: baseXP + Math.floor(difficultyModifier * 8),
   };
 }
@@ -1148,7 +1175,7 @@ export function generateComparisonQuestion(
       duration: 1.5,
       comparisonNotes: notes2,
     },
-    difficulty: level.id,
+    difficulty: levelDifficulty(level),
     xpValue: 15 + level.id * 2 + Math.floor(difficultyModifier * 5),
   };
 }
@@ -1200,7 +1227,7 @@ export function generateTranspositionQuestion(
       targetKey: targetMidi,
       comparisonNotes: transposedNotes,
     },
-    difficulty: level.id,
+    difficulty: levelDifficulty(level),
     xpValue: 20 + level.id * 3 + Math.floor(difficultyModifier * 8),
   };
 }
@@ -1272,7 +1299,7 @@ export function generateRealMusicQuestion(
       // Each chord in turn; `notes` alone is one simultaneous cluster.
       chordSequence: chords,
     },
-    difficulty: level.id,
+    difficulty: levelDifficulty(level),
     xpValue: 15 + Math.floor(difficultyModifier * 10),
   };
 }
@@ -1326,7 +1353,7 @@ export function generateSolfegeQuestion(
       duration: 1,
       contextNotes: [rootMidi], // Play reference Do first
     },
-    difficulty: level.id,
+    difficulty: levelDifficulty(level),
     xpValue: 12 + level.id * 2 + Math.floor(difficultyModifier * 6),
   };
 }
