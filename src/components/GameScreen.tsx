@@ -14,6 +14,13 @@ import { triggerHapticFeedback } from '../utils/haptics';
 import { getChordNotes, getScaleNotes } from '../utils/gameHelpers';
 import { useMIDIInput } from '../utils/midiInput';
 
+/**
+ * Gap between chords in a sequenced progression. useAudio.playChord holds a
+ * chord for 1.5s, so this leaves them slightly overlapping, the way a real
+ * progression is played rather than four detached stabs.
+ */
+const CHORD_SEQUENCE_GAP_MS = 1300;
+
 interface GameScreenProps {
   level: LevelConfig;
   question: GameQuestion;
@@ -78,10 +85,20 @@ export function GameScreen({
   // unmounting cancels them - otherwise the cadence + main + comparison
   // chain (up to ~4s) would keep firing audio after the user moved on.
   const playContextThenAudio = useCallback((audioData: typeof question.audioData) => {
-    const { notes, playbackMode, rhythmPattern, duration, contextNotes, comparisonNotes } = audioData;
+    const { notes, playbackMode, rhythmPattern, duration, contextNotes, comparisonNotes, chordSequence } = audioData;
 
     const playMain = () => {
-      if (playbackMode === 'chord') {
+      // A progression is a sequence, not a sonority. Playing the flattened
+      // `notes` through playChord sounds one twelve-note cluster, which makes
+      // every progression in a mode indistinguishable.
+      if (chordSequence && chordSequence.length > 1) {
+        audio.playChord(chordSequence[0]);
+        for (let i = 1; i < chordSequence.length; i++) {
+          const chord = chordSequence[i];
+          const t = setTimeout(() => audio.playChord(chord), i * CHORD_SEQUENCE_GAP_MS);
+          feedbackTimeouts.current.push(t);
+        }
+      } else if (playbackMode === 'chord') {
         audio.playChord(notes);
       } else if (playbackMode === 'scale') {
         audio.playScale(notes);

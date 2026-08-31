@@ -8,11 +8,12 @@ import {
   ChallengeModeType,
 } from '../types/gameModes';
 import { PracticePreset } from '../utils/storage';
-import { LevelConfig, LEVELS } from '../types/levels';
+import { LevelConfig, LEVELS, getUnlockedLevels } from '../types/levels';
 import { MUSIC_KEYS_LEVELS } from '../types/musicKeysLevels';
 import { NOTES_LEVELS } from '../types/notesLevels';
 import { generateGameQuestions, generateMusicKeyQuestions, generateNoteQuestions, shuffleArray } from '../utils/gameHelpers';
 import {
+  getUserStats,
   updateChordStats,
   updateScaleStats,
   updateIntervalStats,
@@ -110,7 +111,24 @@ export function useGameState(): UseGameStateReturn {
       totalQuestions = notesLevel.questionsToComplete;
       questions = generateNoteQuestions(notesLevel, totalQuestions);
     } else {
-      const level = LEVELS.find(l => l.id === levelId) || LEVELS[0];
+      const isChallengeMode =
+        mode === 'daily' || mode === 'speedrun' || mode === 'survival' || mode === 'timeattack';
+
+      /*
+       * App starts every challenge mode at level 1, whose pool is two chords
+       * (major and minor) — so the question renders two options and the mode
+       * is a coin flip, which for Survival means guessing against a lives
+       * counter. Scale the pool with what the player has unlocked, but never
+       * below level 2, the first level with enough chords for four distinct
+       * options.
+       */
+      let level = LEVELS.find(l => l.id === levelId) || LEVELS[0];
+      if (isChallengeMode) {
+        const unlocked = getUnlockedLevels(getUserStats().totalXP);
+        const highestUnlockedId = unlocked.length ? unlocked[unlocked.length - 1].id : 1;
+        level = LEVELS.find(l => l.id === Math.max(2, highestUnlockedId)) || level;
+      }
+
       totalQuestions = level.questionsToComplete;
 
       // Adjust for challenge modes
@@ -123,10 +141,7 @@ export function useGameState(): UseGameStateReturn {
       }
 
       // Convert challenge modes to game modes for question generation
-      const gameMode: GameModeType =
-        mode === 'daily' || mode === 'speedrun' || mode === 'survival' || mode === 'timeattack'
-          ? 'chords'
-          : mode;
+      const gameMode: GameModeType = isChallengeMode ? 'chords' : mode;
 
       questions = generateGameQuestions(level, gameMode, totalQuestions);
     }
