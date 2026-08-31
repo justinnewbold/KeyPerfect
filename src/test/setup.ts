@@ -22,30 +22,114 @@ Object.defineProperty(window, 'localStorage', {
   },
 });
 
-// Mock AudioContext
+/*
+ * Mock AudioContext.
+ *
+ * Rich enough to let the synthesis engine build a complete voice graph — the
+ * nodes record what was scheduled on them, so a test can assert the shape of
+ * an envelope or the cutoff of a filter. It cannot tell you what anything
+ * sounds like; that is checked by rendering through a real Web Audio
+ * implementation offline, outside the test suite.
+ */
+function audioParam(initial = 0) {
+  return {
+    value: initial,
+    /** Every scheduled change, in call order: [method, value, time]. */
+    events: [] as [string, number, number][],
+    setValueAtTime(v: number, t: number) {
+      this.value = v;
+      this.events.push(['set', v, t]);
+      return this;
+    },
+    linearRampToValueAtTime(v: number, t: number) {
+      this.value = v;
+      this.events.push(['linear', v, t]);
+      return this;
+    },
+    exponentialRampToValueAtTime(v: number, t: number) {
+      this.value = v;
+      this.events.push(['exponential', v, t]);
+      return this;
+    },
+    setTargetAtTime(v: number, t: number) {
+      this.events.push(['target', v, t]);
+      return this;
+    },
+    cancelScheduledValues(t: number) {
+      this.events.push(['cancel', 0, t]);
+      return this;
+    },
+  };
+}
+
 class MockAudioContext {
+  /** Every node this context has created, for assertions. */
+  nodes: Record<string, unknown[]> = {};
+
+  constructor() {
+    // The engine holds one AudioContext for the life of the module, so a test
+    // cannot reach it through the constructor. Publish the instance instead,
+    // and let each test clear `nodes` so it sees only what it built.
+    (globalThis as unknown as { __kpAudioContext: MockAudioContext }).__kpAudioContext = this;
+  }
+
+  private record<T>(kind: string, node: T): T {
+    (this.nodes[kind] ||= []).push(node);
+    return node;
+  }
+
   createOscillator() {
-    return {
-      type: 'sine',
-      frequency: { value: 440, setValueAtTime: vi.fn(), linearRampToValueAtTime: vi.fn() },
+    return this.record('oscillator', {
+      type: 'sine' as OscillatorType,
+      frequency: audioParam(440),
+      detune: audioParam(0),
+      periodicWave: null as unknown,
+      setPeriodicWave(wave: unknown) {
+        this.periodicWave = wave;
+      },
       connect: vi.fn(),
+      disconnect: vi.fn(),
       start: vi.fn(),
       stop: vi.fn(),
-    };
+    });
   }
   createGain() {
-    return {
-      gain: { value: 1, setValueAtTime: vi.fn(), linearRampToValueAtTime: vi.fn(), cancelScheduledValues: vi.fn() },
+    return this.record('gain', {
+      gain: audioParam(1),
       connect: vi.fn(),
-    };
+      disconnect: vi.fn(),
+    });
   }
   createBiquadFilter() {
-    return {
-      type: 'lowpass',
-      frequency: { value: 1000 },
-      Q: { value: 1 },
+    return this.record('filter', {
+      type: 'lowpass' as BiquadFilterType,
+      frequency: audioParam(1000),
+      Q: audioParam(1),
+      gain: audioParam(0),
       connect: vi.fn(),
-    };
+      disconnect: vi.fn(),
+    });
+  }
+  createWaveShaper() {
+    return this.record('waveShaper', {
+      curve: null as Float32Array | null,
+      oversample: 'none',
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    });
+  }
+  createBufferSource() {
+    return this.record('bufferSource', {
+      buffer: null as unknown,
+      loop: false,
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+      start: vi.fn(),
+      stop: vi.fn(),
+    });
+  }
+  createPeriodicWave(real: Float32Array, imag: Float32Array) {
+    return this.record('periodicWave', { real, imag });
   }
   createDynamicsCompressor() {
     return {
@@ -77,9 +161,13 @@ class MockAudioContext {
       disconnect: vi.fn(),
     };
   }
-  createBuffer() {
+  createBuffer(channels = 1, length = 44100, sampleRate = 44100) {
+    const data = Array.from({ length: channels }, () => new Float32Array(length));
     return {
-      getChannelData: () => new Float32Array(44100),
+      numberOfChannels: channels,
+      length,
+      sampleRate,
+      getChannelData: (channel = 0) => data[channel],
     };
   }
   get currentTime() {

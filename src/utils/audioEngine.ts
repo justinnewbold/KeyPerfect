@@ -1,4 +1,4 @@
-import { InstrumentType, INSTRUMENTS } from '../types/instruments';
+import { InstrumentType, INSTRUMENTS, VoiceConfig } from '../types/instruments';
 
 // Audio context singleton
 let audioContext: AudioContext | null = null;
@@ -123,7 +123,34 @@ function createNoiseBuffer(ctx: AudioContext, duration: number): AudioBuffer {
   return buffer;
 }
 
-// Play a drum hit using noise + tone synthesis
+/**
+ * Middle C, the pitch every key-tracked number in a VoiceConfig is quoted at.
+ */
+const REFERENCE_FREQUENCY = 261.63;
+
+/** An exponential ramp cannot reach zero, so decays land here and stop. */
+const SILENCE = 0.0001;
+
+/** Cached PeriodicWaves: building one per note would be wasteful. */
+const waveCache = new Map<string, PeriodicWave>();
+
+/** Cached noise, shared by every transient and breath bed. */
+let noiseBuffer: AudioBuffer | null = null;
+
+function getNoiseBuffer(ctx: AudioContext): AudioBuffer {
+  if (!noiseBuffer || noiseBuffer.sampleRate !== ctx.sampleRate) {
+    noiseBuffer = createNoiseBuffer(ctx, 2);
+  }
+  return noiseBuffer;
+}
+
+/**
+ * One drum hit, chosen from the MIDI note.
+ *
+ * Kick below 45, snare and toms through the middle, cymbals above 70 — a
+ * rough General MIDI shape, so a rhythm pattern played across a range lands
+ * on different drums rather than one pitched blip.
+ */
 function playDrumHit(
   midi: number,
   velocity: number = 0.7
@@ -131,381 +158,132 @@ function playDrumHit(
   const ctx = getAudioContext();
   const now = ctx.currentTime;
 
-  // Determine drum type from MIDI range
-  // Low notes = kick, mid = snare, high = hi-hat
-  const isKick = midi < 50;
-  const isHiHat = midi > 70;
+  const bus = ctx.createGain();
+  bus.gain.value = 1;
+  bus.connect(compressor!);
 
-  const masterGainNode = ctx.createGain();
-  masterGainNode.gain.value = 0;
-  masterGainNode.connect(compressor!);
+  const sources: (OscillatorNode | AudioBufferSourceNode)[] = [];
+  let tail = 0.4;
 
-  const cleanupNodes: { stop?: () => void; disconnect?: () => void }[] = [];
-
-  if (isKick) {
-    // Kick drum: sine wave with pitch drop
-    const osc = ctx.createOscillator();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(150, now);
-    osc.frequency.exponentialRampToValueAtTime(40, now + 0.12);
-    const oscGain = ctx.createGain();
-    oscGain.gain.setValueAtTime(velocity, now);
-    oscGain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
-    osc.connect(oscGain);
-    oscGain.connect(masterGainNode);
-    osc.start(now);
-    osc.stop(now + 0.3);
-    cleanupNodes.push(osc);
-
-    masterGainNode.gain.setValueAtTime(velocity, now);
-    masterGainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
-  } else if (isHiHat) {
-    // Hi-hat: filtered noise, short decay
-    const noiseBuffer = createNoiseBuffer(ctx, 0.1);
+  /** A band of noise with its own decay, the skin or the metal. */
+  const addNoise = (
+    type: BiquadFilterType,
+    frequency: number,
+    q: number,
+    level: number,
+    decay: number
+  ) => {
     const noise = ctx.createBufferSource();
-    noise.buffer = noiseBuffer;
-
-    const hihatFilter = ctx.createBiquadFilter();
-    hihatFilter.type = 'highpass';
-    hihatFilter.frequency.value = 7000;
-
-    const hihatGain = ctx.createGain();
-    hihatGain.gain.setValueAtTime(velocity * 0.6, now);
-    hihatGain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
-
-    noise.connect(hihatFilter);
-    hihatFilter.connect(hihatGain);
-    hihatGain.connect(masterGainNode);
+    noise.buffer = getNoiseBuffer(ctx);
+    const band = ctx.createBiquadFilter();
+    band.type = type;
+    band.frequency.value = frequency;
+    band.Q.value = q;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(Math.max(SILENCE, level * velocity), now);
+    g.gain.exponentialRampToValueAtTime(SILENCE, now + decay);
+    noise.connect(band);
+    band.connect(g);
+    g.connect(bus);
     noise.start(now);
-    cleanupNodes.push(noise);
+    noise.stop(now + decay + 0.02);
+    sources.push(noise);
+  };
 
-    masterGainNode.gain.setValueAtTime(velocity * 0.6, now);
-    masterGainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+  /** A tuned body, optionally swept — the drum's pitch and its drop. */
+  const addTone = (
+    type: OscillatorType,
+    from: number,
+    to: number,
+    level: number,
+    decay: number,
+    pitchTime = decay * 0.4
+  ) => {
+    const osc = ctx.createOscillator();
+    osc.type = type;
+    osc.frequency.setValueAtTime(from, now);
+    osc.frequency.exponentialRampToValueAtTime(Math.max(20, to), now + pitchTime);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(Math.max(SILENCE, level * velocity), now);
+    g.gain.exponentialRampToValueAtTime(SILENCE, now + decay);
+    osc.connect(g);
+    g.connect(bus);
+    osc.start(now);
+    osc.stop(now + decay + 0.02);
+    sources.push(osc);
+  };
+
+  if (midi < 45) {
+    // Kick: a fast pitch drop is the beater, the low sine is the shell.
+    // The old version had the drop but no click, so it read as a soft thud
+    // with nothing to cut through a mix.
+    addTone('sine', 160, 45, 0.9, 0.45, 0.07);
+    addNoise('bandpass', 1800, 1.2, 0.12, 0.02);
+    tail = 0.5;
+  } else if (midi < 60) {
+    // Snare: two slightly detuned heads plus the wires underneath. Real
+    // snares are tuned — a single noise burst is a hiss, not a drum.
+    addTone('triangle', 210, 170, 0.5, 0.14);
+    addTone('triangle', 320, 260, 0.3, 0.1);
+    addNoise('highpass', 1400, 0.7, 0.75, 0.18);
+    tail = 0.25;
+  } else if (midi < 70) {
+    // Toms: one tuned body per note, so a fill actually descends.
+    const pitch = 180 * Math.pow(2, (65 - midi) / 12);
+    addTone('sine', pitch * 1.3, pitch, 0.85, 0.5, 0.1);
+    addNoise('bandpass', pitch * 4, 1, 0.1, 0.05);
+    tail = 0.55;
   } else {
-    // Snare: noise burst + tone
-    const noiseBuffer = createNoiseBuffer(ctx, 0.2);
-    const noise = ctx.createBufferSource();
-    noise.buffer = noiseBuffer;
-
-    const snareFilter = ctx.createBiquadFilter();
-    snareFilter.type = 'bandpass';
-    snareFilter.frequency.value = 3000;
-    snareFilter.Q.value = 1;
-
-    const noiseGain = ctx.createGain();
-    noiseGain.gain.setValueAtTime(velocity * 0.8, now);
-    noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
-
-    noise.connect(snareFilter);
-    snareFilter.connect(noiseGain);
-    noiseGain.connect(masterGainNode);
-    noise.start(now);
-    cleanupNodes.push(noise);
-
-    // Snare tone body
-    const osc = ctx.createOscillator();
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(200, now);
-    osc.frequency.exponentialRampToValueAtTime(100, now + 0.05);
-    const oscGain = ctx.createGain();
-    oscGain.gain.setValueAtTime(velocity * 0.5, now);
-    oscGain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-    osc.connect(oscGain);
-    oscGain.connect(masterGainNode);
-    osc.start(now);
-    osc.stop(now + 0.15);
-    cleanupNodes.push(osc);
-
-    masterGainNode.gain.setValueAtTime(velocity, now);
-    masterGainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+    /*
+     * Cymbals: six square waves at deliberately non-integer ratios, run
+     * through a highpass.
+     *
+     * White noise, which is what this used to be, is a "tss" — it has no
+     * pitch content at all. A cymbal is metal ringing at a dense cluster of
+     * unrelated frequencies, and that inharmonic cluster is what the ear
+     * hears as metal rather than as static.
+     */
+    const open = midi > 74;
+    const decay = open ? 0.55 : 0.09;
+    const ratios = [2, 3, 4.16, 5.43, 6.79, 8.21];
+    const base = 40;
+    ratios.forEach(ratio => {
+      const osc = ctx.createOscillator();
+      osc.type = 'square';
+      osc.frequency.value = base * ratio;
+      const hp = ctx.createBiquadFilter();
+      hp.type = 'highpass';
+      hp.frequency.value = 7000;
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = 10000;
+      bp.Q.value = 0.6;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(Math.max(SILENCE, 0.14 * velocity), now);
+      g.gain.exponentialRampToValueAtTime(SILENCE, now + decay);
+      osc.connect(bp);
+      bp.connect(hp);
+      hp.connect(g);
+      g.connect(bus);
+      osc.start(now);
+      osc.stop(now + decay + 0.02);
+      sources.push(osc);
+    });
+    addNoise('highpass', 9000, 0.7, 0.18, decay * 0.6);
+    tail = decay + 0.1;
   }
 
   const soundHandle = {
     stop: () => {
       const t = ctx.currentTime;
-      masterGainNode.gain.cancelScheduledValues(t);
-      masterGainNode.gain.setValueAtTime(masterGainNode.gain.value, t);
-      masterGainNode.gain.linearRampToValueAtTime(0, t + 0.02);
-      activeSounds.delete(soundHandle);
-    },
-  };
-
-  activeSounds.add(soundHandle);
-  setTimeout(() => activeSounds.delete(soundHandle), 500);
-
-  return soundHandle;
-}
-
-// Create sound with instrument config
-export function playNote(
-  midi: number,
-  instrument: InstrumentType = 'piano',
-  duration: number = 1,
-  velocity: number = 0.7
-): { stop: () => void } {
-  // Use specialized drum synthesis
-  if (instrument === 'drums') {
-    return playDrumHit(midi, velocity);
-  }
-
-  const ctx = getAudioContext();
-  const config = INSTRUMENTS[instrument];
-  const frequency = midiToFrequency(midi);
-
-  // Create oscillator(s)
-  const oscillators: OscillatorNode[] = [];
-  const gainNode = ctx.createGain();
-
-  // Main oscillator
-  const osc1 = ctx.createOscillator();
-  osc1.type = config.waveform;
-  osc1.frequency.value = frequency;
-  oscillators.push(osc1);
-
-  // Add harmonics for richer sound
-  if (instrument === 'piano') {
-    // Add soft harmonics
-    const osc2 = ctx.createOscillator();
-    osc2.type = 'sine';
-    osc2.frequency.value = frequency * 2;
-    const osc2Gain = ctx.createGain();
-    osc2Gain.gain.value = 0.3;
-    osc2.connect(osc2Gain);
-    osc2Gain.connect(gainNode);
-    oscillators.push(osc2);
-
-    const osc3 = ctx.createOscillator();
-    osc3.type = 'sine';
-    osc3.frequency.value = frequency * 3;
-    const osc3Gain = ctx.createGain();
-    osc3Gain.gain.value = 0.1;
-    osc3.connect(osc3Gain);
-    osc3Gain.connect(gainNode);
-    oscillators.push(osc3);
-  } else if (instrument === 'organ') {
-    // Drawbar-style organ harmonics
-    [2, 3, 4, 5, 6, 8].forEach((mult, i) => {
-      const osc = ctx.createOscillator();
-      osc.type = 'sine';
-      osc.frequency.value = frequency * mult;
-      const oscGain = ctx.createGain();
-      oscGain.gain.value = 0.4 / (i + 1);
-      osc.connect(oscGain);
-      oscGain.connect(gainNode);
-      oscillators.push(osc);
-    });
-  } else if (instrument === 'strings') {
-    // Slight detuning for string section effect
-    const osc2 = ctx.createOscillator();
-    osc2.type = 'sawtooth';
-    osc2.frequency.value = frequency * 1.003;
-    osc2.connect(gainNode);
-    oscillators.push(osc2);
-
-    const osc3 = ctx.createOscillator();
-    osc3.type = 'sawtooth';
-    osc3.frequency.value = frequency * 0.997;
-    osc3.connect(gainNode);
-    oscillators.push(osc3);
-  } else if (instrument === 'synth') {
-    // Add sub oscillator
-    const sub = ctx.createOscillator();
-    sub.type = 'square';
-    sub.frequency.value = frequency / 2;
-    const subGain = ctx.createGain();
-    subGain.gain.value = 0.3;
-    sub.connect(subGain);
-    subGain.connect(gainNode);
-    oscillators.push(sub);
-  } else if (instrument === 'brass') {
-    // Multiple sawtooth for brass ensemble
-    const osc2 = ctx.createOscillator();
-    osc2.type = 'sawtooth';
-    osc2.frequency.value = frequency * 1.005;
-    const osc2Gain = ctx.createGain();
-    osc2Gain.gain.value = 0.5;
-    osc2.connect(osc2Gain);
-    osc2Gain.connect(gainNode);
-    oscillators.push(osc2);
-  } else if (instrument === 'vocal') {
-    // Formant-like filtering for vocal
-    const osc2 = ctx.createOscillator();
-    osc2.type = 'sine';
-    osc2.frequency.value = frequency * 2;
-    const osc2Gain = ctx.createGain();
-    osc2Gain.gain.value = 0.6;
-    osc2.connect(osc2Gain);
-    osc2Gain.connect(gainNode);
-    oscillators.push(osc2);
-  } else if (instrument === 'electricPiano') {
-    // Rhodes-style bell harmonics
-    const osc2 = ctx.createOscillator();
-    osc2.type = 'sine';
-    osc2.frequency.value = frequency * 2;
-    const osc2Gain = ctx.createGain();
-    osc2Gain.gain.value = 0.5;
-    osc2.connect(osc2Gain);
-    osc2Gain.connect(gainNode);
-    oscillators.push(osc2);
-
-    const osc3 = ctx.createOscillator();
-    osc3.type = 'sine';
-    osc3.frequency.value = frequency * 4;
-    const osc3Gain = ctx.createGain();
-    osc3Gain.gain.value = 0.2;
-    osc3.connect(osc3Gain);
-    osc3Gain.connect(gainNode);
-    oscillators.push(osc3);
-  } else if (instrument === 'cleanElectric') {
-    // Clean electric with slight chorus
-    const osc2 = ctx.createOscillator();
-    osc2.type = 'triangle';
-    osc2.frequency.value = frequency * 1.002;
-    const osc2Gain = ctx.createGain();
-    osc2Gain.gain.value = 0.4;
-    osc2.connect(osc2Gain);
-    osc2Gain.connect(gainNode);
-    oscillators.push(osc2);
-  } else if (instrument === 'metalGuitar') {
-    // Heavy distortion with multiple harmonics
-    const osc2 = ctx.createOscillator();
-    osc2.type = 'square';
-    osc2.frequency.value = frequency;
-    const osc2Gain = ctx.createGain();
-    osc2Gain.gain.value = 0.4;
-    osc2.connect(osc2Gain);
-    osc2Gain.connect(gainNode);
-    oscillators.push(osc2);
-
-    // Sub octave for thickness
-    const sub = ctx.createOscillator();
-    sub.type = 'sawtooth';
-    sub.frequency.value = frequency / 2;
-    const subGain = ctx.createGain();
-    subGain.gain.value = 0.3;
-    sub.connect(subGain);
-    subGain.connect(gainNode);
-    oscillators.push(sub);
-
-    // Upper harmonics for bite
-    const osc3 = ctx.createOscillator();
-    osc3.type = 'sawtooth';
-    osc3.frequency.value = frequency * 2;
-    const osc3Gain = ctx.createGain();
-    osc3Gain.gain.value = 0.2;
-    osc3.connect(osc3Gain);
-    osc3Gain.connect(gainNode);
-    oscillators.push(osc3);
-  } else if (instrument === 'cello') {
-    // Rich cello with vibrato-like detuning
-    const osc2 = ctx.createOscillator();
-    osc2.type = 'sawtooth';
-    osc2.frequency.value = frequency * 1.002;
-    const osc2Gain = ctx.createGain();
-    osc2Gain.gain.value = 0.5;
-    osc2.connect(osc2Gain);
-    osc2Gain.connect(gainNode);
-    oscillators.push(osc2);
-
-    const osc3 = ctx.createOscillator();
-    osc3.type = 'sine';
-    osc3.frequency.value = frequency * 2;
-    const osc3Gain = ctx.createGain();
-    osc3Gain.gain.value = 0.15;
-    osc3.connect(osc3Gain);
-    osc3Gain.connect(gainNode);
-    oscillators.push(osc3);
-  } else if (instrument === 'flute') {
-    // Airy flute with breath-like overtones
-    const osc2 = ctx.createOscillator();
-    osc2.type = 'sine';
-    osc2.frequency.value = frequency * 2;
-    const osc2Gain = ctx.createGain();
-    osc2Gain.gain.value = 0.15;
-    osc2.connect(osc2Gain);
-    osc2Gain.connect(gainNode);
-    oscillators.push(osc2);
-
-    const osc3 = ctx.createOscillator();
-    osc3.type = 'sine';
-    osc3.frequency.value = frequency * 3;
-    const osc3Gain = ctx.createGain();
-    osc3Gain.gain.value = 0.05;
-    osc3.connect(osc3Gain);
-    osc3Gain.connect(gainNode);
-    oscillators.push(osc3);
-  }
-
-  // Connect main oscillator
-  osc1.connect(gainNode);
-
-  // Apply filter chain if configured
-  if (config.filters && config.filters.length > 0) {
-    const filterNodes: BiquadFilterNode[] = config.filters.map(filterConfig => {
-      const node = ctx.createBiquadFilter();
-      node.type = filterConfig.type;
-      node.frequency.value = filterConfig.frequency;
-      node.Q.value = filterConfig.Q;
-      if (filterConfig.gain !== undefined) {
-        node.gain.value = filterConfig.gain;
-      }
-      return node;
-    });
-
-    // Chain: gainNode -> filter1 -> filter2 -> ... -> compressor
-    gainNode.connect(filterNodes[0]);
-    for (let i = 0; i < filterNodes.length - 1; i++) {
-      filterNodes[i].connect(filterNodes[i + 1]);
-    }
-    filterNodes[filterNodes.length - 1].connect(compressor!);
-  } else {
-    gainNode.connect(compressor!);
-  }
-
-  // ADSR envelope. If the requested duration is shorter than the sum of
-  // attack+decay+release, scale those phases proportionally; otherwise the
-  // computed sustainEnd would land before decayEnd, scheduling envelope
-  // events out of order and producing a malformed gain curve.
-  const { attack, decay, sustain, release } = config.envelope;
-  const now = ctx.currentTime;
-  const totalEnv = attack + decay + release;
-  const envScale = totalEnv > 0 && duration < totalEnv ? duration / totalEnv : 1;
-  const a = attack * envScale;
-  const d = decay * envScale;
-  const r = release * envScale;
-  const attackEnd = now + a;
-  const decayEnd = attackEnd + d;
-  const sustainEnd = Math.max(decayEnd, now + duration - r);
-  const releaseEnd = sustainEnd + r;
-
-  // Start at 0
-  gainNode.gain.setValueAtTime(0, now);
-  // Attack
-  gainNode.gain.linearRampToValueAtTime(velocity, attackEnd);
-  // Decay to sustain
-  gainNode.gain.linearRampToValueAtTime(velocity * sustain, decayEnd);
-  // Sustain
-  gainNode.gain.setValueAtTime(velocity * sustain, sustainEnd);
-  // Release
-  gainNode.gain.linearRampToValueAtTime(0, releaseEnd);
-
-  // Start all oscillators
-  oscillators.forEach(osc => {
-    osc.start(now);
-    osc.stop(releaseEnd);
-  });
-
-  const soundHandle = {
-    stop: () => {
-      const now = ctx.currentTime;
-      gainNode.gain.cancelScheduledValues(now);
-      gainNode.gain.setValueAtTime(gainNode.gain.value, now);
-      gainNode.gain.linearRampToValueAtTime(0, now + 0.05);
-      oscillators.forEach(osc => {
+      bus.gain.cancelScheduledValues(t);
+      bus.gain.setValueAtTime(bus.gain.value, t);
+      bus.gain.linearRampToValueAtTime(0, t + 0.02);
+      sources.forEach(source => {
         try {
-          osc.stop(now + 0.05);
+          source.stop(t + 0.02);
         } catch {
-          // Already stopped
+          // Already stopped.
         }
       });
       activeSounds.delete(soundHandle);
@@ -513,11 +291,426 @@ export function playNote(
   };
 
   activeSounds.add(soundHandle);
+  setTimeout(() => activeSounds.delete(soundHandle), tail * 1000 + 100);
 
-  // Auto cleanup
-  setTimeout(() => {
-    activeSounds.delete(soundHandle);
-  }, (releaseEnd - now) * 1000);
+  return soundHandle;
+}
+
+/**
+ * The instrument's spectrum as a single wave.
+ *
+ * One oscillator plays the whole harmonic series this way, which is what lets
+ * a chord of these voices stay affordable on a phone. `partials[i]` is the
+ * amplitude of harmonic i+1, written into the imaginary terms so each starts
+ * as a sine.
+ */
+function getPeriodicWave(ctx: AudioContext, instrument: InstrumentType, partials: number[]): PeriodicWave {
+  const cached = waveCache.get(instrument);
+  if (cached) return cached;
+
+  const real = new Float32Array(partials.length + 1);
+  const imag = new Float32Array(partials.length + 1);
+  partials.forEach((amplitude, i) => {
+    imag[i + 1] = amplitude;
+  });
+
+  // disableNormalization defaults to false, which scales every wave to the
+  // same peak — that is what keeps instruments with wildly different partial
+  // counts at comparable loudness.
+  const wave = ctx.createPeriodicWave(real, imag);
+  waveCache.set(instrument, wave);
+  return wave;
+}
+
+/**
+ * A soft-clipping curve for `drive`.
+ *
+ * tanh-shaped rather than hard clipping: a hard clip generates unlimited odd
+ * harmonics that alias into ugly non-harmonic frequencies, which is what makes
+ * naive web-audio distortion sound like a broken speaker instead of an amp.
+ */
+function makeDriveCurve(amount: number): Float32Array<ArrayBuffer> {
+  const samples = 1024;
+  const curve = new Float32Array(new ArrayBuffer(samples * 4));
+  // Map 0-1 onto a useful range of gain before the clipper.
+  const k = 1 + amount * 60;
+  for (let i = 0; i < samples; i++) {
+    const x = (i * 2) / (samples - 1) - 1;
+    curve[i] = Math.tanh(k * x) / Math.tanh(k);
+  }
+  return curve;
+}
+
+/** Cutoff for `harmonics` above `frequency`, kept inside the usable band. */
+function cutoffFor(ctx: AudioContext, frequency: number, harmonics: number): number {
+  const nyquist = ctx.sampleRate / 2;
+  return Math.min(nyquist * 0.95, Math.max(60, frequency * harmonics));
+}
+
+/**
+ * Schedule the amplitude envelope and report when the note is finally silent.
+ *
+ * The two kinds are genuinely different physics rather than two presets:
+ * a struck or plucked string is given its energy once and decays from that
+ * instant, while a bowed, blown or amplified note is fed continuously and
+ * holds until it is released.
+ */
+function scheduleAmplitude(
+  gain: GainNode,
+  voice: VoiceConfig,
+  now: number,
+  duration: number,
+  peak: number,
+  frequency: number
+): number {
+  const { attack, release } = voice.amp;
+  const attackEnd = now + Math.max(0.001, attack);
+
+  gain.gain.setValueAtTime(SILENCE, now);
+  gain.gain.exponentialRampToValueAtTime(Math.max(SILENCE, peak), attackEnd);
+
+  if (voice.kind === 'decay') {
+    // Higher strings are shorter and lighter, so they die away sooner. The
+    // exponent is per octave above middle C.
+    const octaves = Math.log2(frequency / REFERENCE_FREQUENCY);
+    const keyTrack = voice.amp.decayKeyTrack ?? 0;
+    const decayTime = Math.max(0.05, (voice.amp.decay ?? 1) * Math.pow(2, -keyTrack * octaves));
+
+    // A continuous exponential fall from the attack peak: no plateau, ever.
+    // Released early, the note is simply cut short — exactly what lifting a
+    // finger off a piano key does.
+    const naturalEnd = attackEnd + decayTime;
+    const end = Math.min(naturalEnd, now + duration + release);
+    // Where the natural decay would have reached by `end`, so a note cut
+    // short leaves off at the level it had actually decayed to.
+    const remaining = Math.max(SILENCE, peak * Math.pow(SILENCE / peak, (end - attackEnd) / decayTime));
+    gain.gain.exponentialRampToValueAtTime(remaining, end);
+    gain.gain.linearRampToValueAtTime(0, end + 0.01);
+    return end + 0.01;
+  }
+
+  const sustain = Math.max(SILENCE, peak * (voice.amp.sustain ?? 0.8));
+  const holdEnd = attackEnd + (voice.amp.hold ?? 0.1);
+  const sustainEnd = Math.max(holdEnd, now + duration);
+  gain.gain.exponentialRampToValueAtTime(sustain, holdEnd);
+  gain.gain.setValueAtTime(sustain, sustainEnd);
+  gain.gain.exponentialRampToValueAtTime(SILENCE, sustainEnd + release);
+  gain.gain.linearRampToValueAtTime(0, sustainEnd + release + 0.01);
+  return sustainEnd + release + 0.01;
+}
+
+/**
+ * One playable note.
+ *
+ * The chain is: oscillators (plus any tine, transient and breath) into a
+ * brightness filter that sweeps with the note, through any drive and body
+ * resonances, into the amplitude envelope.
+ */
+export function playNote(
+  midi: number,
+  instrument: InstrumentType = 'piano',
+  duration: number = 1,
+  velocity: number = 0.7
+): { stop: () => void } {
+  // Percussion is not a pitched voice; see playDrumHit.
+  if (instrument === 'drums') {
+    return playDrumHit(midi, velocity);
+  }
+
+  const ctx = getAudioContext();
+  const voice = INSTRUMENTS[instrument].voice;
+  const frequency = midiToFrequency(midi);
+  const now = ctx.currentTime;
+
+  const sources: (OscillatorNode | AudioBufferSourceNode)[] = [];
+
+  // --- Amplitude envelope, at the end of the chain ---------------------
+  const ampGain = ctx.createGain();
+  const peak = velocity * (voice.level ?? 1);
+  const endTime = scheduleAmplitude(ampGain, voice, now, duration, peak, frequency);
+
+  // --- Brightness filter, in harmonics so it tracks pitch ---------------
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.Q.value = voice.brightness.q ?? 0.7;
+  // Playing harder opens the filter. This is the single strongest cue that
+  // an instrument is being played rather than triggered.
+  const velocityOpen = (voice.brightness.velocity ?? 0) * velocity;
+  const open = cutoffFor(ctx, frequency, voice.brightness.open + velocityOpen);
+  const close = cutoffFor(ctx, frequency, voice.brightness.close + velocityOpen * 0.3);
+  filter.frequency.setValueAtTime(open, now);
+  filter.frequency.exponentialRampToValueAtTime(
+    close,
+    now + Math.max(0.01, voice.brightness.time)
+  );
+
+  // --- Voice output bus -------------------------------------------------
+  // Everything the instrument produces meets here, before the filter.
+  const voiceBus = ctx.createGain();
+  voiceBus.gain.value = 1;
+
+  // --- Vibrato, shared by every oscillator in the voice ------------------
+  let vibratoDepth: GainNode | null = null;
+  if (voice.vibrato) {
+    const vibratoLFO = ctx.createOscillator();
+    vibratoLFO.type = 'sine';
+    vibratoLFO.frequency.value = voice.vibrato.rate;
+    vibratoDepth = ctx.createGain();
+    // Eased in rather than present from the first millisecond: players reach
+    // for vibrato once a note is already sounding, and an instant wobble is
+    // a giveaway that nobody is holding the instrument.
+    vibratoDepth.gain.setValueAtTime(0, now);
+    vibratoDepth.gain.linearRampToValueAtTime(
+      voice.vibrato.cents,
+      now + Math.max(0.001, voice.vibrato.onset)
+    );
+    vibratoLFO.connect(vibratoDepth);
+    vibratoLFO.start(now);
+    vibratoLFO.stop(endTime);
+    sources.push(vibratoLFO);
+  }
+
+  /** Attach one oscillator to the bus, detuned and vibrato-linked. */
+  const addOscillator = (osc: OscillatorNode, detuneCents: number, gainValue: number) => {
+    osc.detune.value = detuneCents;
+    if (vibratoDepth) vibratoDepth.connect(osc.detune);
+    const g = ctx.createGain();
+    g.gain.value = gainValue;
+    osc.connect(g);
+    g.connect(voiceBus);
+    osc.start(now);
+    osc.stop(endTime);
+    sources.push(osc);
+  };
+
+  // --- The tone itself ---------------------------------------------------
+  if (voice.inharmonicity) {
+    /*
+     * A stiff string, rendered partial by partial.
+     *
+     * Real strings resist bending, so partial n sits at n·f·sqrt(1 + B·n²) —
+     * progressively sharper than a whole multiple — and the high partials
+     * fade much faster than the low ones. Neither can be expressed in a
+     * PeriodicWave, which is by definition perfectly harmonic and decays as
+     * one. The extra oscillators are what make the piano sound struck.
+     */
+    const b = voice.inharmonicity;
+    voice.partials.forEach((amplitude, i) => {
+      if (amplitude <= 0) return;
+      const n = i + 1;
+      const partialFreq = frequency * n * Math.sqrt(1 + b * n * n);
+      if (partialFreq > ctx.sampleRate * 0.45) return;
+
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = partialFreq;
+
+      const g = ctx.createGain();
+      // Each partial gets its own decay: the nth dies roughly n times as
+      // fast, which is the shape of a real string losing its high end within
+      // the first second while the fundamental rings on.
+      const partialDecay = Math.max(
+        0.08,
+        (voice.amp.decay ?? 1) / Math.pow(n, 0.8)
+      );
+      g.gain.setValueAtTime(amplitude, now);
+      g.gain.exponentialRampToValueAtTime(
+        SILENCE,
+        Math.min(endTime, now + partialDecay)
+      );
+
+      if (vibratoDepth) vibratoDepth.connect(osc.detune);
+      osc.connect(g);
+      g.connect(voiceBus);
+      osc.start(now);
+      osc.stop(endTime);
+      sources.push(osc);
+    });
+  } else {
+    const wave = getPeriodicWave(ctx, instrument, voice.partials);
+    const unison = voice.unison?.voices ?? 1;
+    const spread = voice.unison?.cents ?? 0;
+    for (let i = 0; i < unison; i++) {
+      const osc = ctx.createOscillator();
+      osc.setPeriodicWave(wave);
+      osc.frequency.value = frequency;
+      // Spread symmetrically about the true pitch so the note stays in tune.
+      const offset = unison === 1 ? 0 : (i / (unison - 1) - 0.5) * 2 * spread;
+      addOscillator(osc, offset, 1 / Math.sqrt(unison));
+    }
+  }
+
+  // --- The Rhodes tine ---------------------------------------------------
+  if (voice.fm) {
+    const bell = ctx.createOscillator();
+    bell.type = 'sine';
+    bell.frequency.value = frequency * voice.fm.ratio;
+    const bellGain = ctx.createGain();
+    // Barks on the strike and is gone within a third of a second, leaving
+    // the near-sine body behind. That contrast is the instrument.
+    bellGain.gain.setValueAtTime(voice.fm.index * 0.1, now);
+    bellGain.gain.exponentialRampToValueAtTime(
+      SILENCE,
+      Math.min(endTime, now + voice.fm.decay)
+    );
+    bell.connect(bellGain);
+    bellGain.connect(voiceBus);
+    bell.start(now);
+    bell.stop(endTime);
+    sources.push(bell);
+  }
+
+  // --- The noise of the instrument being set in motion -------------------
+  /** Held so stop() can silence the transient, which bypasses ampGain. */
+  let transientGain: GainNode | null = null;
+  if (voice.transient) {
+    const t = voice.transient;
+    const noise = ctx.createBufferSource();
+    noise.buffer = getNoiseBuffer(ctx);
+
+    const band = ctx.createBiquadFilter();
+    band.type = t.kind === 'thump' ? 'lowpass' : 'bandpass';
+    band.frequency.value = cutoffFor(ctx, frequency, t.tone);
+    band.Q.value = t.q ?? 1;
+
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(t.level * velocity, now);
+    g.gain.exponentialRampToValueAtTime(SILENCE, now + Math.max(0.002, t.decay));
+
+    noise.connect(band);
+    band.connect(g);
+    /*
+     * Straight out, past both the brightness filter and the amplitude
+     * envelope.
+     *
+     * A pick click or a hammer thud is broadband, and it happens *before*
+     * the note does — it must not be shaped by the string's decay, and in
+     * particular must not be multiplied by the attack ramp. Routed through
+     * the envelope, an 8 ms pick was being faded in over the note's first
+     * 3 ms and arrived with its leading edge gone, which is most of the
+     * click.
+     */
+    g.connect(compressor!);
+    transientGain = g;
+    noise.start(now);
+    noise.stop(Math.min(endTime, now + t.decay + 0.05));
+    sources.push(noise);
+  }
+
+  // --- Breath under the tone --------------------------------------------
+  if (voice.breath) {
+    const air = ctx.createBufferSource();
+    air.buffer = getNoiseBuffer(ctx);
+    air.loop = true;
+
+    const band = ctx.createBiquadFilter();
+    band.type = 'bandpass';
+    band.frequency.value = cutoffFor(ctx, frequency, 2);
+    band.Q.value = 0.8;
+
+    const g = ctx.createGain();
+    g.gain.value = voice.breath * velocity;
+
+    air.connect(band);
+    band.connect(g);
+    g.connect(voiceBus);
+    air.start(now);
+    air.stop(endTime);
+    sources.push(air);
+  }
+
+  // --- Wire the chain ----------------------------------------------------
+  let tail: AudioNode = voiceBus;
+
+  if (voice.drive && voice.drive > 0) {
+    const shaper = ctx.createWaveShaper();
+    shaper.curve = makeDriveCurve(voice.drive);
+    shaper.oversample = '4x';
+    // Soft clipping raises the average level a lot, so pull the output back
+    // to keep drive a timbre change rather than a volume change.
+    const trim = ctx.createGain();
+    trim.gain.value = 1 / (1 + voice.drive * 2);
+    tail.connect(shaper);
+    shaper.connect(trim);
+    tail = trim;
+  }
+
+  tail.connect(filter);
+  let afterFilter: AudioNode = filter;
+
+  if (voice.formants && voice.formants.length > 0) {
+    /*
+     * Body resonances, in parallel with the plain signal rather than in
+     * series. A peaking filter chain would colour everything; a parallel
+     * bank adds the resonance the way a wooden box or a speaker cone does,
+     * and leaves the direct sound intact underneath.
+     */
+    const sum = ctx.createGain();
+    sum.gain.value = 1;
+    afterFilter.connect(sum);
+    for (const f of voice.formants) {
+      const peakFilter = ctx.createBiquadFilter();
+      peakFilter.type = 'bandpass';
+      peakFilter.frequency.value = Math.min(ctx.sampleRate * 0.45, f.frequency);
+      peakFilter.Q.value = f.q;
+      const g = ctx.createGain();
+      // `gain` is quoted in dB of emphasis; as a parallel send that is a
+      // modest amount of extra signal, not a doubling.
+      g.gain.value = Math.pow(10, f.gain / 20) * 0.12;
+      afterFilter.connect(peakFilter);
+      peakFilter.connect(g);
+      g.connect(sum);
+    }
+    afterFilter = sum;
+  }
+
+  afterFilter.connect(ampGain);
+
+  // --- Tremolo, after the envelope --------------------------------------
+  let output: AudioNode = ampGain;
+  if (voice.tremolo) {
+    const tremGain = ctx.createGain();
+    tremGain.gain.value = 1 - voice.tremolo.depth;
+    const lfo = ctx.createOscillator();
+    lfo.type = 'sine';
+    lfo.frequency.value = voice.tremolo.rate;
+    const lfoDepth = ctx.createGain();
+    lfoDepth.gain.value = voice.tremolo.depth;
+    lfo.connect(lfoDepth);
+    lfoDepth.connect(tremGain.gain);
+    lfo.start(now);
+    lfo.stop(endTime);
+    sources.push(lfo);
+    ampGain.connect(tremGain);
+    output = tremGain;
+  }
+
+  output.connect(compressor!);
+
+  const soundHandle = {
+    stop: () => {
+      const t = ctx.currentTime;
+      ampGain.gain.cancelScheduledValues(t);
+      ampGain.gain.setValueAtTime(Math.max(SILENCE, ampGain.gain.value), t);
+      ampGain.gain.linearRampToValueAtTime(0, t + 0.05);
+      if (transientGain) {
+        transientGain.gain.cancelScheduledValues(t);
+        transientGain.gain.setValueAtTime(Math.max(SILENCE, transientGain.gain.value), t);
+        transientGain.gain.linearRampToValueAtTime(0, t + 0.05);
+      }
+      sources.forEach(source => {
+        try {
+          source.stop(t + 0.05);
+        } catch {
+          // Already stopped.
+        }
+      });
+      activeSounds.delete(soundHandle);
+    },
+  };
+
+  activeSounds.add(soundHandle);
+  setTimeout(() => activeSounds.delete(soundHandle), (endTime - now) * 1000);
 
   return soundHandle;
 }
