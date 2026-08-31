@@ -3,6 +3,7 @@ import { generateQuestion, generateMusicKeyQuestions, getChordNotes } from './ga
 import { LEVELS } from '../types/levels';
 import { MUSIC_KEYS_LEVELS } from '../types/musicKeysLevels';
 import { MUSIC_KEYS } from '../types/music';
+import { calculateQuestionXP } from '../types/stats';
 
 /**
  * Regression tests for questions that could not be answered correctly.
@@ -151,5 +152,47 @@ describe('level content supports the options a mode needs', () => {
       expect(new Set(q.options).size).toBe(4);
       expect(q.options).toContain(q.correctAnswer);
     }
+  });
+});
+
+describe('question difficulty stays on the 0-1 scale its consumers expect', () => {
+  // Questions were built with `difficulty: level.id` (1-8) while
+  // useGameState.nextQuestion clamps the same field into [0.1, 1.0] on the
+  // first performance adjustment. At level 8 the field dropped from 8 to 1.0
+  // and the XP bonus collapsed from +80 to +10 for the rest of the session.
+  const MODES = [
+    'chords', 'scales', 'intervals', 'inversions', 'progressions',
+    'notereading', 'rhythm', 'harmony', 'comparison', 'transposition',
+    'realmusic', 'solfege', 'genre_jazz', 'genre_blues', 'genre_pop',
+    'genre_classical', 'musickeys', 'notes',
+  ] as const;
+
+  it('is within 0-1 for every mode at every level', () => {
+    for (const id of [1, 4, 8]) {
+      for (const mode of MODES) {
+        for (let i = 0; i < 10; i++) {
+          const q = generateQuestion(level(id), mode, i, 10);
+          expect(q.difficulty).toBeGreaterThanOrEqual(0);
+          expect(q.difficulty).toBeLessThanOrEqual(1);
+        }
+      }
+    }
+  });
+
+  it('rises with the level rather than collapsing after question one', () => {
+    const at = (id: number) => generateQuestion(level(id), 'chords', 0, 20).difficulty;
+    expect(at(1)).toBeLessThan(at(4));
+    expect(at(4)).toBeLessThan(at(8));
+    expect(at(8)).toBe(1);
+  });
+
+  it('keeps per-question XP stable across a session at a fixed level', () => {
+    // The symptom: question 1 paid far more than questions 2..n.
+    const first = generateQuestion(level(8), 'chords', 0, 20).difficulty;
+    const clampedAfterAdjustment = Math.max(0.1, Math.min(1.0, first + 0.1));
+    expect(calculateQuestionXP(true, 0, first)).toBeCloseTo(
+      calculateQuestionXP(true, 0, clampedAfterAdjustment),
+      0,
+    );
   });
 });
