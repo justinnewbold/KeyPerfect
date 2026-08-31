@@ -18,7 +18,16 @@ import {
   getScaleStats,
   getIntervalStats,
   getGameModeStats,
+  getSessionHistory,
 } from '../utils/storage';
+import {
+  DayBucket,
+  TimeRange,
+  accuracyImprovement,
+  accuracySeries,
+  bucketByDay,
+  rangeDays,
+} from '../utils/analytics';
 
 interface DataPoint {
   label: string;
@@ -176,28 +185,28 @@ function DonutChart({
   );
 }
 
-// Weekly activity heatmap
-function WeeklyHeatmap({ data }: { data: number[] }) {
-  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  const max = Math.max(...data, 1);
+// Weekly activity heatmap. Takes dated buckets rather than a bare number[]:
+// the labels used to be a hard-coded Mon-Sun, so whatever the first value
+// happened to be was captioned "Mon" regardless of the actual day.
+function WeeklyHeatmap({ data }: { data: DayBucket[] }) {
+  const max = Math.max(...data.map(d => d.questions), 1);
 
   return (
     <div className="flex gap-1">
-      {data.map((value, i) => {
-        const intensity = value / max;
-        const opacity = 0.2 + intensity * 0.8;
+      {data.map(day => {
+        const opacity = 0.2 + (day.questions / max) * 0.8;
 
         return (
-          <div key={i} className="flex flex-col items-center gap-1">
+          <div key={day.date} className="flex flex-col items-center gap-1">
             <div
               className="w-8 h-8 rounded-lg transition-all"
               style={{
-                backgroundColor: `rgba(139, 92, 246, ${opacity})`,
+                backgroundColor: `rgba(139, 92, 246, ${day.questions > 0 ? opacity : 0.06})`,
                 border: '1px solid rgba(255,255,255,0.1)',
               }}
-              title={`${days[i]}: ${value} questions`}
+              title={`${day.label} ${day.date}: ${day.questions} questions`}
             />
-            <span className="text-xs text-white/40">{days[i][0]}</span>
+            <span className="text-xs text-white/40">{day.label[0]}</span>
           </div>
         );
       })}
@@ -206,8 +215,9 @@ function WeeklyHeatmap({ data }: { data: number[] }) {
 }
 
 export function AnalyticsDashboard() {
-  const [timeRange, setTimeRange] = useState<'week' | 'month' | 'all'>('week');
+  const [timeRange, setTimeRange] = useState<TimeRange>('week');
 
+  const sessionHistory = getSessionHistory();
   const userStats = getUserStats();
   const chordStats = getChordStats();
   const scaleStats = getScaleStats();
@@ -219,18 +229,21 @@ export function AnalyticsDashboard() {
     ? Math.round((userStats.totalCorrect / userStats.totalQuestionsAnswered) * 100)
     : 0;
 
-  const accuracyTrend = useMemo(() => {
-    // Simulate trend data (would come from actual historical data)
-    const baseAccuracy = accuracy || 50;
-    return Array(7).fill(0).map((_, i) =>
-      Math.max(0, Math.min(100, baseAccuracy - 10 + Math.random() * 20 + i * 2))
-    );
-  }, [accuracy]);
+  // Both of these used to be Math.random(). A user with no sessions at all was
+  // shown a full week of invented history that reshuffled on every mount, and
+  // the improvement badge beside the real accuracy number was derived from it.
+  // They now come from the session history the app already persists.
+  const trendDays = useMemo(() => rangeDays(timeRange, sessionHistory), [timeRange, sessionHistory]);
 
-  const weeklyActivity = useMemo(() => {
-    // Simulate weekly activity (would come from actual historical data)
-    return Array(7).fill(0).map(() => Math.floor(Math.random() * 20 + 5));
-  }, []);
+  const trendBuckets = useMemo(
+    () => bucketByDay(sessionHistory, trendDays),
+    [sessionHistory, trendDays]
+  );
+
+  const accuracyTrend = useMemo(() => accuracySeries(trendBuckets), [trendBuckets]);
+
+  // The heatmap is always the last seven days, whatever the trend range is.
+  const weeklyActivity = useMemo(() => bucketByDay(sessionHistory, 7), [sessionHistory]);
 
   // Chord performance data
   const chordData: DataPoint[] = useMemo(() => {
@@ -264,11 +277,7 @@ export function AnalyticsDashboard() {
       }));
   }, [gameModeStats]);
 
-  // Calculate improvement
-  const improvement = useMemo(() => {
-    if (accuracyTrend.length < 2) return 0;
-    return Math.round(accuracyTrend[accuracyTrend.length - 1] - accuracyTrend[0]);
-  }, [accuracyTrend]);
+  const improvement = useMemo(() => accuracyImprovement(accuracyTrend), [accuracyTrend]);
 
   return (
     <div className="screen-root px-4 pt-6">
@@ -301,7 +310,10 @@ export function AnalyticsDashboard() {
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-bold">{accuracy}%</span>
             {improvement !== 0 && (
-              <span className={`text-xs flex items-center ${improvement > 0 ? 'text-green-400' : 'text-red-400'}`}>
+              <span
+                data-testid="accuracy-improvement"
+                className={`text-xs flex items-center ${improvement > 0 ? 'text-green-400' : 'text-red-400'}`}
+              >
                 {improvement > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
                 {Math.abs(improvement)}%
               </span>
@@ -343,11 +355,20 @@ export function AnalyticsDashboard() {
           <BarChart3 className="w-5 h-5 text-purple-400" />
           <h3 className="font-semibold">Accuracy Trend</h3>
         </div>
-        <LineChart data={accuracyTrend} color="#8b5cf6" />
-        <div className="flex justify-between mt-2 text-xs text-white/40">
-          <span>7 days ago</span>
-          <span>Today</span>
-        </div>
+        {accuracyTrend.length > 0 ? (
+          <>
+            <LineChart data={accuracyTrend} color="#8b5cf6" />
+            <div className="flex justify-between mt-2 text-xs text-white/40">
+              <span>{trendBuckets[0]?.date}</span>
+              <span>Today</span>
+            </div>
+          </>
+        ) : (
+          <div className="flex items-center justify-center h-24 text-white/40 text-sm text-center px-4">
+            No sessions in this range yet — finish a round and your accuracy
+            will show up here.
+          </div>
+        )}
       </Card>
 
       {/* Weekly Activity */}
