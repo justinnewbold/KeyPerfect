@@ -232,6 +232,16 @@ export function useAudio(): UseAudioReturn {
 }
 
 // Metronome hook
+/** How far ahead of the audio clock the scheduler queues clicks. */
+const SCHEDULE_AHEAD_S = 0.1;
+const SCHEDULER_INTERVAL_MS = 25;
+/**
+ * Drift past which the metronome resyncs to the clock rather than firing every
+ * click it missed. One beat at 240bpm is 0.25s, so anything beyond this is a
+ * stalled scheduler, not a late tick.
+ */
+const MAX_CATCHUP_S = 0.25;
+
 export function useMetronome() {
   const [isRunning, setIsRunning] = useState(false);
   const [bpm, setBpm] = useState(120);
@@ -242,6 +252,8 @@ export function useMetronome() {
   const beatRef = useRef(0);
   const bpmRef = useRef(bpm);
   const timeSignatureRef = useRef(timeSignature);
+  /** Beats already scheduled but not yet sounded, oldest first. */
+  const pendingBeatsRef = useRef<{ beat: number; time: number }[]>([]);
 
   // Keep refs current so the scheduler (running inside setInterval) picks up
   // tempo and time-signature changes without being restarted.
@@ -261,23 +273,49 @@ export function useMetronome() {
     setCurrentBeat(0);
     beatRef.current = 0;
 
+    pendingBeatsRef.current = [];
+
     const scheduleNote = () => {
       const secondsPerBeat = 60 / bpmRef.current;
       const beatsPerBar = timeSignatureRef.current[0];
       const ctx = getAudioContext();
 
-      while (nextNoteTimeRef.current < ctx.currentTime + 0.1) {
-        const beat = beatRef.current % beatsPerBar;
-        playMetronomeClick(beat === 0);
+      // A backgrounded tab freezes setInterval while the AudioContext clock
+      // keeps running. Without this, the loop below fires every click missed
+      // while away in one burst the moment the tab comes back.
+      if (nextNoteTimeRef.current < ctx.currentTime - MAX_CATCHUP_S) {
+        nextNoteTimeRef.current = ctx.currentTime;
+        pendingBeatsRef.current = [];
+      }
 
-        beatRef.current = (beatRef.current + 1) % beatsPerBar;
-        setCurrentBeat(beatRef.current);
+      while (nextNoteTimeRef.current < ctx.currentTime + SCHEDULE_AHEAD_S) {
+        const beat = beatRef.current % beatsPerBar;
+        // Sound it at its scheduled time, not "now": playing immediately
+        // quantised every click to the scheduler's 25ms tick.
+        playMetronomeClick(beat === 0, nextNoteTimeRef.current);
+        pendingBeatsRef.current.push({ beat, time: nextNoteTimeRef.current });
+
+        beatRef.current = (beat + 1) % beatsPerBar;
         nextNoteTimeRef.current += secondsPerBeat;
       }
+
+      // Advance the highlighted beat only once its click has actually
+      // sounded. This used to publish beat + 1 the moment beat was scheduled,
+      // so the display ran a whole beat ahead of the audio — the downbeat lit
+      // during the silence before the accent.
+      let sounded = -1;
+      while (
+        pendingBeatsRef.current.length > 0 &&
+        pendingBeatsRef.current[0].time <= ctx.currentTime
+      ) {
+        sounded = pendingBeatsRef.current.shift()!.beat;
+      }
+      if (sounded >= 0) setCurrentBeat(sounded);
     };
 
     nextNoteTimeRef.current = getAudioContext().currentTime;
-    intervalRef.current = window.setInterval(scheduleNote, 25);
+    scheduleNote();
+    intervalRef.current = window.setInterval(scheduleNote, SCHEDULER_INTERVAL_MS);
   }, [isRunning]);
 
   const stop = useCallback(() => {
@@ -286,6 +324,7 @@ export function useMetronome() {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
+    pendingBeatsRef.current = [];
     setCurrentBeat(0);
   }, []);
 
