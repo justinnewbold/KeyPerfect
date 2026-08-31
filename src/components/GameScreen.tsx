@@ -57,6 +57,15 @@ export function GameScreen({
   const audio = useAudio();
   const hasAutoPlayed = useRef(false);
   const feedbackTimeouts = useRef<ReturnType<typeof setTimeout>[]>([]);
+  /**
+   * Whether this question has already been submitted. `result` is React state
+   * and does not update until the next render, so it cannot guard a burst of
+   * synchronous calls — and a MIDI chord is exactly that: several note-ons
+   * dispatched from one message loop, each of which could submit for the same
+   * question. useGameState guards endGame with a synchronous ref for the same
+   * reason.
+   */
+  const answeredRef = useRef(false);
 
   // Reset state when question changes
   useEffect(() => {
@@ -65,6 +74,7 @@ export function GameScreen({
     setHasPlayed(false);
     setShowCorrectFeedback(false);
     hasAutoPlayed.current = false;
+    answeredRef.current = false;
     // Clear any pending feedback audio timeouts from the previous question
     feedbackTimeouts.current.forEach(clearTimeout);
     feedbackTimeouts.current = [];
@@ -220,7 +230,8 @@ export function GameScreen({
   }, [question.id]); // Only depend on question.id to prevent re-triggering
 
   const handleAnswer = useCallback((answer: string) => {
-    if (result) return;
+    if (result || answeredRef.current) return;
+    answeredRef.current = true;
 
     setSelectedAnswer(answer);
     const answerResult = onAnswer(answer);
