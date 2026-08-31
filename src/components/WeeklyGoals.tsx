@@ -57,6 +57,10 @@ export function WeeklyGoals({ onBack }: WeeklyGoalsProps) {
     }
   };
 
+  /** Whole numbers where the value happens to be one, else a single decimal. */
+  const formatGoalValue = (value: number) =>
+    Number.isInteger(value) ? String(value) : value.toFixed(1);
+
   return (
     <div className="screen-root px-4 pt-6">
       {/* Header */}
@@ -167,7 +171,12 @@ export function WeeklyGoals({ onBack }: WeeklyGoalsProps) {
                       <h3 className="font-semibold">{getGoalLabel(goal.type)}</h3>
                     </div>
                     <Badge variant={goal.completed ? 'success' : 'default'}>
-                      {goal.current}/{goal.target} {getGoalUnit(goal.type)}
+                      {/* Minutes accumulate as seconds/60 and accuracy is a
+                          running mean, so both are fractional: this rendered
+                          as "3.4166666666666665/30 minutes". Round for
+                          display only — the stored value keeps its precision
+                          so the running average stays correct. */}
+                      {formatGoalValue(goal.current)}/{goal.target} {getGoalUnit(goal.type)}
                     </Badge>
                   </div>
                   <Progress
