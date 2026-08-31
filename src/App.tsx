@@ -304,10 +304,14 @@ function App() {
     }
   }, [gameState, endGame, nextQuestion]);
 
-  // Exit game
+  // Exit game. GameScreen confirms with the player first, so by the time this
+  // runs the choice to stop has been made deliberately; a session abandoned
+  // before its last question is still awarded, but reported as an early exit.
   const handleExitGame = useCallback(() => {
     if (gameState) {
-      const result = endGame();
+      const endedEarly =
+        !gameState.isComplete && gameState.answers.length < gameState.totalQuestions;
+      const result = endGame({ endedEarly });
       setAppState({ screen: 'result', result });
     } else {
       setAppState({ screen: 'home' });
@@ -451,6 +455,7 @@ function App() {
     const homeScreen = (
           <HomeScreen
             onStartLevel={handleStartLevel}
+            onStartRecommendedLevel={handleSelectLevel}
             onStartChallenge={handleStartChallenge}
             onStartGameMode={handleStartGameMode}
             onStartPreset={handleStartPreset}

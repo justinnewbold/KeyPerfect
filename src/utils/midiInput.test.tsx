@@ -14,8 +14,8 @@ function pressKey(note = 60, velocity = 100) {
   });
 }
 
-function Consumer({ onNote }: { onNote: (note: number) => void }) {
-  useMIDIInput({ onNoteOn: onNote });
+function Consumer({ onNote, autoConnect }: { onNote: (note: number) => void; autoConnect?: boolean }) {
+  useMIDIInput({ onNoteOn: onNote }, { autoConnect });
   return null;
 }
 
@@ -36,6 +36,28 @@ describe('useMIDIInput', () => {
   });
 
   afterEach(cleanup);
+
+  it('does not ask the browser for MIDI access until the user opts in', async () => {
+    // requestMIDIAccess is what pops Chrome's "wants to connect to other apps
+    // and services" prompt. Firing it on mount put that dialog in front of
+    // players mid-round, before anything MIDI-shaped had been offered — and a
+    // reflexive Block is permanent.
+    const requestMIDIAccess = vi.fn().mockRejectedValue(new Error('denied'));
+    Object.defineProperty(navigator, 'requestMIDIAccess', {
+      value: requestMIDIAccess,
+      configurable: true,
+      writable: true,
+    });
+
+    const { unmount } = await mount(<Consumer onNote={vi.fn()} />);
+    expect(requestMIDIAccess).not.toHaveBeenCalled();
+    unmount();
+
+    await mount(<Consumer onNote={vi.fn()} autoConnect />);
+    expect(requestMIDIAccess).toHaveBeenCalled();
+
+    delete (navigator as { requestMIDIAccess?: unknown }).requestMIDIAccess;
+  });
 
   it('delivers notes to the mounted consumer', async () => {
     const onNote = vi.fn();

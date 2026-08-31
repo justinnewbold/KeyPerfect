@@ -7,12 +7,14 @@ import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { Progress } from './ui/Progress';
 import { Badge, StreakBadge, XPBadge } from './ui/Badge';
+import { Modal } from './ui/Modal';
 import { useAudio } from '../hooks/useAudio';
 import { useLongPress } from '../hooks/useLongPress';
 import { useGameKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { triggerHapticFeedback } from '../utils/haptics';
 import { getChordNotes, getScaleNotes } from '../utils/gameHelpers';
 import { useMIDIInput } from '../utils/midiInput';
+import { getSettings, updateSettings } from '../utils/storage';
 
 /**
  * Gap between chords in a sequenced progression. useAudio.playChord holds a
@@ -54,6 +56,7 @@ export function GameScreen({
   const [result, setResult] = useState<AnswerRecord | null>(null);
   const [hasPlayed, setHasPlayed] = useState(false);
   const [showCorrectFeedback, setShowCorrectFeedback] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
   const audio = useAudio();
   const hasAutoPlayed = useRef(false);
   const feedbackTimeouts = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -67,8 +70,26 @@ export function GameScreen({
    */
   const answeredRef = useRef(false);
 
-  // Reset state when question changes
-  useEffect(() => {
+  /*
+   * Reset the answer state when the question changes.
+   *
+   * This runs *during* render rather than in an effect, because an effect is
+   * one paint too late: the first render of question N+1 would still hold
+   * question N's `result`, and `isCorrect` is computed as
+   * `result && option === question.correctAnswer` — against the *new*
+   * question's answer. So the next question painted with a green border
+   * already on its correct option (and a red one on whichever option the
+   * player had just got wrong), giving the answer away before they had heard
+   * anything. Options are shuffled per question, so it was equally capable of
+   * marking the wrong button.
+   *
+   * Setting state during render of the same component is the pattern React
+   * documents for exactly this: it re-renders immediately, before the browser
+   * paints, and discards the output of the pass that was mid-flight.
+   */
+  const [renderedQuestionId, setRenderedQuestionId] = useState(question.id);
+  if (renderedQuestionId !== question.id) {
+    setRenderedQuestionId(question.id);
     setSelectedAnswer(null);
     setResult(null);
     setHasPlayed(false);
@@ -78,7 +99,7 @@ export function GameScreen({
     // Clear any pending feedback audio timeouts from the previous question
     feedbackTimeouts.current.forEach(clearTimeout);
     feedbackTimeouts.current = [];
-  }, [question.id]);
+  }
 
   // Cancel any pending audio timeouts (cadence chain, comparison, wrong-
   // answer feedback) when the component unmounts so audio doesn't keep
@@ -264,14 +285,43 @@ export function GameScreen({
     }
   }, [question.options, handleAnswer]);
 
-  // Keyboard shortcuts
+  /*
+   * Leaving mid-session used to be a single unguarded tap on the X in the
+   * corner: it ended the run, banked the XP and dropped the player on a
+   * "Game Complete!" screen grading them on the handful of questions they
+   * had answered. That is a lot to happen by accident, so the X (and Escape)
+   * now ask first, and say what stopping here keeps and what it gives up.
+   *
+   * Once the last question has been answered there is nothing left to
+   * abandon — the X is just the way out to the results — so it goes straight
+   * through.
+   */
+  const isSessionOver = !!result && questionNumber >= totalQuestions;
+  /** Questions actually answered: the ones behind us, plus this one if graded. */
+  const answeredCount = questionNumber - 1 + (result ? 1 : 0);
+
+  const handleExitPressed = useCallback(() => {
+    if (isSessionOver) {
+      onExit();
+      return;
+    }
+    setShowExitConfirm(true);
+  }, [isSessionOver, onExit]);
+
+  const handleConfirmExit = useCallback(() => {
+    setShowExitConfirm(false);
+    onExit();
+  }, [onExit]);
+
+  // Keyboard shortcuts. Suspended while the exit dialog is up so a stray 1-4
+  // or Space answers nothing behind it; Escape there is the Modal's own.
   useGameKeyboardShortcuts({
     onSelectOption: handleSelectOption,
     onReplay: playQuestionAudio,
     onNext,
-    onExit,
+    onExit: handleExitPressed,
     hasResult: !!result,
-    enabled: true,
+    enabled: !showExitConfirm,
   });
 
   // MIDI input: map note-on events to answer selection
@@ -312,7 +362,23 @@ export function GameScreen({
     onNoteOn: handleMIDINoteOn,
   }), [handleMIDINoteOn]);
 
-  const midiState = useMIDIInput(midiCallbacks);
+  /*
+   * MIDI is opt-in. `midiEnabled` is false until the player turns it on in
+   * Settings or presses "Use a MIDI keyboard" below, and only then does the
+   * hook call requestMIDIAccess — so the browser's permission prompt appears
+   * as the answer to a question the player asked, not out of nowhere during a
+   * round. `midiOptIn` mirrors the setting in state so the prompt fires
+   * within this click rather than on the next mount.
+   */
+  const [midiOptIn, setMidiOptIn] = useState(() => getSettings().midiEnabled === true);
+  const midiState = useMIDIInput(midiCallbacks, { autoConnect: midiOptIn });
+
+  const handleEnableMIDI = useCallback(() => {
+    updateSettings({ midiEnabled: true });
+    setMidiOptIn(true);
+    // Requesting inside the click keeps the prompt attached to the gesture.
+    midiState.refresh();
+  }, [midiState]);
 
   const getDisplayName = (value: string): string => {
     if (question.type === 'chords') {
@@ -337,7 +403,8 @@ export function GameScreen({
         {/* Progress Bar */}
         <div className="flex items-center gap-3 mb-3">
           <button
-            onClick={onExit}
+            onClick={handleExitPressed}
+            aria-label="Exit session"
             className="tap-target rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
           >
             <X className="w-5 h-5" />
@@ -436,7 +503,10 @@ export function GameScreen({
 
             return (
               <AnswerOption
-                key={option}
+                // Keyed by question as well as option so an option that
+                // appears in two consecutive questions gets a fresh instance
+                // rather than inheriting the previous one's press state.
+                key={`${question.id}:${option}`}
                 index={index}
                 label={getDisplayName(option)}
                 answered={!!result}
@@ -455,11 +525,23 @@ export function GameScreen({
           <Keyboard className="w-3 h-3" />
           <span>Press 1-4 to answer, R to replay, Space/Enter for next</span>
         </div>
-        {midiState.isConnected && (
+        {midiState.isConnected ? (
           <div className="flex items-center justify-center gap-2 text-xs text-green-400/70 mb-4">
             <Usb className="w-3 h-3" />
             <span>MIDI: {midiState.deviceName} (play C4-F4 to select)</span>
           </div>
+        ) : (
+          midiState.isSupported && !midiOptIn && (
+            <div className="flex justify-center mb-4">
+              <button
+                onClick={handleEnableMIDI}
+                className="flex items-center gap-2 text-xs text-white/40 hover:text-white/70 transition-colors"
+              >
+                <Usb className="w-3 h-3" />
+                <span>Use a MIDI keyboard</span>
+              </button>
+            </div>
+          )
         )}
 
         {/* Result Feedback */}
@@ -508,6 +590,33 @@ export function GameScreen({
           </Card>
         )}
       </div>
+
+      <Modal
+        isOpen={showExitConfirm}
+        onClose={() => setShowExitConfirm(false)}
+        title="End this session?"
+        size="sm"
+      >
+        <p className="text-white/70 mb-2">
+          You've answered {answeredCount} of {totalQuestions} question
+          {totalQuestions === 1 ? '' : 's'}.
+        </p>
+        <p className="text-sm text-white/50 mb-5">
+          {isPracticeMode
+            ? 'Practice sessions never award XP, so nothing is lost either way.'
+            : answeredCount > 0
+            ? 'Your XP from those answers is kept, but the session counts as ended early rather than completed.'
+            : 'Nothing has been answered yet, so there is nothing to save.'}
+        </p>
+        <div className="space-y-2">
+          <Button variant="primary" size="lg" fullWidth onClick={() => setShowExitConfirm(false)}>
+            Keep practicing
+          </Button>
+          <Button variant="secondary" size="lg" fullWidth onClick={handleConfirmExit}>
+            End session
+          </Button>
+        </div>
+      </Modal>
 
       {/* Sticky Bottom */}
       <div className="action-bar px-4 py-3 bg-gradient-to-t from-[#0f0c29] via-[#0f0c29] to-transparent">

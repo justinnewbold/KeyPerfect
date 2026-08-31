@@ -1,6 +1,6 @@
 import React from 'react';
-import { Lock, Check, Star } from 'lucide-react';
-import { LEVELS, LevelConfig } from '../types/levels';
+import { Lock, Check, Star, ListChecks } from 'lucide-react';
+import { LEVELS, LevelConfig, getUnlockedLevels, sessionsToUnlock } from '../types/levels';
 import { Card } from './ui/Card';
 import { Progress } from './ui/Progress';
 import { Badge, LevelBadge } from './ui/Badge';
@@ -14,6 +14,11 @@ interface LevelSelectProps {
 export function LevelSelect({ onSelectLevel, onBack }: LevelSelectProps) {
   const userStats = getUserStats();
   const levelProgress = getLevelProgress();
+  // The level a player would realistically be grinding, which is what the
+  // "N more sessions" estimate on the locked levels is measured in.
+  const unlockedLevels = getUnlockedLevels(userStats.totalXP);
+  const highestUnlocked = unlockedLevels[unlockedLevels.length - 1] || LEVELS[0];
+  const nextLockedLevelId = LEVELS.find(l => userStats.totalXP < l.unlockRequirement)?.id;
 
   const isLevelUnlocked = (level: LevelConfig): boolean => {
     return userStats.totalXP >= level.unlockRequirement;
@@ -90,22 +95,65 @@ export function LevelSelect({ onSelectLevel, onBack }: LevelSelectProps) {
                   <p className="text-sm text-white/60 mb-2">{level.description}</p>
 
                   {unlocked ? (
-                    <div className="flex flex-wrap gap-1">
-                      {level.features.slice(0, 2).map((feature, i) => (
-                        <Badge key={i} variant="purple" size="sm">
-                          {feature}
-                        </Badge>
-                      ))}
-                      {level.features.length > 2 && (
-                        <Badge variant="default" size="sm">
-                          +{level.features.length - 2} more
-                        </Badge>
-                      )}
-                    </div>
+                    <>
+                      {/* Session length, stated before the player commits to
+                          it. It used to appear for the first time as "1/20"
+                          on the progress bar once the round had started. */}
+                      <div className="flex items-center gap-1 text-sm text-white/70 mb-2">
+                        <ListChecks className="w-4 h-4 text-purple-400" />
+                        <span>{level.questionsToComplete} questions per session</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {level.features.slice(0, 2).map((feature, i) => (
+                          <Badge key={i} variant="purple" size="sm">
+                            {feature}
+                          </Badge>
+                        ))}
+                        {level.features.length > 2 && (
+                          <Badge variant="default" size="sm">
+                            +{level.features.length - 2} more
+                          </Badge>
+                        )}
+                      </div>
+                    </>
                   ) : (
-                    <div className="flex items-center gap-1 text-sm text-amber-400">
-                      <Star className="w-4 h-4" />
-                      <span>Requires {level.unlockRequirement.toLocaleString()} XP</span>
+                    /* A locked level used to show only its price. On a fresh
+                       account that is seven padlocks and no sense of how far
+                       away any of them is, so say how much is left and roughly
+                       how many sessions that is at the level being played. */
+                    <div>
+                      <div className="flex items-center gap-1 text-sm text-amber-400">
+                        <Star className="w-4 h-4" />
+                        <span>
+                          {(level.unlockRequirement - userStats.totalXP).toLocaleString()} XP to go
+                        </span>
+                      </div>
+                      <div className="mt-2">
+                        <Progress
+                          value={userStats.totalXP}
+                          max={level.unlockRequirement}
+                          size="sm"
+                          color="amber"
+                        />
+                        <p className="text-xs text-white/50 mt-1">
+                          {userStats.totalXP.toLocaleString()} / {level.unlockRequirement.toLocaleString()} XP
+                          {/* The session estimate is only shown for the next
+                              level up. Further out it would be measured at a
+                              level nobody will still be playing by then —
+                              "52 more sessions at Level 1" is arithmetic, not
+                              information, and reads as a wall. */}
+                          {level.id === nextLockedLevelId && (
+                            <>
+                              {' · '}
+                              about {sessionsToUnlock(level, userStats.totalXP, highestUnlocked)} more{' '}
+                              {sessionsToUnlock(level, userStats.totalXP, highestUnlocked) === 1
+                                ? 'session'
+                                : 'sessions'}{' '}
+                              at Level {highestUnlocked.id}
+                            </>
+                          )}
+                        </p>
+                      </div>
                     </div>
                   )}
                 </div>

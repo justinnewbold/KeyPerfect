@@ -175,10 +175,20 @@ export function getXPProgress(totalXP: number): { current: number; needed: numbe
   };
 }
 
+/**
+ * XP for one answered question.
+ *
+ * The result is rounded because `difficulty` is a 0-1 fraction (level 1 is
+ * 0.125), and multiplying it out unrounded produced awards like "+21.25 XP"
+ * on the answer card and session totals like "67.75 XP" on the results
+ * screen. XP is a whole-number currency everywhere it is displayed, compared
+ * or gated on, so it is made one here — at the only place it is minted —
+ * rather than rounded again by each screen that shows it.
+ */
 export function calculateQuestionXP(correct: boolean, streak: number, difficulty: number): number {
   if (!correct) return 0;
   const baseXP = 20; // Doubled from 10
   const streakBonus = Math.min(streak, 10) * 4; // Max +40 from streak (doubled from +20)
   const difficultyBonus = difficulty * 10; // +10 per difficulty level (doubled from +5)
-  return baseXP + streakBonus + difficultyBonus;
+  return Math.round(baseXP + streakBonus + difficultyBonus);
 }

@@ -325,10 +325,18 @@ export interface GameResult {
   mode: GameModeType | ChallengeModeType;
   level: number;
   score: number;
+  /** Questions actually answered. */
   totalQuestions: number;
+  /** Questions the session was set up to ask, which an early exit falls short of. */
+  plannedQuestions: number;
+  /** False when the player stopped before the session was over. */
+  completed: boolean;
   correctAnswers: number;
   accuracy: number;
+  /** XP from the questions themselves. */
   totalXPEarned: number;
+  /** Bonus XP from achievements that unlocked at the end of this session. */
+  achievementXP: number;
   longestStreak: number;
   totalTime: number;
   averageResponseTime: number;

@@ -30,14 +30,17 @@ import { getUserStats, getDailyStats, getUnlockedAchievements, PRACTICE_PRESETS,
 import { MUSIC_KEYS_LEVELS } from '../types/musicKeysLevels';
 import { NOTES_LEVELS } from '../types/notesLevels';
 import { getLevelFromXP, getXPProgress, ACHIEVEMENTS } from '../types/stats';
-import { LEVELS, getUnlockedLevels } from '../types/levels';
+import { LEVELS, LevelConfig, getUnlockedLevels } from '../types/levels';
 import { GAME_MODES, CHALLENGE_MODES, GameModeType, ChallengeModeType } from '../types/gameModes';
 import { InstrumentType, INSTRUMENTS, getInstrumentList } from '../types/instruments';
 import { useAudio } from '../hooks/useAudio';
 import { playChord as playChordRaw } from '../utils/audioEngine';
 
 interface HomeScreenProps {
+  /** Opens the level ladder. */
   onStartLevel: () => void;
+  /** Starts a level directly, for Home's single primary call to action. */
+  onStartRecommendedLevel?: (level: LevelConfig) => void;
   onStartChallenge: (mode: ChallengeModeType) => void;
   onStartGameMode: (mode: GameModeType) => void;
   onStartPreset?: (presetId: PracticePresetId) => void;
@@ -56,7 +59,7 @@ interface HomeScreenProps {
   onOpenSettings?: () => void;
 }
 
-export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, onStartPreset, onStartMusicKeys, onStartNotes, onOpenGuidedLessons, onOpenComparison, onOpenWeeklyGoals, onOpenMastery, onOpenSocialChallenges, onOpenIntervalSinging, onOpenProgressionDictation, onOpenFocusAreas, onOpenCircleOfFifths, onOpenFreePlay, onOpenSettings }: HomeScreenProps) {
+export function HomeScreen({ onStartLevel, onStartRecommendedLevel, onStartChallenge, onStartGameMode, onStartPreset, onStartMusicKeys, onStartNotes, onOpenGuidedLessons, onOpenComparison, onOpenWeeklyGoals, onOpenMastery, onOpenSocialChallenges, onOpenIntervalSinging, onOpenProgressionDictation, onOpenFocusAreas, onOpenCircleOfFifths, onOpenFreePlay, onOpenSettings }: HomeScreenProps) {
   const userStats = getUserStats();
   const dailyStats = getDailyStats();
   const unlockedAchievements = getUnlockedAchievements();
@@ -66,6 +69,7 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
 
   const [currentInstrument, setCurrentInstrument] = useState<InstrumentType>(getSettings().instrument);
   const [showInstrumentDropdown, setShowInstrumentDropdown] = useState(false);
+  const [showAllModes, setShowAllModes] = useState(() => getSettings().homeModesExpanded === true);
   const instruments = getInstrumentList();
   const instrumentDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -110,7 +114,11 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
   const musicKeysCompleted = musicKeysProgress.filter(p => p.timesCompleted > 0).length;
   const notesCompleted = notesProgress.filter(p => p.timesCompleted > 0).length;
 
-  const chordLevelsUnlocked = getUnlockedLevels(userStats.totalXP).length;
+  const unlockedChordLevels = getUnlockedLevels(userStats.totalXP);
+  const chordLevelsUnlocked = unlockedChordLevels.length;
+  /** What the primary CTA starts: the furthest chord level they've unlocked. */
+  const recommendedLevel = unlockedChordLevels[unlockedChordLevels.length - 1] || LEVELS[0];
+  const hasPlayedBefore = userStats.totalQuestionsAnswered > 0;
   const streakFreezeData = getStreakFreezeData();
 
   const weeklyGoalsData = getWeeklyGoals();
@@ -127,10 +135,19 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
             <p className="text-sm text-white/60">Master your musical ear</p>
           </div>
           <div className="flex items-center gap-2">
-            {streakFreezeData.freezesAvailable > 0 && (
-              <Badge variant="info" size="sm" className="flex items-center gap-1">
+            {/* A freeze protects a streak, so it only means anything once
+                there is one. On a first run it was an unexplained pill on a
+                zero-day streak — a bit of vocabulary the player had no way to
+                decode and no reason to care about yet. */}
+            {dailyStats.currentStreak > 0 && streakFreezeData.freezesAvailable > 0 && (
+              <Badge
+                variant="info"
+                size="sm"
+                className="flex items-center gap-1"
+                title="Streak freeze ready: miss one day this week and your streak survives"
+              >
                 <Shield className="w-3 h-3" />
-                Freeze
+                Freeze ready
               </Badge>
             )}
             {dailyStats.currentStreak > 0 && (
@@ -182,62 +199,6 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
       </div>
 
       <div className="px-4 space-y-6">
-        {/* Instrument Selector */}
-        <div className="relative" ref={instrumentDropdownRef}>
-          <button
-            onClick={() => setShowInstrumentDropdown(!showInstrumentDropdown)}
-            className="w-full p-3 rounded-xl bg-white/10 border border-white/20 flex items-center justify-between"
-          >
-            <div className="flex items-center gap-3">
-              <span className="text-xl">{INSTRUMENTS[currentInstrument].icon}</span>
-              <div className="text-left">
-                <div className="text-sm font-medium">{INSTRUMENTS[currentInstrument].name}</div>
-                <div className="text-xs text-white/60">Tap to change instrument</div>
-              </div>
-            </div>
-            <ChevronDown className={`w-5 h-5 text-white/60 transition-transform ${showInstrumentDropdown ? 'rotate-180' : ''}`} />
-          </button>
-
-          {showInstrumentDropdown && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-[#1a1a2e] border border-white/20 rounded-xl shadow-xl z-50 max-h-64 overflow-y-auto">
-              {instruments.map(inst => (
-                <button
-                  key={inst.id}
-                  onClick={() => handleInstrumentChange(inst.id)}
-                  className={`w-full p-3 flex items-center gap-3 hover:bg-white/10 transition-colors ${
-                    currentInstrument === inst.id ? 'bg-purple-500/20' : ''
-                  }`}
-                >
-                  <span className="text-xl">{inst.icon}</span>
-                  <div className="text-left flex-1">
-                    <div className="text-sm font-medium">{inst.name}</div>
-                    <div className="text-xs text-white/60">{inst.description}</div>
-                  </div>
-                  {currentInstrument === inst.id && (
-                    <div className="w-2 h-2 rounded-full bg-purple-500" />
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Quick Stats */}
-        <div className="grid grid-cols-3 gap-3">
-          <Card className="p-3 text-center">
-            <div className="text-xl font-bold text-green-400">{accuracy}%</div>
-            <div className="text-xs text-white/60">Accuracy</div>
-          </Card>
-          <Card className="p-3 text-center">
-            <div className="text-xl font-bold text-purple-400">{userStats.totalQuestionsAnswered}</div>
-            <div className="text-xs text-white/60">Questions</div>
-          </Card>
-          <Card className="p-3 text-center">
-            <div className="text-xl font-bold text-amber-400">{unlockedAchievements.length}</div>
-            <div className="text-xs text-white/60">Achievements</div>
-          </Card>
-        </div>
-
         {/* Weekly Goals strip — only shown when goals are configured */}
         {goalsTotal > 0 && (
           <button
@@ -255,6 +216,67 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
           </button>
         )}
 
+        {/*
+          One obvious first tap.
+
+          Home used to open on roughly thirty-nine tiles across four sections,
+          several of them near-synonyms ("Chord Training" beside "Chord
+          Recognition", two things called Progressions), which left a new
+          player to guess which one the app wanted them to press. Everything
+          is still here — it is now one session away behind "All modes"
+          instead of competing with the thing they should press first.
+        */}
+        <Card
+          hover
+          onClick={() =>
+            onStartRecommendedLevel
+              ? onStartRecommendedLevel(recommendedLevel)
+              : onStartLevel()
+          }
+          className="p-5 bg-gradient-to-r from-purple-500/20 to-pink-500/20 border-purple-500/30"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/30">
+              <Play className="w-7 h-7" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-bold">
+                {hasPlayedBefore ? 'Continue training' : 'Start training'}
+              </h3>
+              <p className="text-sm text-white/60">
+                Level {recommendedLevel.id}: {recommendedLevel.name}
+              </p>
+              {/* Stated up front, because the first place it appeared before
+                  was the "1/20" progress bar after the round had begun. */}
+              <p className="text-xs text-white/50 mt-1">
+                {recommendedLevel.questionsToComplete} questions · about{' '}
+                {Math.max(1, Math.round(recommendedLevel.questionsToComplete / 4))} min
+              </p>
+            </div>
+            <ChevronRight className="w-5 h-5 text-white/40" />
+          </div>
+        </Card>
+
+        <button
+          onClick={() => {
+            const next = !showAllModes;
+            setShowAllModes(next);
+            // Remembered, so someone who lives in the full list isn't made to
+            // reopen it every time they come back to Home.
+            updateSettings({ homeModesExpanded: next });
+          }}
+          aria-expanded={showAllModes}
+          className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+        >
+          <span className="text-sm font-medium">All modes</span>
+          <div className="flex items-center gap-2 text-white/50">
+            <span className="text-xs">{showAllModes ? 'Hide' : 'Browse everything else'}</span>
+            <ChevronDown className={`w-4 h-4 transition-transform ${showAllModes ? 'rotate-180' : ''}`} />
+          </div>
+        </button>
+
+        {showAllModes && (
+        <div className="space-y-6">
         {/* Main Play Buttons - Two Card Layout */}
         <div className="grid grid-cols-1 gap-3">
           {/* Chord Training */}
@@ -354,11 +376,17 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
                   <h4 className="font-semibold text-sm">{preset.name}</h4>
                 </div>
                 <p className="text-xs text-white/60">{preset.description}</p>
-                {preset.timeLimit && (
-                  <Badge variant="info" size="sm" className="mt-2">
-                    {Math.floor(preset.timeLimit / 60)}m limit
+                <div className="flex items-center gap-2 mt-2">
+                  {/* How long this is, before committing to it. */}
+                  <Badge variant="default" size="sm">
+                    {preset.questionCount} questions
                   </Badge>
-                )}
+                  {preset.timeLimit && (
+                    <Badge variant="info" size="sm">
+                      {Math.floor(preset.timeLimit / 60)}m limit
+                    </Badge>
+                  )}
+                </div>
               </Card>
             ))}
           </div>
@@ -509,12 +537,16 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
                 <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center">
                   <Users className="w-5 h-5" />
                 </div>
-                <div>
-                  <h4 className="font-semibold text-sm">Challenges</h4>
-                  <Badge variant="info" size="sm">Local only</Badge>
-                </div>
+                <h4 className="font-semibold text-sm">Challenges</h4>
               </div>
-              <p className="text-xs text-white/60">Share codes, play same seed</p>
+              {/* "Local only" sat directly above "Share codes, play same
+                  seed", which reads as a contradiction. Nothing is sent
+                  anywhere: a challenge code is a seed you pass to someone
+                  yourself, and both devices generate the same questions from
+                  it. Say that once, plainly. */}
+              <p className="text-xs text-white/60">
+                Pass a code to a friend, play the same questions
+              </p>
             </Card>
 
             {/* Practice Mode (No Stakes) */}
@@ -557,9 +589,13 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
                 <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center">
                   <Layers className="w-5 h-5" />
                 </div>
-                <h4 className="font-semibold text-sm">Progressions</h4>
+                {/* Named for what it is, so it isn't a second tile called
+                    "Progressions" beside the Chord Progressions quiz in
+                    Training Modes. This one is dictation: you play the
+                    progression back rather than pick it from a list. */}
+                <h4 className="font-semibold text-sm">Progression Dictation</h4>
               </div>
-              <p className="text-xs text-white/60">Identify chord progressions</p>
+              <p className="text-xs text-white/60">Play back what you hear</p>
             </Card>
 
             {/* Free Play piano */}
@@ -592,6 +628,25 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
               <p className="text-xs text-white/60">Interactive wheel game</p>
             </Card>
 
+            {/* Settings. The bottom nav has no sixth slot, so Settings has
+                only ever hung off a gear in the header — easy to miss when
+                you are looking for it in a list of things you can do. */}
+            {onOpenSettings && (
+              <Card
+                hover
+                onClick={onOpenSettings}
+                className="p-4 bg-gradient-to-br from-slate-500/10 to-gray-500/10 border-slate-500/20"
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-500 to-gray-600 flex items-center justify-center">
+                    <Settings className="w-5 h-5" />
+                  </div>
+                  <h4 className="font-semibold text-sm">Settings</h4>
+                </div>
+                <p className="text-xs text-white/60">Sound, instrument, MIDI, data</p>
+              </Card>
+            )}
+
             {/* Focus Areas / Review Weak Spots */}
             <Card
               hover
@@ -618,7 +673,12 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
               // through other entry points on this screen. 'reverse' and
               // 'melodic' route to their own dedicated screens; see
               // App.tsx handleStartGameMode.
-              !['practice', 'comparison', 'musickeys', 'notes'].includes(mode.id)
+              //
+              // 'chords' is excluded for the same reason: it is the same
+              // chord-identification quiz the Chord Training ladder runs, and
+              // having both meant Home offered "Chord Training" and "Chord
+              // Recognition" as if they were different things.
+              !['practice', 'comparison', 'musickeys', 'notes', 'chords'].includes(mode.id)
             ).map(mode => (
               <Card
                 key={mode.id}
@@ -636,6 +696,65 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
               </Card>
             ))}
           </div>
+        </div>
+
+        </div>
+        )}
+
+        {/* Instrument Selector */}
+        <div className="relative" ref={instrumentDropdownRef}>
+          <button
+            onClick={() => setShowInstrumentDropdown(!showInstrumentDropdown)}
+            className="w-full p-3 rounded-xl bg-white/10 border border-white/20 flex items-center justify-between"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-xl">{INSTRUMENTS[currentInstrument].icon}</span>
+              <div className="text-left">
+                <div className="text-sm font-medium">{INSTRUMENTS[currentInstrument].name}</div>
+                <div className="text-xs text-white/60">Tap to change instrument</div>
+              </div>
+            </div>
+            <ChevronDown className={`w-5 h-5 text-white/60 transition-transform ${showInstrumentDropdown ? 'rotate-180' : ''}`} />
+          </button>
+
+          {showInstrumentDropdown && (
+            <div className="absolute top-full left-0 right-0 mt-2 bg-[#1a1a2e] border border-white/20 rounded-xl shadow-xl z-50 max-h-64 overflow-y-auto">
+              {instruments.map(inst => (
+                <button
+                  key={inst.id}
+                  onClick={() => handleInstrumentChange(inst.id)}
+                  className={`w-full p-3 flex items-center gap-3 hover:bg-white/10 transition-colors ${
+                    currentInstrument === inst.id ? 'bg-purple-500/20' : ''
+                  }`}
+                >
+                  <span className="text-xl">{inst.icon}</span>
+                  <div className="text-left flex-1">
+                    <div className="text-sm font-medium">{inst.name}</div>
+                    <div className="text-xs text-white/60">{inst.description}</div>
+                  </div>
+                  {currentInstrument === inst.id && (
+                    <div className="w-2 h-2 rounded-full bg-purple-500" />
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Quick Stats */}
+        <div className="grid grid-cols-3 gap-3">
+          <Card className="p-3 text-center">
+            <div className="text-xl font-bold text-green-400">{accuracy}%</div>
+            <div className="text-xs text-white/60">Accuracy</div>
+          </Card>
+          <Card className="p-3 text-center">
+            <div className="text-xl font-bold text-purple-400">{userStats.totalQuestionsAnswered}</div>
+            <div className="text-xs text-white/60">Questions</div>
+          </Card>
+          <Card className="p-3 text-center">
+            <div className="text-xl font-bold text-amber-400">{unlockedAchievements.length}</div>
+            <div className="text-xs text-white/60">Achievements</div>
+          </Card>
         </div>
 
         {/* Recent Achievements */}

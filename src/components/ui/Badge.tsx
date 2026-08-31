@@ -5,6 +5,8 @@ interface BadgeProps {
   variant?: 'default' | 'success' | 'warning' | 'danger' | 'info' | 'purple';
   size?: 'sm' | 'md' | 'lg';
   className?: string;
+  /** Hover/long-press explanation, for a badge whose label is app jargon. */
+  title?: string;
 }
 
 export function Badge({
@@ -12,6 +14,7 @@ export function Badge({
   variant = 'default',
   size = 'md',
   className = '',
+  title,
 }: BadgeProps) {
   const variants = {
     default: 'bg-white/10 text-white border-white/20',
@@ -30,6 +33,7 @@ export function Badge({
 
   return (
     <span
+      title={title}
       className={`inline-flex items-center rounded-full border font-medium ${variants[variant]} ${sizes[size]} ${className}`}
     >
       {children}

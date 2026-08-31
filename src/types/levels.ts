@@ -38,7 +38,11 @@ export const LEVELS: LevelConfig[] = [
     description: 'Add diminished and augmented chords',
     icon: '🏗️',
     color: 'from-blue-400 to-cyan-500',
-    unlockRequirement: 500,
+    // One clean run of Level 1 is worth roughly this much (see
+    // estimatedSessionXP), so the second level is one session away rather
+    // than one-and-a-bit — the difference between "here is the next step" and
+    // a wall of seven padlocks on the first evening.
+    unlockRequirement: 400,
     questionsToComplete: 25,
     chords: ['major', 'minor', 'diminished', 'augmented'],
     scales: ['major', 'natural_minor', 'pentatonic_major', 'pentatonic_minor'],
@@ -138,6 +142,33 @@ export const LEVELS: LevelConfig[] = [
     features: ['Everything unlocked', 'All jazz voicings', 'True mastery'],
   },
 ];
+
+/**
+ * Roughly the XP a clean run of a level is worth, used to turn "requires 500
+ * XP" into "about two sessions away".
+ *
+ * calculateQuestionXP pays 20 + up to 40 of streak bonus + difficulty*10 per
+ * correct answer, so a whole level at a realistic hit rate is worth a few
+ * hundred. This deliberately assumes a middling session rather than a perfect
+ * one: an estimate that reads low and then arrives early is a much better
+ * experience than one that reads low and keeps receding.
+ */
+const ASSUMED_ACCURACY = 0.7;
+const TYPICAL_XP_PER_CORRECT = 35;
+
+export function estimatedSessionXP(level: LevelConfig): number {
+  return Math.round(level.questionsToComplete * ASSUMED_ACCURACY * TYPICAL_XP_PER_CORRECT);
+}
+
+/**
+ * How many more sessions of `playing` it should take to unlock `target`.
+ * Returns 0 once the requirement is already met.
+ */
+export function sessionsToUnlock(target: LevelConfig, totalXP: number, playing: LevelConfig): number {
+  const shortfall = target.unlockRequirement - totalXP;
+  if (shortfall <= 0) return 0;
+  return Math.max(1, Math.ceil(shortfall / Math.max(1, estimatedSessionXP(playing))));
+}
 
 export function getLevelById(id: number): LevelConfig | undefined {
   return LEVELS.find(level => level.id === id);

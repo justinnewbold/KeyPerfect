@@ -40,6 +40,11 @@ export function ResultScreen({ result, onPlayAgain, onHome, onNextLevel, onRevie
   const canAccessNextLevel = nextLevel ? totalXPAfterGame >= nextLevel.unlockRequirement : false;
   const xpNeededForNextLevel = nextLevel ? Math.max(0, nextLevel.unlockRequirement - totalXPAfterGame) : 0;
 
+  // Older results persisted before achievement XP was banked have no field.
+  const achievementXP = result.achievementXP ?? 0;
+  const endedEarly =
+    result.completed === false && result.totalQuestions < result.plannedQuestions;
+
   // Confetti for perfect or S-grade performance
   const showConfetti = result.accuracy >= 95 || result.newAchievements.length > 0;
   const mistakeCount = result.answers.filter(a => !a.isCorrect).length;
@@ -79,10 +84,18 @@ export function ResultScreen({ result, onPlayAgain, onHome, onNextLevel, onRevie
       {/* Celebration confetti for perfect/S-grade or achievements */}
       <Confetti active={showConfetti} />
 
-      {/* Header */}
+      {/* Header. A session the player walked out of is not a completed one,
+          and saying "Game Complete!" over five of twenty questions is simply
+          false — so an early exit is named as such, with the shortfall. */}
       <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold mb-2">Game Complete!</h1>
-        <p className="text-white/60">{grade.message}</p>
+        <h1 className="text-3xl font-bold mb-2">
+          {endedEarly ? 'Session Ended' : 'Game Complete!'}
+        </h1>
+        <p className="text-white/60">
+          {endedEarly
+            ? `You stopped after ${result.totalQuestions} of ${result.plannedQuestions} questions`
+            : grade.message}
+        </p>
       </div>
 
       {/* Score Circle */}
@@ -104,14 +117,20 @@ export function ResultScreen({ result, onPlayAgain, onHome, onNextLevel, onRevie
         </CircularProgress>
       </div>
 
-      {/* XP Earned */}
+      {/* XP Earned. Achievement rewards are real XP and are banked with the
+          session, so the headline is the total the player's balance actually
+          moved by, with the split spelled out underneath. */}
       <Card className="p-6 mb-6 text-center bg-gradient-to-r from-purple-500/20 to-pink-500/20 border-purple-500/30">
         <div className="flex items-center justify-center gap-2 mb-2">
           <Zap className="w-6 h-6 text-yellow-400" />
-          <span className="text-3xl font-bold">{result.totalXPEarned}</span>
+          <span className="text-3xl font-bold">{result.totalXPEarned + achievementXP}</span>
           <span className="text-xl text-white/60">XP</span>
         </div>
-        <p className="text-sm text-white/60">Experience earned</p>
+        <p className="text-sm text-white/60">
+          {achievementXP > 0
+            ? `${result.totalXPEarned} from answers + ${achievementXP} from achievements`
+            : 'Experience earned'}
+        </p>
       </Card>
 
       {/* Stats Grid */}
