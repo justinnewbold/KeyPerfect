@@ -34,9 +34,38 @@ const STORAGE_KEYS = {
   MASTERY_DATA: 'keyperfect_mastery_data',
 } as const;
 
+/**
+ * A date as YYYY-MM-DD in the *user's* timezone.
+ *
+ * These keys drive the daily streak, the per-item "last attempted" stamps and
+ * the practice-history buckets. They used to come from `toISOString()`, which
+ * is UTC, so west of UTC the day rolled over in the afternoon: at UTC-7 a
+ * session at 6pm Tuesday was filed as Wednesday. That broke the streak in
+ * both directions — playing Monday morning then Tuesday evening looked like a
+ * skipped day and reset the streak, while genuinely skipping Tuesday could
+ * look consecutive.
+ */
+export function localDateKey(date: Date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * The key for `daysAgo` days before `from`, in local time.
+ *
+ * Built from local date components rather than by subtracting milliseconds,
+ * so it stays correct across a daylight-saving transition where a "day" is
+ * 23 or 25 hours long.
+ */
+export function localDateKeyDaysAgo(daysAgo: number, from: Date = new Date()): string {
+  return localDateKey(new Date(from.getFullYear(), from.getMonth(), from.getDate() - daysAgo));
+}
+
 // Default values
 function getDefaultUserStats(): UserStats {
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateKey();
   return {
     totalXP: 0,
     currentLevel: 1,
@@ -212,7 +241,7 @@ export function updateLevelProgress(levelId: number, updates: Partial<LevelProgr
       questionsRequired: 20,
       bestScore: 0,
       timesCompleted: 0,
-      lastPlayedDate: new Date().toISOString().split('T')[0],
+      lastPlayedDate: localDateKey(),
       ...updates,
     });
   }
@@ -229,7 +258,7 @@ export function getChordStats(): ChordStats[] {
 export function updateChordStats(chordType: string, correct: boolean): ChordStats[] {
   const stats = getChordStats();
   const index = stats.findIndex(s => s.chordType === chordType);
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateKey();
 
   if (index >= 0) {
     stats[index].attempts += 1;
@@ -256,7 +285,7 @@ export function getScaleStats(): ScaleStats[] {
 export function updateScaleStats(scaleType: string, correct: boolean): ScaleStats[] {
   const stats = getScaleStats();
   const index = stats.findIndex(s => s.scaleType === scaleType);
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateKey();
 
   if (index >= 0) {
     stats[index].attempts += 1;
@@ -283,7 +312,7 @@ export function getIntervalStats(): IntervalStats[] {
 export function updateIntervalStats(intervalType: string, correct: boolean): IntervalStats[] {
   const stats = getIntervalStats();
   const index = stats.findIndex(s => s.intervalType === intervalType);
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateKey();
 
   if (index >= 0) {
     stats[index].attempts += 1;
@@ -310,7 +339,7 @@ export function getKeyStats(): KeyStats[] {
 export function updateKeyStats(keyType: string, correct: boolean): KeyStats[] {
   const stats = getKeyStats();
   const index = stats.findIndex(s => s.keyType === keyType);
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateKey();
 
   if (index >= 0) {
     stats[index].attempts += 1;
@@ -356,7 +385,7 @@ export function updateMusicKeysProgress(levelId: number, updates: Partial<MusicK
       questionsRequired: 15,
       bestScore: 0,
       timesCompleted: 0,
-      lastPlayedDate: new Date().toISOString().split('T')[0],
+      lastPlayedDate: localDateKey(),
       ...updates,
     });
   }
@@ -380,7 +409,7 @@ export function getNoteStats(): NoteStats[] {
 export function updateNoteStats(noteType: string, correct: boolean): NoteStats[] {
   const stats = getNoteStats();
   const index = stats.findIndex(s => s.noteType === noteType);
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateKey();
 
   if (index >= 0) {
     stats[index].attempts += 1;
@@ -426,7 +455,7 @@ export function updateNotesProgress(levelId: number, updates: Partial<NotesLevel
       questionsRequired: 15,
       bestScore: 0,
       timesCompleted: 0,
-      lastPlayedDate: new Date().toISOString().split('T')[0],
+      lastPlayedDate: localDateKey(),
       ...updates,
     });
   }
@@ -441,7 +470,7 @@ function getWeekStart(): string {
   const day = now.getDay();
   const diff = now.getDate() - day + (day === 0 ? -6 : 1);
   const monday = new Date(now.getFullYear(), now.getMonth(), diff);
-  return monday.toISOString().split('T')[0];
+  return localDateKey(monday);
 }
 
 // Weekly Goals
@@ -472,7 +501,11 @@ export function getWeeklyGoals(): WeeklyGoalsData {
   if (data.weekStart !== getWeekStart()) {
     const wasCompleted = data.goals.length > 0 && data.goals.every(g => g.completed);
     return {
-      goals: data.goals.map(g => ({ ...g, current: 0, completed: false })),
+      // accuracySessions has to reset with `current`. Preserving it made the
+      // accuracy goal average a fresh week's first score against last week's
+      // session count: with 20 carried over, a 100%-accurate session computed
+      // (0 * 20 + 100) / 21 ≈ 5, and the goal could never be completed again.
+      goals: data.goals.map(g => ({ ...g, current: 0, completed: false, accuracySessions: 0 })),
       weekStart: getWeekStart(),
       totalWeeksCompleted: data.totalWeeksCompleted + (wasCompleted ? 1 : 0),
     };
@@ -547,7 +580,7 @@ export function getStreakFreezeData(): StreakFreezeData {
 export function useStreakFreeze(): boolean {
   const data = getStreakFreezeData();
   if (data.freezesAvailable <= 0 || data.freezesUsedThisWeek >= 1) return false;
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateKey();
   if (data.lastFreezeDate === today) return false;
   const updated: StreakFreezeData = {
     ...data,
@@ -621,7 +654,7 @@ export function getMasteryData(): MasteryItem[] {
 
 export function updateMasteryItem(type: MasteryItem['type'], value: string, isCorrect: boolean): MasteryItem {
   const data = getMasteryData();
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateKey();
   let item = data.find(d => d.type === type && d.value === value);
 
   if (!item) {
@@ -660,8 +693,8 @@ export function updateDailyStats(updates: Partial<DailyStats>): DailyStats {
 
 export function checkAndUpdateDailyStreak(): DailyStats {
   const stats = getDailyStats();
-  const today = new Date().toISOString().split('T')[0];
-  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+  const today = localDateKey();
+  const yesterday = localDateKeyDaysAgo(1);
 
   if (stats.lastPlayedDate === today) {
     return stats; // Already played today
@@ -670,15 +703,26 @@ export function checkAndUpdateDailyStreak(): DailyStats {
   let newStreak = stats.currentStreak;
   if (stats.lastPlayedDate === yesterday) {
     newStreak += 1; // Continue streak
-  } else {
-    // lastPlayedDate is neither today nor yesterday — streak is broken
-    // Check if auto-freeze is enabled and a freeze is available
+  } else if (stats.lastPlayedDate === localDateKeyDaysAgo(2)) {
+    /*
+     * Exactly one day was missed, which is what a streak freeze is for.
+     *
+     * This branch used to catch *any* gap that wasn't today or yesterday, so
+     * a two-day gap and a two-year gap were treated identically: someone
+     * returning after six months resumed their old streak +1, and since the
+     * allowance regenerates weekly, a once-a-week player could accumulate a
+     * "30 day streak" over 30 weeks. It also fired for a brand-new user,
+     * whose lastPlayedDate is '', burning their first freeze for no benefit —
+     * newStreak is 1 either way.
+     */
     const freezeData = getStreakFreezeData();
     if (freezeData.autoFreezeEnabled && useStreakFreeze()) {
       newStreak += 1; // Streak preserved by freeze
     } else {
-      newStreak = 1; // Start new streak
+      newStreak = 1;
     }
+  } else {
+    newStreak = 1; // Start new streak
   }
 
   return updateDailyStats({
@@ -700,7 +744,7 @@ export function getGameModeStats(): GameModeStats[] {
 export function updateGameModeStats(mode: string, score: number, time?: number): GameModeStats[] {
   const stats = getGameModeStats();
   const index = stats.findIndex(s => s.mode === mode);
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateKey();
 
   if (index >= 0) {
     const existing = stats[index];
@@ -785,7 +829,7 @@ export function getPracticeInsights(): PracticeInsights {
   for (let i = 6; i >= 0; i--) {
     const date = new Date(now);
     date.setDate(date.getDate() - i);
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = localDateKey(date);
     const daySessions = history.filter(s => s.date === dateStr);
     weeklyProgress.push({
       date: dateStr,
@@ -877,7 +921,7 @@ export function checkAndUnlockAchievements(stats: UserStats): Achievement[] {
   const unlocked = getItem<string[]>(STORAGE_KEYS.ACHIEVEMENTS, []);
   const unlockedWithDates = getItem<StoredAchievement[]>('keyperfect_achievements_with_dates', []);
   const newlyUnlocked: Achievement[] = [];
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateKey();
 
   ACHIEVEMENTS.forEach(achievement => {
     if (unlocked.includes(achievement.id)) return;

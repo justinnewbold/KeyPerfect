@@ -31,6 +31,8 @@ const storage = {
   updateMusicKeysProgress: vi.fn(),
   getNotesProgress: vi.fn((): { levelId: number; questionsCompleted: number; bestScore: number; timesCompleted: number }[] => []),
   updateNotesProgress: vi.fn(),
+  // Fixed so the history/stats date assertions don't depend on the clock.
+  localDateKey: vi.fn(() => '2026-02-14'),
 };
 
 vi.mock('./storage', () => storage);
