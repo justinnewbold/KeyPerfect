@@ -63,6 +63,20 @@ class MockAudioContext {
       connect: vi.fn(),
     };
   }
+  createAnalyser() {
+    return {
+      fftSize: 2048,
+      getFloatTimeDomainData: vi.fn(),
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    };
+  }
+  createMediaStreamSource() {
+    return {
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    };
+  }
   createBuffer() {
     return {
       getChannelData: () => new Float32Array(44100),

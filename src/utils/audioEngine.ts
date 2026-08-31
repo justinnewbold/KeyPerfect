@@ -878,8 +878,26 @@ export function createPitchDetector(onPitch: (frequency: number, note: string, c
     animationId = requestAnimationFrame(detect);
   }
 
+  function stop() {
+    if (animationId) {
+      cancelAnimationFrame(animationId);
+      animationId = null;
+    }
+    if (mediaStream) {
+      mediaStream.getTracks().forEach(track => track.stop());
+      mediaStream = null;
+    }
+    analyser = null;
+  }
+
   return {
     start: async () => {
+      // Idempotent. start() used to overwrite mediaStream and analyser
+      // without releasing the previous ones, so a second call orphaned a live
+      // MediaStream — its tracks were never stopped, which leaves the
+      // browser's microphone indicator lit for the rest of the session — and
+      // left a second requestAnimationFrame loop running forever.
+      stop();
       const ctx = getAudioContext();
       mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const source = ctx.createMediaStreamSource(mediaStream);
@@ -888,17 +906,7 @@ export function createPitchDetector(onPitch: (frequency: number, note: string, c
       source.connect(analyser);
       detect();
     },
-    stop: () => {
-      if (animationId) {
-        cancelAnimationFrame(animationId);
-        animationId = null;
-      }
-      if (mediaStream) {
-        mediaStream.getTracks().forEach(track => track.stop());
-        mediaStream = null;
-      }
-      analyser = null;
-    },
+    stop,
   };
 }
 

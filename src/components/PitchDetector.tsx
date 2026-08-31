@@ -45,11 +45,18 @@ export function PitchDetector({
 
   const detectorRef = useRef<ReturnType<typeof createPitchDetector> | null>(null);
   const matchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /**
+   * How many consecutive on-pitch frames we've seen. The detector fires from a
+   * requestAnimationFrame loop, not from React, so this has to be readable
+   * synchronously; matchCount mirrors it purely so the progress bar renders.
+   */
+  const matchCountRef = useRef(0);
 
   const pickRandomTarget = useCallback(() => {
     const notes = ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5'];
     const newTarget = notes[Math.floor(Math.random() * notes.length)];
     setCurrentTarget(newTarget);
+    matchCountRef.current = 0;
     setMatchCount(0);
   }, []);
 
@@ -69,22 +76,26 @@ export function PitchDetector({
         const sungNoteName = note.replace(/[0-9]/g, '');
 
         if (targetNoteName === sungNoteName && Math.abs(cents) < 20) {
-          setMatchCount(prev => {
-            const newCount = prev + 1;
-            // Need to hold the note for about 0.5 seconds (5 callbacks at ~100ms)
-            if (newCount >= 5) {
-              setScore(s => s + 10);
-              setStreak(s => s + 1);
-              setTotalHits(h => h + 1);
-              setAttempts(a => a + 1);
-              setHistory(h => [...h.slice(-9), `${currentTarget}`]);
-              onCorrect?.();
-              pickRandomTarget();
-              return 0;
-            }
-            return newCount;
-          });
-        } else {
+          // These used to run inside a setMatchCount updater. Updaters must be
+          // pure — React invokes them more than once (StrictMode does so
+          // deliberately in development), which double-counted the score, the
+          // hit count and the attempt count for a single held note.
+          const newCount = matchCountRef.current + 1;
+          matchCountRef.current = newCount;
+          setMatchCount(newCount);
+
+          // Need to hold the note for about 0.5 seconds (5 callbacks at ~100ms)
+          if (newCount >= 5) {
+            setScore(s => s + 10);
+            setStreak(s => s + 1);
+            setTotalHits(h => h + 1);
+            setAttempts(a => a + 1);
+            setHistory(h => [...h.slice(-9), `${currentTarget}`]);
+            onCorrect?.();
+            pickRandomTarget();
+          }
+        } else if (matchCountRef.current !== 0) {
+          matchCountRef.current = 0;
           setMatchCount(0);
         }
       }
@@ -92,17 +103,32 @@ export function PitchDetector({
     [mode, currentTarget, onCorrect, pickRandomTarget]
   );
 
+  /**
+   * The detector is built once, at the moment the mic starts, and holds
+   * whatever callback it was handed for its whole lifetime. Passing
+   * handlePitchUpdate directly therefore froze `currentTarget` at its value
+   * when Start was pressed: the detector went on grading every subsequent note
+   * against the very first target, so in Sing-Back only the first note ever
+   * scored. Route through a ref so the detector always calls the current one.
+   */
+  const handlePitchUpdateRef = useRef(handlePitchUpdate);
+  useEffect(() => {
+    handlePitchUpdateRef.current = handlePitchUpdate;
+  }, [handlePitchUpdate]);
+
   const startListening = useCallback(async () => {
     try {
       setError(null);
-      detectorRef.current = createPitchDetector(handlePitchUpdate);
+      detectorRef.current = createPitchDetector((frequency, note, cents) =>
+        handlePitchUpdateRef.current(frequency, note, cents)
+      );
       await detectorRef.current.start();
       setIsListening(true);
     } catch (err) {
       setError('Could not access microphone. Please allow microphone access.');
       console.error(err);
     }
-  }, [handlePitchUpdate]);
+  }, []);
 
   const stopListening = useCallback(() => {
     if (detectorRef.current) {
