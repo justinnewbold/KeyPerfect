@@ -102,6 +102,15 @@ export interface AppSettings {
   playMode: 'chord' | 'arpeggio';
   theme: 'dark' | 'light' | 'purple' | 'blue';
   notifications: boolean;
+  /**
+   * Whether the player has opted into Web MIDI. Off until they ask for it:
+   * requesting MIDI access pops a browser permission prompt, and firing that
+   * at someone who is halfway through a chord round only teaches them to
+   * press Block. See useMIDIInput's autoConnect option.
+   */
+  midiEnabled: boolean;
+  /** Whether Home's "All modes" list is left open. Collapsed for new players. */
+  homeModesExpanded?: boolean;
   lastPreset?: PracticePresetId;
 }
 
@@ -183,6 +192,7 @@ function getDefaultSettings(): AppSettings {
     playMode: 'chord',
     theme: 'dark',
     notifications: true,
+    midiEnabled: false,
   };
 }
 

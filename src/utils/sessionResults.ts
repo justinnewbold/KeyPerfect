@@ -42,6 +42,14 @@ export interface SessionInput {
   /** Survival's lives, which also mark a session as finished when exhausted. */
   lives?: number;
   isPracticeMode?: boolean;
+  /**
+   * Set when the player chose to stop before the session was over. The
+   * session is still awarded — they answered those questions — but the
+   * result is reported as an early exit rather than a completed run, so the
+   * results screen doesn't congratulate someone on "completing" a level they
+   * walked out of after five questions.
+   */
+  endedEarly?: boolean;
 }
 
 /**
@@ -70,6 +78,7 @@ export function awardSession(input: SessionInput): GameResult {
     level,
     lives = 0,
     isPracticeMode = false,
+    endedEarly = false,
   } = input;
 
   const correctAnswers = answers.filter(a => a.isCorrect).length;
@@ -136,7 +145,7 @@ export function awardSession(input: SessionInput): GameResult {
   // 'X / N levels' counters, and level_complete_* achievements all
   // stayed dark even after finishing a level cleanly.
   const finishedFullSession =
-    answers.length >= totalQuestions || (mode === 'survival' && lives <= 0);
+    !endedEarly && (answers.length >= totalQuestions || (mode === 'survival' && lives <= 0));
 
   if (!isPractice) {
     // A mode without a level (Reverse Mode, Melodic Dictation) has no level
@@ -217,6 +226,24 @@ export function awardSession(input: SessionInput): GameResult {
   // didn't change, but keep the call to keep the result shape stable).
   const newAchievements = isPractice ? [] : checkAndUnlockAchievements(updatedStats);
 
+  /*
+   * Pay out the achievements that just unlocked.
+   *
+   * Every achievement carries an xpReward and the results screen prints it
+   * next to the badge ("First Steps +50"), but nothing ever added it to the
+   * player's total — so an unlock that advertised +150 XP moved the counter
+   * by zero, and the number on the screen was simply untrue. Award it here,
+   * once, in the same place the unlock is recorded.
+   */
+  const achievementXP = newAchievements.reduce((sum, a) => sum + (a.xpReward || 0), 0);
+  if (achievementXP > 0) {
+    const withAchievements = updatedStats.totalXP + achievementXP;
+    updateUserStats({
+      totalXP: withAchievements,
+      currentLevel: getLevelFromXP(withAchievements),
+    });
+  }
+
   // Build category breakdown for session summary
   const categoryMap = new Map<string, { correct: number; total: number }>();
   for (const answer of answers) {
@@ -239,10 +266,22 @@ export function awardSession(input: SessionInput): GameResult {
     // optional and those screens don't pass onNextLevel.
     level: level ?? 0,
     score,
+    /*
+     * A timed mode is over when its clock is, however many questions that
+     * turned out to be — Speed Run's 50 is a ceiling, not a target — so
+     * running it to the buzzer counts as completed. Everything else has to
+     * reach its last question (or, in Survival, lose its last life).
+     */
+    completed:
+      finishedFullSession ||
+      (!endedEarly && (mode === 'speedrun' || mode === 'timeattack')),
+    /** How long the session was meant to run, for "5 of 20" reporting. */
+    plannedQuestions: totalQuestions,
     totalQuestions: answers.length,
     correctAnswers,
     accuracy,
     totalXPEarned,
+    achievementXP,
     longestStreak,
     totalTime,
     averageResponseTime: totalTime / Math.max(1, answers.length),

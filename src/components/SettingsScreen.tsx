@@ -16,6 +16,7 @@ import {
   Type,
   Sparkles,
   ChevronLeft,
+  Usb,
 } from 'lucide-react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
@@ -34,6 +35,7 @@ import {
 } from '../utils/storage';
 import { useAudio } from '../hooks/useAudio';
 import { playChord as playChordRaw } from '../utils/audioEngine';
+import { midiManager } from '../utils/midiInput';
 import { useAccessibility, AccessibilitySettings } from '../utils/accessibility';
 
 interface SettingsScreenProps {
@@ -52,6 +54,7 @@ export function SettingsScreen({ onReplayTutorial, onBack }: SettingsScreenProps
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [importStatus, setImportStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [streakFreezeEnabled, setStreakFreezeEnabled] = useState(getStreakFreezeData().autoFreezeEnabled);
+  const [midiState, setMidiState] = useState(() => midiManager.getState());
   const audio = useAudio();
   const a11y = useAccessibility();
 
@@ -111,6 +114,25 @@ export function SettingsScreen({ onReplayTutorial, onBack }: SettingsScreenProps
     setSettings(prev => ({ ...prev, showHints: newValue }));
     updateSettings({ showHints: newValue });
   }, [settings.showHints]);
+
+  /*
+   * Turning this on is what asks the browser for MIDI access — nothing else
+   * in the app does. Requesting it here, inside the tap that enabled it,
+   * means the permission prompt is the answer to something the player just
+   * asked for. Turning it off stops the app reconnecting on future screens.
+   */
+  const handleMIDIToggle = useCallback(async () => {
+    const newValue = !settings.midiEnabled;
+    setSettings(prev => ({ ...prev, midiEnabled: newValue }));
+    updateSettings({ midiEnabled: newValue });
+    if (newValue) {
+      const state = await midiManager.initialize();
+      setMidiState(state);
+    } else {
+      midiManager.disconnect();
+      setMidiState(midiManager.getState());
+    }
+  }, [settings.midiEnabled]);
 
   const handleNotificationsToggle = useCallback(() => {
     const newValue = !settings.notifications;
@@ -372,6 +394,35 @@ export function SettingsScreen({ onReplayTutorial, onBack }: SettingsScreenProps
               <div
                 className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform ${
                   settings.notifications ? 'translate-x-6' : 'translate-x-0.5'
+                }`}
+              />
+            </button>
+          </label>
+
+          <label className="flex items-center justify-between cursor-pointer">
+            <div className="flex items-center gap-3">
+              <Usb className="w-5 h-5 text-purple-400" />
+              <div>
+                <span>MIDI Keyboard</span>
+                <p className="text-xs text-white/60">
+                  {midiState.isConnected
+                    ? `Connected: ${midiState.deviceName}`
+                    : settings.midiEnabled
+                    ? 'No device found — plug one in and toggle again'
+                    : 'Answer questions from an external keyboard'}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleMIDIToggle}
+              aria-label="MIDI Keyboard"
+              className={`w-12 h-6 rounded-full transition-colors ${
+                settings.midiEnabled ? 'bg-purple-500' : 'bg-white/20'
+              }`}
+            >
+              <div
+                className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform ${
+                  settings.midiEnabled ? 'translate-x-6' : 'translate-x-0.5'
                 }`}
               />
             </button>

@@ -24,7 +24,7 @@ const storage = {
   updateGameModeStats: vi.fn(),
   addSessionToHistory: vi.fn(),
   updateWeeklyGoalProgress: vi.fn(),
-  checkAndUnlockAchievements: vi.fn((): { id: string }[] => []),
+  checkAndUnlockAchievements: vi.fn((): { id: string; xpReward?: number }[] => []),
   getLevelProgress: vi.fn((): { levelId: number; questionsCompleted: number; bestScore: number; timesCompleted: number }[] => []),
   updateLevelProgress: vi.fn(),
   getMusicKeysProgress: vi.fn((): { levelId: number; questionsCompleted: number; bestScore: number; timesCompleted: number }[] => []),
@@ -238,5 +238,92 @@ describe('awardSession', () => {
   it('reports newly unlocked achievements by id', () => {
     storage.checkAndUnlockAchievements.mockReturnValue([{ id: 'first_win' }, { id: 'streak_5' }]);
     expect(session().newAchievements).toEqual(['first_win', 'streak_5']);
+  });
+
+  describe('achievement XP', () => {
+    it('banks the XP an unlocked achievement advertises', () => {
+      // The results screen prints "First Steps +50" beside each new badge,
+      // but nothing ever added that to the player's total — so the number on
+      // screen was decoration and the balance never moved by it.
+      storage.checkAndUnlockAchievements.mockReturnValue([
+        { id: 'first_correct', xpReward: 50 },
+        { id: 'night_owl', xpReward: 100 },
+      ]);
+
+      const result = session();
+
+      expect(result.achievementXP).toBe(150);
+      // 100 baseline + 40 from answers, then the 150 of bonus on top.
+      expect(storage.updateUserStats).toHaveBeenLastCalledWith(
+        expect.objectContaining({ totalXP: 290 })
+      );
+    });
+
+    it('leaves the total alone when nothing unlocked', () => {
+      storage.checkAndUnlockAchievements.mockReturnValue([]);
+
+      const result = session();
+
+      expect(result.achievementXP).toBe(0);
+      expect(storage.updateUserStats).toHaveBeenCalledTimes(1);
+    });
+
+    it('awards no achievement XP in practice mode', () => {
+      storage.checkAndUnlockAchievements.mockReturnValue([{ id: 'first_correct', xpReward: 50 }]);
+
+      const result = session({ isPracticeMode: true });
+
+      expect(result.achievementXP).toBe(0);
+      expect(storage.updateUserStats).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('sessions ended early', () => {
+    it('marks an abandoned session incomplete and keeps its planned length', () => {
+      const result = session({ totalQuestions: 20, endedEarly: true });
+
+      expect(result.completed).toBe(false);
+      expect(result.plannedQuestions).toBe(20);
+      expect(result.totalQuestions).toBe(3);
+    });
+
+    it('does not count an abandoned session as a level completion', () => {
+      // timesCompleted drives the level-complete tick and the
+      // level_complete_* achievements; walking out after three of twenty
+      // questions is not completing the level.
+      session({ answers: [answer(true)], totalQuestions: 1, endedEarly: true });
+
+      expect(storage.updateLevelProgress).toHaveBeenCalledWith(
+        1,
+        expect.objectContaining({ timesCompleted: 0 })
+      );
+    });
+
+    it('still marks a session played to the end as complete', () => {
+      const result = session({ totalQuestions: 3 });
+
+      expect(result.completed).toBe(true);
+      expect(result.plannedQuestions).toBe(3);
+    });
+
+    it('counts a timed mode run to the buzzer as complete', () => {
+      // Speed Run's 50 questions is a ceiling on what the clock could allow,
+      // not a target, so answering three before time ran out is a finished
+      // run rather than an abandoned one.
+      const result = session({ mode: 'speedrun', totalQuestions: 50, level: undefined });
+
+      expect(result.completed).toBe(true);
+    });
+
+    it('still marks a timed mode abandoned by the player as incomplete', () => {
+      const result = session({
+        mode: 'speedrun',
+        totalQuestions: 50,
+        level: undefined,
+        endedEarly: true,
+      });
+
+      expect(result.completed).toBe(false);
+    });
   });
 });

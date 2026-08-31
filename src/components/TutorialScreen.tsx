@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { ChevronRight, ChevronLeft, Play, Music, Target, Award, Headphones } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Play, Volume2, Music, Target, Award, Headphones } from 'lucide-react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { Progress } from './ui/Progress';
 import { useAudio } from '../hooks/useAudio';
 import { PianoKeyboard } from './PianoKeyboard';
 import { getChordNotes } from '../utils/gameHelpers';
+import { getAudioContext } from '../utils/audioEngine';
 import { updateSettings } from '../utils/storage';
 
 interface TutorialScreenProps {
@@ -73,7 +74,21 @@ export function TutorialScreen({ onComplete, onSkip }: TutorialScreenProps) {
     }
   };
 
-  const playDemoChord = () => {
+  /*
+   * The one chance to prove sound works before a session starts, so this tap
+   * has to do exactly one thing: play a chord.
+   *
+   * It was reported advancing the tutorial instead, which this pins shut from
+   * both directions rather than guessing at one: `type="button"` (an untyped
+   * <button> defaults to submit), and a click that neither bubbles out of the
+   * card nor runs a default action. The audio context is also nudged awake
+   * inside the gesture, since browsers only allow that from a real user
+   * interaction — a silent button is the other way this step fails.
+   */
+  const playDemoChord = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    getAudioContext();
     const notes = getChordNotes(60, 'major'); // C major chord
     audio.playChord(notes);
     setHasPlayedSound(true);
@@ -117,18 +132,34 @@ export function TutorialScreen({ onComplete, onSkip }: TutorialScreenProps) {
           {step.id === 'listen' && (
             <div className="mb-6">
               <button
+                type="button"
                 onClick={playDemoChord}
+                aria-label="Play a C major chord"
                 className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto transition-all ${
-                  hasPlayedSound
+                  audio.isPlaying
+                    ? 'bg-purple-500 animate-pulse'
+                    : hasPlayedSound
                     ? 'bg-green-500/20 border-2 border-green-500'
                     : 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600'
                 }`}
               >
-                <Play className="w-6 h-6 ml-1" />
+                {audio.isPlaying ? (
+                  <Volume2 className="w-6 h-6 animate-pulse" />
+                ) : (
+                  <Play className="w-6 h-6 ml-1" />
+                )}
               </button>
               <p className="text-sm text-white/50 mt-2">
                 {hasPlayedSound ? 'That was a C Major chord!' : 'Tap to play a chord'}
               </p>
+              {/* Someone whose device is muted or whose browser blocked audio
+                  needs to find that out here, not five questions into a
+                  session where every answer is a guess. */}
+              {hasPlayedSound && (
+                <p className="text-xs text-white/40 mt-1">
+                  Heard nothing? Check your volume, then tap again before you start.
+                </p>
+              )}
             </div>
           )}
 

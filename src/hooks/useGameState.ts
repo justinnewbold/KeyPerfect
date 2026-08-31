@@ -30,7 +30,7 @@ interface UseGameStateReturn {
   startWithPreset: (preset: PracticePreset) => void;
   submitAnswer: (answer: string) => AnswerRecord;
   nextQuestion: () => void;
-  endGame: () => GameResult;
+  endGame: (options?: { endedEarly?: boolean }) => GameResult;
   replayAudio: () => void;
   isPlaying: boolean;
   setIsPlaying: (playing: boolean) => void;
@@ -349,7 +349,7 @@ export function useGameState(): UseGameStateReturn {
     });
   }, []);
 
-  const endGame = useCallback((): GameResult => {
+  const endGame = useCallback((options: { endedEarly?: boolean } = {}): GameResult => {
     if (!gameState) {
       throw new Error('No active game');
     }
@@ -369,6 +369,7 @@ export function useGameState(): UseGameStateReturn {
       level: gameState.level,
       lives: gameState.lives,
       isPracticeMode: gameState.isPracticeMode,
+      endedEarly: options.endedEarly,
     });
 
     setGameState(null);

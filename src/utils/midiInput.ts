@@ -44,6 +44,13 @@ class MIDIManager {
   }
 
   async initialize(): Promise<MIDIInputState> {
+    // Re-checked here rather than trusted from construction time: the
+    // singleton is built when the module first loads, which in a test (and in
+    // a browser that gains the API behind a flag) is before navigator is in
+    // its final shape.
+    this.state.isSupported =
+      typeof navigator !== 'undefined' && 'requestMIDIAccess' in navigator;
+
     if (!this.state.isSupported) {
       this.state.error = 'Web MIDI API is not supported in this browser';
       return this.state;
@@ -183,7 +190,27 @@ export const midiManager = new MIDIManager();
 // React hook for MIDI input
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-export function useMIDIInput(callbacks?: MIDICallbacks) {
+export interface UseMIDIInputOptions {
+  /**
+   * Whether to ask the browser for MIDI access on mount.
+   *
+   * Off by default, and deliberately so. `navigator.requestMIDIAccess()` is
+   * what makes Chrome show "…wants to access your MIDI devices / connect to
+   * other apps and services", and connecting it to a mount meant the prompt
+   * landed unbidden in the middle of an ordinary chord round, before the
+   * player had touched anything MIDI-shaped. Most people press Block, and a
+   * blocked permission is sticky — so the feature was being destroyed for
+   * everyone who had never asked for it.
+   *
+   * Callers pass true only once the user has opted in (see AppSettings
+   * .midiEnabled), and can always call `refresh()` from a user gesture to
+   * request access on demand.
+   */
+  autoConnect?: boolean;
+}
+
+export function useMIDIInput(callbacks?: MIDICallbacks, options: UseMIDIInputOptions = {}) {
+  const { autoConnect = false } = options;
   const [state, setState] = useState<MIDIInputState>(midiManager.getState());
 
   // The registered handlers below are stable for the life of the hook and read
@@ -205,9 +232,15 @@ export function useMIDIInput(callbacks?: MIDICallbacks) {
     };
     midiManager.setCallbacks(registered);
 
-    midiManager.initialize().then(newState => {
-      setState(newState);
-    });
+    // Registering handlers is free; asking for the permission is not. Only
+    // initialize when the caller has said the user opted in — otherwise this
+    // hook stays passive and picks up a device the moment something calls
+    // refresh().
+    if (autoConnect) {
+      midiManager.initialize().then(newState => {
+        setState(newState);
+      });
+    }
 
     return () => {
       // midiManager is a singleton and the device connection is deliberately
@@ -219,7 +252,7 @@ export function useMIDIInput(callbacks?: MIDICallbacks) {
       // being asked.
       midiManager.clearCallbacks(registered);
     };
-  }, []);
+  }, [autoConnect]);
 
   const refresh = useCallback(async () => {
     const newState = await midiManager.initialize();
