@@ -32,6 +32,17 @@ class MIDIManager {
     this.callbacks = callbacks;
   }
 
+  /**
+   * Stop delivering to `callbacks`, if they are still the registered set.
+   * The identity check matters: an unmounting component must not silence a
+   * different component that has since registered its own handlers.
+   */
+  clearCallbacks(callbacks: MIDICallbacks) {
+    if (this.callbacks === callbacks) {
+      this.callbacks = {};
+    }
+  }
+
   async initialize(): Promise<MIDIInputState> {
     if (!this.state.isSupported) {
       this.state.error = 'Web MIDI API is not supported in this browser';
@@ -170,43 +181,45 @@ class MIDIManager {
 export const midiManager = new MIDIManager();
 
 // React hook for MIDI input
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 export function useMIDIInput(callbacks?: MIDICallbacks) {
   const [state, setState] = useState<MIDIInputState>(midiManager.getState());
 
+  // The registered handlers below are stable for the life of the hook and read
+  // through this, so they always run the caller's latest closures. Previously
+  // a second effect re-registered on [onNoteOn, onNoteOff] identity, which
+  // meant a caller that memoised its handlers kept whatever state they had
+  // closed over at the time.
+  const callbacksRef = useRef(callbacks);
+  callbacksRef.current = callbacks;
+
   useEffect(() => {
-    // Set callbacks
-    midiManager.setCallbacks({
-      ...callbacks,
+    const registered: MIDICallbacks = {
+      onNoteOn: (note, velocity) => callbacksRef.current?.onNoteOn?.(note, velocity),
+      onNoteOff: note => callbacksRef.current?.onNoteOff?.(note),
       onConnectionChange: (connected, deviceName) => {
         setState(prev => ({ ...prev, isConnected: connected, deviceName }));
-        callbacks?.onConnectionChange?.(connected, deviceName);
+        callbacksRef.current?.onConnectionChange?.(connected, deviceName);
       },
-    });
+    };
+    midiManager.setCallbacks(registered);
 
-    // Initialize MIDI
     midiManager.initialize().then(newState => {
       setState(newState);
     });
 
     return () => {
-      // Don't cleanup on unmount - keep MIDI connection alive
+      // midiManager is a singleton and the device connection is deliberately
+      // kept alive across screens. Keeping the *handlers* registered is a
+      // different thing, and was not deliberate: GameScreen's stayed live
+      // after unmount, so a key pressed from Home or the results screen ran
+      // submitAnswer against a finished game — silently writing chord and
+      // interval stats and SRS review entries for a question nobody was
+      // being asked.
+      midiManager.clearCallbacks(registered);
     };
   }, []);
-
-  // Update callbacks when they change
-  useEffect(() => {
-    if (callbacks) {
-      midiManager.setCallbacks({
-        ...callbacks,
-        onConnectionChange: (connected, deviceName) => {
-          setState(prev => ({ ...prev, isConnected: connected, deviceName }));
-          callbacks?.onConnectionChange?.(connected, deviceName);
-        },
-      });
-    }
-  }, [callbacks?.onNoteOn, callbacks?.onNoteOff]);
 
   const refresh = useCallback(async () => {
     const newState = await midiManager.initialize();
