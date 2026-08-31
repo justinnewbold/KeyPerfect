@@ -758,7 +758,13 @@ export function playAchievementSound() {
 }
 
 // Metronome click
-export function playMetronomeClick(accent: boolean = false) {
+/**
+ * @param when AudioContext time to sound the click at. Defaults to now.
+ *   The metronome passes a scheduled time: firing every click at
+ *   `ctx.currentTime` quantised them to its 25ms scheduler tick, which is an
+ *   audible flam on the one tool where timing is the whole product.
+ */
+export function playMetronomeClick(accent: boolean = false, when?: number) {
   const ctx = getAudioContext();
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
@@ -768,12 +774,13 @@ export function playMetronomeClick(accent: boolean = false) {
   osc.connect(gain);
   gain.connect(compressor!);
 
-  const now = ctx.currentTime;
-  gain.gain.setValueAtTime(accent ? 0.5 : 0.3, now);
-  gain.gain.linearRampToValueAtTime(0, now + 0.05);
+  // A time already in the past would be rejected by the param methods.
+  const at = Math.max(when ?? ctx.currentTime, ctx.currentTime);
+  gain.gain.setValueAtTime(accent ? 0.5 : 0.3, at);
+  gain.gain.linearRampToValueAtTime(0, at + 0.05);
 
-  osc.start(now);
-  osc.stop(now + 0.05);
+  osc.start(at);
+  osc.stop(at + 0.05);
 }
 
 // Tuner frequency detection using autocorrelation
