@@ -319,3 +319,15 @@ export interface GameResult {
   answers: AnswerRecord[];
   categoryBreakdown: { category: string; correct: number; total: number; accuracy: number }[]; // Session summary breakdown
 }
+
+/**
+ * What a self-contained game screen reports when its session ends. Screens
+ * that generate their own questions (Reverse Mode, Melodic Dictation) hand
+ * this to awardSession so they award XP identically to hook-driven modes.
+ */
+export interface SessionSummary {
+  answers: AnswerRecord[];
+  score: number;
+  /** Elapsed session time in seconds. */
+  totalTime: number;
+}

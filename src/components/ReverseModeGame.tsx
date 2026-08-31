@@ -9,9 +9,18 @@ import { useAudio } from '../hooks/useAudio';
 import { triggerHapticFeedback } from '../utils/haptics';
 import { getChordNotes } from '../utils/gameHelpers';
 import { CHORD_TYPES, ChordQuality, NOTE_NAMES, getMidiFromNote, NoteName } from '../types/music';
+import { AnswerRecord, SessionSummary } from '../types/gameModes';
+import { calculateQuestionXP } from '../types/stats';
+import { updateChordStats } from '../utils/storage';
+import { updateReviewItem } from '../utils/spacedRepetition';
 
 interface ReverseModeGameProps {
-  onComplete: (score: number, accuracy: number) => void;
+  /**
+   * Called once when the last question is answered. Carries the full answer
+   * record rather than a score, so the caller can award XP through the same
+   * path every other mode uses (utils/sessionResults.awardSession).
+   */
+  onComplete: (session: SessionSummary) => void;
   onExit: () => void;
 }
 
@@ -20,8 +29,18 @@ interface ReverseQuestion {
   targetNotes: number[];
   chordType: ChordQuality;
   rootNote: NoteName;
-  xpValue: number;
+  /** 0-1, feeds the shared XP formula. */
+  difficulty: number;
 }
+
+// Triads the player is asked to reproduce, with the difficulty each carries
+// into calculateQuestionXP so a diminished chord is worth more than a major.
+const CHORD_DIFFICULTY: Record<string, number> = {
+  major: 0.3,
+  minor: 0.3,
+  diminished: 0.6,
+  augmented: 0.6,
+};
 
 export function ReverseModeGame({ onComplete, onExit }: ReverseModeGameProps) {
   const audio = useAudio();
@@ -32,6 +51,12 @@ export function ReverseModeGame({ onComplete, onExit }: ReverseModeGameProps) {
   const [playedNotes, setPlayedNotes] = useState<number[]>([]);
   const [result, setResult] = useState<'correct' | 'incorrect' | null>(null);
   const [question, setQuestion] = useState<ReverseQuestion | null>(null);
+  // Per-question outcomes, so the session can be awarded like any other mode.
+  const answersRef = useRef<AnswerRecord[]>([]);
+  const sessionStartRef = useRef(Date.now());
+  const questionStartRef = useRef(Date.now());
+  // endGame's endingRef equivalent: this screen owns its own once-only guard.
+  const completedRef = useRef(false);
   const [hasPlayed, setHasPlayed] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const timeoutRef = useRef<number | null>(null);
@@ -49,7 +74,7 @@ export function ReverseModeGame({ onComplete, onExit }: ReverseModeGameProps) {
       targetNotes: notes,
       chordType,
       rootNote,
-      xpValue: 15,
+      difficulty: CHORD_DIFFICULTY[chordType] ?? 0.3,
     };
   }, []);
 
@@ -89,6 +114,9 @@ export function ReverseModeGame({ onComplete, onExit }: ReverseModeGameProps) {
   // Check if played notes match target
   const checkAnswer = useCallback(() => {
     if (!question || playedNotes.length === 0) return;
+    // `result` is state, so a second auto-check firing in the same tick would
+    // otherwise record this question twice.
+    if (answersRef.current.some(a => a.questionId === question.id)) return;
 
     // Normalize notes to pitch classes (0-11) for comparison
     const targetPitchClasses = question.targetNotes.map(n => n % 12).sort((a, b) => a - b);
@@ -101,10 +129,30 @@ export function ReverseModeGame({ onComplete, onExit }: ReverseModeGameProps) {
 
     setResult(isCorrect ? 'correct' : 'incorrect');
 
+    // Same XP formula as every hook-driven mode, so a point earned here is
+    // worth what it is worth anywhere else.
+    const timeToAnswer = Date.now() - questionStartRef.current;
+    const xpEarned = calculateQuestionXP(isCorrect, streak, question.difficulty);
+
+    answersRef.current.push({
+      questionId: question.id,
+      userAnswer: playedPitchClasses.join(','),
+      correctAnswer: targetPitchClasses.join(','),
+      isCorrect,
+      timeToAnswer,
+      xpEarned,
+      questionType: 'chords',
+    });
+
+    // Per-item stats and spaced repetition, which awardSession does not cover
+    // -- this mirrors what useGameState.submitAnswer does per answer.
+    updateChordStats(question.chordType, isCorrect);
+    updateReviewItem('chord', question.chordType, isCorrect, timeToAnswer, streak);
+
     if (isCorrect) {
       audio.playSuccess();
       triggerHapticFeedback('success');
-      setScore(prev => prev + question.xpValue + streak * 2);
+      setScore(prev => prev + xpEarned);
       setStreak(prev => prev + 1);
     } else {
       audio.playError();
@@ -129,8 +177,16 @@ export function ReverseModeGame({ onComplete, onExit }: ReverseModeGameProps) {
   // Handle next question
   const handleNext = useCallback(() => {
     if (currentQuestion >= totalQuestions - 1) {
-      const accuracy = (score / (totalQuestions * 15)) * 100;
-      onComplete(score, accuracy);
+      // Accuracy is no longer derived from score. It used to be
+      // score / (totalQuestions * 15), which streak bonuses pushed past 100%;
+      // awardSession computes it from the answer records instead.
+      if (completedRef.current) return;
+      completedRef.current = true;
+      onComplete({
+        answers: answersRef.current,
+        score,
+        totalTime: (Date.now() - sessionStartRef.current) / 1000,
+      });
       return;
     }
 
@@ -140,6 +196,7 @@ export function ReverseModeGame({ onComplete, onExit }: ReverseModeGameProps) {
     setHasPlayed(false);
     setShowHint(false);
     setQuestion(generateQuestion());
+    questionStartRef.current = Date.now();
   }, [currentQuestion, totalQuestions, score, onComplete, generateQuestion]);
 
   // Reset current attempt

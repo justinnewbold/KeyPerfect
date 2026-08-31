@@ -593,15 +593,11 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
           <h2 className="text-lg font-semibold mb-3">Training Modes</h2>
           <div className="grid grid-cols-2 gap-3">
             {Object.values(GAME_MODES).filter(mode =>
-              // 'reverse' and 'melodic' have dedicated components
-              // (ReverseModeGame, MelodicDictationGame) but those aren't
-              // routed in App.tsx, and gameHelpers.generateQuestion has no
-              // case for them - so the generic GameScreen renders chord
-              // questions under the 'Reverse Mode' / 'Melodic Dictation'
-              // titles. Hide them until their dedicated components are
-              // wired up. 'practice', 'comparison', 'musickeys', 'notes'
-              // are surfaced through other entry points on this screen.
-              !['practice', 'comparison', 'musickeys', 'notes', 'reverse', 'melodic'].includes(mode.id)
+              // 'practice', 'comparison', 'musickeys' and 'notes' are surfaced
+              // through other entry points on this screen. 'reverse' and
+              // 'melodic' route to their own dedicated screens; see
+              // App.tsx handleStartGameMode.
+              !['practice', 'comparison', 'musickeys', 'notes'].includes(mode.id)
             ).map(mode => (
               <Card
                 key={mode.id}

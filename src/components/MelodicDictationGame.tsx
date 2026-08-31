@@ -8,9 +8,16 @@ import { PianoKeyboard } from './PianoKeyboard';
 import { useAudio } from '../hooks/useAudio';
 import { triggerHapticFeedback } from '../utils/haptics';
 import { getNoteName } from '../types/music';
+import { AnswerRecord, SessionSummary } from '../types/gameModes';
+import { calculateQuestionXP } from '../types/stats';
 
 interface MelodicDictationGameProps {
-  onComplete: (score: number, accuracy: number) => void;
+  /**
+   * Called once when the last melody is graded. Carries the full answer
+   * record rather than a score, so the caller can award XP through the same
+   * path every other mode uses (utils/sessionResults.awardSession).
+   */
+  onComplete: (session: SessionSummary) => void;
   onExit: () => void;
 }
 
@@ -18,7 +25,6 @@ interface MelodyQuestion {
   id: string;
   notes: number[];
   difficulty: number;
-  xpValue: number;
 }
 
 // Generate random melodies with musical constraints
@@ -63,6 +69,12 @@ export function MelodicDictationGame({ onComplete, onExit }: MelodicDictationGam
   const [currentNoteIndex, setCurrentNoteIndex] = useState(0);
   const [showCorrectNotes, setShowCorrectNotes] = useState(false);
   const playTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  // Per-question outcomes, so the session can be awarded like any other mode.
+  const answersRef = useRef<AnswerRecord[]>([]);
+  const sessionStartRef = useRef(Date.now());
+  const questionStartRef = useRef(Date.now());
+  // endGame's endingRef equivalent: this screen owns its own once-only guard.
+  const completedRef = useRef(false);
 
   const clearScheduledNotes = useCallback(() => {
     playTimeoutsRef.current.forEach(t => clearTimeout(t));
@@ -78,7 +90,6 @@ export function MelodicDictationGame({ onComplete, onExit }: MelodicDictationGam
       id: `melody-${Date.now()}`,
       notes: generateMelody(length, difficulty),
       difficulty,
-      xpValue: 10 + difficulty * 5,
     };
   }, []);
 
@@ -138,18 +149,43 @@ export function MelodicDictationGame({ onComplete, onExit }: MelodicDictationGam
         }
       }
 
-      const accuracy = correctCount / question.notes.length;
+      const noteAccuracy = correctCount / question.notes.length;
+      // Only a fully correct melody counts as correct. A half-right answer
+      // still earns partial XP below, but must not inflate session accuracy
+      // or extend the streak.
+      const isCorrect = noteAccuracy === 1;
 
-      if (accuracy === 1) {
+      // The shared XP formula, scaled by how much of the melody was right, so
+      // a point here is worth what it is worth in any other mode. difficulty
+      // is 1-4 here but calculateQuestionXP expects 0-1.
+      const timeToAnswer = Date.now() - questionStartRef.current;
+      const fullXP = calculateQuestionXP(true, streak, Math.min(question.difficulty / 4, 1));
+      const xpEarned = isCorrect
+        ? fullXP
+        : noteAccuracy >= 0.5
+        ? Math.floor(fullXP * noteAccuracy)
+        : 0;
+
+      answersRef.current.push({
+        questionId: question.id,
+        userAnswer: userNotes.slice(0, question.notes.length).join(','),
+        correctAnswer: question.notes.join(','),
+        isCorrect,
+        timeToAnswer,
+        xpEarned,
+        questionType: 'melodic',
+      });
+
+      if (isCorrect) {
         setResult('correct');
         audio.playSuccess();
         triggerHapticFeedback('success');
-        setScore(prev => prev + question.xpValue + streak * 3);
+        setScore(prev => prev + xpEarned);
         setStreak(prev => prev + 1);
-      } else if (accuracy >= 0.5) {
+      } else if (noteAccuracy >= 0.5) {
         setResult('partial');
         triggerHapticFeedback('light');
-        setScore(prev => prev + Math.floor(question.xpValue * accuracy));
+        setScore(prev => prev + xpEarned);
         setStreak(0);
       } else {
         setResult('incorrect');
@@ -167,9 +203,16 @@ export function MelodicDictationGame({ onComplete, onExit }: MelodicDictationGam
     clearScheduledNotes();
 
     if (currentQuestion >= totalQuestions - 1) {
-      const maxPossibleScore = totalQuestions * 25; // Approximate max
-      const accuracy = (score / maxPossibleScore) * 100;
-      onComplete(score, Math.min(accuracy, 100));
+      // Accuracy is no longer derived from score against an "approximate max"
+      // that needed clamping to stay under 100%; awardSession computes it
+      // from the answer records instead.
+      if (completedRef.current) return;
+      completedRef.current = true;
+      onComplete({
+        answers: answersRef.current,
+        score,
+        totalTime: (Date.now() - sessionStartRef.current) / 1000,
+      });
       return;
     }
 
@@ -178,6 +221,7 @@ export function MelodicDictationGame({ onComplete, onExit }: MelodicDictationGam
     setUserNotes([]);
     setResult(null);
     setHasPlayed(false);
+    questionStartRef.current = Date.now();
     setShowCorrectNotes(false);
     setCurrentNoteIndex(0);
     setQuestion(generateQuestion(nextIndex));
