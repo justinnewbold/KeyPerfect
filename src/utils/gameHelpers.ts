@@ -5,6 +5,7 @@ import {
   ScaleType,
   IntervalType,
   InversionType,
+  INVERSIONS,
   ProgressionType,
   MusicKeyType,
   CHORD_TYPES,
@@ -317,10 +318,35 @@ function generateInversionQuestion(id: string, level: LevelConfig): GameQuestion
     return generateChordQuestion(id, level);
   }
   const quality = randomElement(validChords);
-  const inversion = randomElement(level.inversions);
+
+  // Third inversion puts the 7th in the bass, so it only exists for 7th
+  // chords (see INVERSIONS in types/music). getChordNotes silently produces
+  // a second inversion when asked for a third on a triad, which made the two
+  // acoustically identical: the user heard a second inversion, answered
+  // "second", and was marked wrong. Offer it only where it is real - as the
+  // answer *and* as a distractor, since an identical-sounding distractor is
+  // just as unfair.
+  const chordSize = CHORD_TYPES[quality].intervals.length;
+  const isPlayable = (i: InversionType) => i !== 'third' || chordSize >= 4;
+
+  const availableInversions = level.inversions.filter(isPlayable);
+  if (availableInversions.length === 0) {
+    return generateChordQuestion(id, level);
+  }
+
+  const inversion = randomElement(availableInversions);
   const notes = getChordNotes(rootMidi, quality, inversion);
 
-  const options = shuffleArray(level.inversions);
+  // Levels 1-2 ship `inversions: ['root']`, which rendered a single button
+  // that was always the answer - 20 questions of free XP. Pad the choices
+  // from the inversions this chord can actually be in, so the question is
+  // answerable *and* decidable.
+  const distractorPool = (Object.keys(INVERSIONS) as InversionType[])
+    .filter(i => i !== inversion && isPlayable(i));
+  const options = shuffleArray([
+    inversion,
+    ...shuffleArray(distractorPool).slice(0, 3),
+  ]);
 
   return {
     id,
@@ -372,6 +398,8 @@ function generateProgressionQuestion(id: string, level: LevelConfig): GameQuesti
       type: progression,
       playbackMode: 'chord',
       duration: 1,
+      // Each chord in turn; `notes` alone is one simultaneous cluster.
+      chordSequence: chordMidis,
     },
     difficulty: level.id,
     xpValue: 20 + level.id * 2,
@@ -719,6 +747,8 @@ function generateGenreQuestion(
         type: progression,
         playbackMode: 'chord',
         duration: 1,
+        // Each chord in turn; `notes` alone is one simultaneous cluster.
+        chordSequence: chordMidis,
       },
       difficulty: 1,
       xpValue: 15 + Math.floor(difficultyModifier * 10),
@@ -747,6 +777,8 @@ function generateMusicKeyQuestion(
   // Generate notes based on playback type
   let notes: number[] = [];
   let actualPlaybackMode: 'scale' | 'chord' | 'arpeggio' = 'scale';
+  // Set for the chord/progression cases so playback can sequence them.
+  let chordSequence: number[][] | undefined;
 
   const effectivePlaybackType = playbackType === 'mixed'
     ? randomElement(['scale', 'chords', 'progression'] as const)
@@ -773,7 +805,8 @@ function generateMusicKeyQuestion(
       // vChord intentionally stays major (harmonic minor V).
     }
 
-    notes = [...iChord, ...ivChord, ...vChord, ...iChord];
+    chordSequence = [iChord, ivChord, vChord, iChord];
+    notes = chordSequence.flat();
     actualPlaybackMode = 'chord';
   } else {
     // Play a simple progression
@@ -783,20 +816,39 @@ function generateMusicKeyQuestion(
       const vChord = getChordNotes(rootMidi + 7, 'major');
       const viChord = getChordNotes(rootMidi + 9, 'minor');
       const ivChord = getChordNotes(rootMidi + 5, 'major');
-      notes = [...iChord, ...vChord, ...viChord, ...ivChord];
+      chordSequence = [iChord, vChord, viChord, ivChord];
+      notes = chordSequence.flat();
     } else {
       // i-VI-III-VII for minor
       const iChord = getChordNotes(rootMidi, 'minor');
       const viChord = getChordNotes(rootMidi + 8, 'major');
       const iiiChord = getChordNotes(rootMidi + 3, 'major');
       const viiChord = getChordNotes(rootMidi + 10, 'major');
-      notes = [...iChord, ...viChord, ...iiiChord, ...viiChord];
+      chordSequence = [iChord, viChord, iiiChord, viiChord];
+      notes = chordSequence.flat();
     }
     actualPlaybackMode = 'chord';
   }
 
-  // Generate options (other keys from available set)
-  const otherKeys = availableKeys.filter(k => k !== selectedKey);
+  // Generate options (other keys from available set).
+  //
+  // Exclude enharmonic twins, not just the answer itself: F# and Gb are both
+  // stored with rootNote 'F#' and the same scaleNotes, so they generate
+  // bit-identical audio. Levels 7-8 list both, so the pair regularly appeared
+  // as each other's distractor and the question became undecidable - the user
+  // picked the one that sounded right and was marked wrong. Comparing the
+  // sounding identity rather than the label covers every such pair.
+  // Dedupe by sounding identity across the whole option set, not just against
+  // the answer: two *distractors* can be twins of each other too (answer C,
+  // options F# and Gb), which is equally undecidable.
+  const soundingId = (k: MusicKeyType) => `${MUSIC_KEYS[k].rootNote}-${MUSIC_KEYS[k].type}`;
+  const seenSounds = new Set<string>([soundingId(selectedKey)]);
+  const otherKeys = availableKeys.filter(k => {
+    const id = soundingId(k);
+    if (seenSounds.has(id)) return false;
+    seenSounds.add(id);
+    return true;
+  });
   const wrongOptions = shuffleArray(otherKeys).slice(0, 3);
   const allOptions = shuffleArray([selectedKey, ...wrongOptions]);
 
@@ -826,6 +878,8 @@ function generateMusicKeyQuestion(
       type: selectedKey,
       playbackMode: actualPlaybackMode,
       duration: effectivePlaybackType === 'scale' ? 0.3 : 1.2,
+      // Undefined for the scale case, where `notes` is already a melody.
+      chordSequence,
     },
     difficulty: levelId,
     xpValue: baseXP + Math.floor(difficultyModifier * 10),
@@ -1215,6 +1269,8 @@ export function generateRealMusicQuestion(
       type: excerpt.name,
       playbackMode: 'chord',
       duration: 1.2,
+      // Each chord in turn; `notes` alone is one simultaneous cluster.
+      chordSequence: chords,
     },
     difficulty: level.id,
     xpValue: 15 + Math.floor(difficultyModifier * 10),

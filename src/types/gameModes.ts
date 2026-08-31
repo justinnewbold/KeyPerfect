@@ -273,6 +273,16 @@ export interface AudioQuestionData {
   rhythmPattern?: number[]; // Beat timings for rhythm mode (in ms)
   contextNotes?: number[]; // Context playback - cadence before the question
   comparisonNotes?: number[]; // Comparison mode - second sound to compare
+  /**
+   * Chords to play one after another, for questions that are a sequence
+   * rather than a single sonority (progressions, cadences, real-music
+   * excerpts). `notes` stays as the flattened array for any consumer that
+   * only needs the pitches, but playback must prefer this: flattening a
+   * four-chord progression into `notes` and handing it to playChord sounds
+   * one twelve-note cluster, which makes every progression identical.
+   * `comparisonNotes` covers the two-chord case only.
+   */
+  chordSequence?: number[][];
   originalKey?: number; // Transposition - original key root MIDI
   targetKey?: number; // Transposition - target key root MIDI
 }
