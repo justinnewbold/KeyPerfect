@@ -143,9 +143,16 @@ function App() {
     prevScreenRef.current = appState.screen;
   }, [appState.screen]);
 
-  // Handle time expiration for timed game modes
+  // Handle time expiration for timed game modes. musicKeysGame and notesGame
+  // render the same GameScreen with the same timer, so checking only for
+  // 'game' meant a timed variant of either would run its clock to zero and
+  // then sit there, the session never ending.
   useEffect(() => {
-    if (timeExpired && gameState && appState.screen === 'game') {
+    const isGameScreen =
+      appState.screen === 'game' ||
+      appState.screen === 'musicKeysGame' ||
+      appState.screen === 'notesGame';
+    if (timeExpired && gameState && isGameScreen) {
       const result = endGame();
       setAppState({ screen: 'result', result });
     }

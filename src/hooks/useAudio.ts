@@ -201,6 +201,16 @@ export function useAudio(): UseAudioReturn {
     stopCurrentSound();
   }, [stopCurrentSound]);
 
+  // Silence whatever this hook started when its owner unmounts. Without this a
+  // chord or scale kept sounding after the user left the screen — a scale's
+  // remaining notes went on arriving one by one over the next screen, and the
+  // isPlaying timeout fired against an unmounted component.
+  const stopOnUnmountRef = useRef(stopCurrentSound);
+  stopOnUnmountRef.current = stopCurrentSound;
+  useEffect(() => {
+    return () => stopOnUnmountRef.current();
+  }, []);
+
   const handleSetVolume = useCallback((newVolume: number) => {
     setVolumeState(newVolume);
     setMasterVolume(newVolume);

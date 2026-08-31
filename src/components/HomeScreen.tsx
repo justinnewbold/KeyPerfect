@@ -26,7 +26,7 @@ import { Card, CardContent } from './ui/Card';
 import { Button } from './ui/Button';
 import { Progress, CircularProgress } from './ui/Progress';
 import { Badge, LevelBadge, XPBadge, StreakBadge } from './ui/Badge';
-import { getUserStats, getDailyStats, getUnlockedAchievements, PRACTICE_PRESETS, PracticePresetId, updateSettings, getSettings, trackInstrumentUsage, getWeeklyGoals, getStreakFreezeData, getMusicKeysProgress, getNotesProgress } from '../utils/storage';
+import { getUserStats, getDailyStats, getUnlockedAchievements, PRACTICE_PRESETS, PracticePresetId, updateSettings, getSettings, trackInstrumentUsage, getWeeklyGoals, getStreakFreezeData, getMusicKeysProgress, getNotesProgress, localDateKey } from '../utils/storage';
 import { MUSIC_KEYS_LEVELS } from '../types/musicKeysLevels';
 import { NOTES_LEVELS } from '../types/notesLevels';
 import { getLevelFromXP, getXPProgress, ACHIEVEMENTS } from '../types/stats';
@@ -34,6 +34,7 @@ import { LEVELS, getUnlockedLevels } from '../types/levels';
 import { GAME_MODES, CHALLENGE_MODES, GameModeType, ChallengeModeType } from '../types/gameModes';
 import { InstrumentType, INSTRUMENTS, getInstrumentList } from '../types/instruments';
 import { useAudio } from '../hooks/useAudio';
+import { playChord as playChordRaw } from '../utils/audioEngine';
 
 interface HomeScreenProps {
   onStartLevel: () => void;
@@ -87,11 +88,17 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
     updateSettings({ instrument });
     trackInstrumentUsage(instrument);
     audio.setInstrument(instrument);
-    audio.playChord([60, 64, 67]);
+    // audio.playChord reads useAudio's instrument state from closure, which is
+    // still the old value at this synchronous moment — pick Flute and the
+    // preview played piano. SettingsScreen already works around this the same
+    // way; HomeScreen was missed.
+    playChordRaw([60, 64, 67], instrument, 1.5);
     setShowInstrumentDropdown(false);
   }, [audio]);
 
-  const today = new Date().toISOString().split('T')[0];
+  // lastPlayedDate is a local calendar day; comparing it against a UTC one
+  // made the Daily Challenge re-offer itself in the afternoon west of UTC.
+  const today = localDateKey();
   const canPlayDaily = dailyStats.lastPlayedDate !== today || !dailyStats.completed;
 
   const accuracy = userStats.totalQuestionsAnswered > 0

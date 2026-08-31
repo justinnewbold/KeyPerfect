@@ -302,6 +302,13 @@ export interface GameState {
   startTime: number; // When current question started (for response time)
   isComplete: boolean;
   isPracticeMode: boolean; // When true, no XP or stats are tracked
+  /**
+   * Whether timeRemaining counts down. Set from whether the session started
+   * with a time limit rather than from a list of modes: Quick Practice ships
+   * timeLimit: 120 and was not on that list, so its badge sat frozen at 120s
+   * and the limit was never enforced.
+   */
+  isTimed: boolean;
 }
 
 export interface AnswerRecord {
