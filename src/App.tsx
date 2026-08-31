@@ -176,6 +176,10 @@ function App() {
     }
   }, []);
 
+  const handleOpenSettings = useCallback(() => {
+    handleNavigate('settings');
+  }, [handleNavigate]);
+
   // Start level-based training
   const handleStartLevel = useCallback(() => {
     setAppState({ screen: 'levelSelect' });
@@ -434,9 +438,10 @@ function App() {
 
   // Render current screen
   const renderScreen = () => {
-    switch (appState.screen) {
-      case 'home':
-        return (
+    // Built once and reused by both 'home' and the default fallback. They used
+    // to be two hand-maintained copies of the same 16-prop call, and the copy
+    // had already drifted — it was missing onOpenFocusAreas.
+    const homeScreen = (
           <HomeScreen
             onStartLevel={handleStartLevel}
             onStartChallenge={handleStartChallenge}
@@ -454,8 +459,13 @@ function App() {
             onOpenFocusAreas={handleOpenFocusAreas}
             onOpenCircleOfFifths={handleOpenCircleOfFifths}
             onOpenFreePlay={handleOpenFreePlay}
+            onOpenSettings={handleOpenSettings}
           />
-        );
+    );
+
+    switch (appState.screen) {
+      case 'home':
+        return homeScreen;
 
       case 'levelSelect':
         return (
@@ -565,6 +575,7 @@ function App() {
       case 'settings':
         return (
           <SettingsScreen
+            onBack={handleGoHome}
             onReplayTutorial={() => {
               localStorage.removeItem('keyperfect_tutorial_completed');
               setAppState({ screen: 'tutorial' });
@@ -600,13 +611,16 @@ function App() {
       case 'tutorial':
         return (
           <TutorialScreen
+            // handleGoHome rather than setAppState: the tutorial can now be
+            // replayed from Settings, and going home via setAppState alone
+            // left currentNavScreen on 'settings', so no tab was highlighted.
             onComplete={() => {
               localStorage.setItem('keyperfect_tutorial_completed', 'true');
-              setAppState({ screen: 'home' });
+              handleGoHome();
             }}
             onSkip={() => {
               localStorage.setItem('keyperfect_tutorial_completed', 'true');
-              setAppState({ screen: 'home' });
+              handleGoHome();
             }}
           />
         );
@@ -648,7 +662,7 @@ function App() {
         );
 
       default:
-        return <HomeScreen onStartLevel={handleStartLevel} onStartChallenge={handleStartChallenge} onStartGameMode={handleStartGameMode} onStartPreset={handleStartPreset} onStartMusicKeys={handleStartMusicKeys} onStartNotes={handleStartNotes} onOpenGuidedLessons={handleOpenGuidedLessons} onOpenComparison={handleOpenComparison} onOpenWeeklyGoals={handleOpenWeeklyGoals} onOpenMastery={handleOpenMastery} onOpenSocialChallenges={handleOpenSocialChallenges} onOpenIntervalSinging={handleOpenIntervalSinging} onOpenProgressionDictation={handleOpenProgressionDictation} onOpenCircleOfFifths={handleOpenCircleOfFifths} onOpenFreePlay={handleOpenFreePlay} />;
+        return homeScreen;
     }
   };
 

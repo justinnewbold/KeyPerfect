@@ -1,19 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-// The shared test setup stubs localStorage with bare vi.fn()s, which cannot
-// hold state. These tests need real read-back, so install a working one
-// before importing the module under test.
-const store = new Map<string, string>();
-Object.defineProperty(window, 'localStorage', {
-  configurable: true,
-  value: {
-    getItem: (k: string) => (store.has(k) ? store.get(k)! : null),
-    setItem: (k: string, v: string) => void store.set(k, String(v)),
-    removeItem: (k: string) => void store.delete(k),
-    clear: () => store.clear(),
-  },
-});
-
 const {
   checkAndUpdateDailyStreak,
   updateDailyStats,
@@ -32,7 +18,6 @@ function seed(lastPlayedDate: string, currentStreak: number) {
 
 describe('daily streak', () => {
   beforeEach(() => {
-    store.clear();
     vi.restoreAllMocks();
   });
 
@@ -101,15 +86,11 @@ describe('daily streak', () => {
 });
 
 describe('weekly goals', () => {
-  beforeEach(() => {
-    store.clear();
-  });
-
   /** Force the stored goals into a previous week so the next read rolls over. */
   function ageToLastWeek() {
-    const raw = JSON.parse(store.get('keyperfect_weekly_goals')!);
+    const raw = JSON.parse(localStorage.getItem('keyperfect_weekly_goals')!);
     raw.weekStart = '1999-01-04';
-    store.set('keyperfect_weekly_goals', JSON.stringify(raw));
+    localStorage.setItem('keyperfect_weekly_goals', JSON.stringify(raw));
   }
 
   it('averages accuracy across the sessions in the current week', () => {
