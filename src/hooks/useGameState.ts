@@ -57,9 +57,7 @@ export function useGameState(): UseGameStateReturn {
       return;
     }
 
-    const isTimedMode = gameState.mode === 'speedrun' || gameState.mode === 'timeattack';
-
-    if (!isTimedMode || gameState.isComplete) {
+    if (!gameState.isTimed || gameState.isComplete) {
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
@@ -88,7 +86,7 @@ export function useGameState(): UseGameStateReturn {
         timerRef.current = null;
       }
     };
-  }, [gameState?.mode, gameState?.isComplete]);
+  }, [gameState?.isTimed, gameState?.isComplete]);
 
   // Reset timeExpired when starting a new game
   const startGame = useCallback((
@@ -138,6 +136,11 @@ export function useGameState(): UseGameStateReturn {
         totalQuestions = 50; // Max possible in time limit
       } else if (mode === 'survival') {
         totalQuestions = 100; // Unlimited, but cap at 100
+      } else if (mode === 'timeattack') {
+        // Was missing from this block, so Time Attack hard-stopped at the
+        // level's own question count — which made its +3s-per-correct premise
+        // pointless, since the run ended long before the clock did.
+        totalQuestions = 100;
       }
 
       // Convert challenge modes to game modes for question generation
@@ -146,6 +149,7 @@ export function useGameState(): UseGameStateReturn {
       questions = generateGameQuestions(level, gameMode, totalQuestions);
     }
 
+    const timeLimit = mode === 'speedrun' ? 60 : mode === 'timeattack' ? 30 : 0;
     const now = Date.now();
     setGameState({
       mode,
@@ -155,7 +159,8 @@ export function useGameState(): UseGameStateReturn {
       score: 0,
       streak: 0,
       lives: mode === 'survival' ? 3 : 0,
-      timeRemaining: mode === 'speedrun' ? 60 : mode === 'timeattack' ? 30 : 0,
+      timeRemaining: timeLimit,
+      isTimed: timeLimit > 0,
       questions,
       answers: [],
       gameStartTime: now,
@@ -205,6 +210,7 @@ export function useGameState(): UseGameStateReturn {
       streak: 0,
       lives: 0,
       timeRemaining: preset.timeLimit || 0,
+      isTimed: (preset.timeLimit || 0) > 0,
       questions: allQuestions,
       answers: [],
       gameStartTime: now,
