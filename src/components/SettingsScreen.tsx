@@ -15,6 +15,7 @@ import {
   Eye,
   Type,
   Sparkles,
+  ChevronLeft,
 } from 'lucide-react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
@@ -37,9 +38,16 @@ import { useAccessibility, AccessibilitySettings } from '../utils/accessibility'
 
 interface SettingsScreenProps {
   onReplayTutorial?: () => void;
+  /**
+   * Settings is reached from the Home header rather than a nav tab, so no tab
+   * is highlighted while it is open — without a back control the only way out
+   * is to pick a different tab, which is a poor answer to "I just wanted to
+   * change the volume".
+   */
+  onBack?: () => void;
 }
 
-export function SettingsScreen({ onReplayTutorial }: SettingsScreenProps = {}) {
+export function SettingsScreen({ onReplayTutorial, onBack }: SettingsScreenProps = {}) {
   const [settings, setSettings] = useState<AppSettings>(getSettings());
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [importStatus, setImportStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -163,7 +171,18 @@ export function SettingsScreen({ onReplayTutorial }: SettingsScreenProps = {}) {
 
   return (
     <div className="screen-root px-4 pt-6">
-      <h1 className="text-2xl font-bold mb-6">Settings</h1>
+      <div className="flex items-center gap-3 mb-6">
+        {onBack && (
+          <button
+            onClick={onBack}
+            aria-label="Back"
+            className="tap-target p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+        )}
+        <h1 className="text-2xl font-bold">Settings</h1>
+      </div>
 
       {/* Volume Control */}
       <Card className="p-4 mb-4">

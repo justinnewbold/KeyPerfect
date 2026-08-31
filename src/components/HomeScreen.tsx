@@ -20,6 +20,7 @@ import {
   RotateCcw,
   RefreshCw,
   Piano,
+  Settings,
 } from 'lucide-react';
 import { Card, CardContent } from './ui/Card';
 import { Button } from './ui/Button';
@@ -51,9 +52,10 @@ interface HomeScreenProps {
   onOpenFocusAreas?: () => void;
   onOpenCircleOfFifths?: () => void;
   onOpenFreePlay?: () => void;
+  onOpenSettings?: () => void;
 }
 
-export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, onStartPreset, onStartMusicKeys, onStartNotes, onOpenGuidedLessons, onOpenComparison, onOpenWeeklyGoals, onOpenMastery, onOpenSocialChallenges, onOpenIntervalSinging, onOpenProgressionDictation, onOpenFocusAreas, onOpenCircleOfFifths, onOpenFreePlay }: HomeScreenProps) {
+export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, onStartPreset, onStartMusicKeys, onStartNotes, onOpenGuidedLessons, onOpenComparison, onOpenWeeklyGoals, onOpenMastery, onOpenSocialChallenges, onOpenIntervalSinging, onOpenProgressionDictation, onOpenFocusAreas, onOpenCircleOfFifths, onOpenFreePlay, onOpenSettings }: HomeScreenProps) {
   const userStats = getUserStats();
   const dailyStats = getDailyStats();
   const unlockedAchievements = getUnlockedAchievements();
@@ -126,6 +128,18 @@ export function HomeScreen({ onStartLevel, onStartChallenge, onStartGameMode, on
             )}
             {dailyStats.currentStreak > 0 && (
               <StreakBadge streak={dailyStats.currentStreak} />
+            )}
+            {/* The bottom nav has five tabs and no room for a sixth at 320px,
+                so Settings hangs off the Home header instead. Without this it
+                was unreachable: nothing in the app navigated to it. */}
+            {onOpenSettings && (
+              <button
+                onClick={onOpenSettings}
+                aria-label="Settings"
+                className="tap-target p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
+              >
+                <Settings className="w-5 h-5" />
+              </button>
             )}
           </div>
         </div>

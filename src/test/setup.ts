@@ -2,14 +2,25 @@ import { vi, beforeEach } from 'vitest';
 import '@testing-library/jest-dom';
 import { installPointerEventShims } from './pointerEvents';
 
-// Mock localStorage
-const localStorageMock = {
-  getItem: vi.fn(),
-  setItem: vi.fn(),
-  removeItem: vi.fn(),
-  clear: vi.fn(),
-};
-Object.defineProperty(window, 'localStorage', { value: localStorageMock });
+// localStorage. This was four bare vi.fn()s, which cannot hold state: a write
+// vanished and the next read returned null, so any test touching a screen that
+// persists something saw a store that never remembered anything. Back it with
+// a Map so reads and writes agree, and empty it between tests so files stay
+// independent. It starts empty, which is what the old always-null stub gave.
+const localStorageStore = new Map<string, string>();
+Object.defineProperty(window, 'localStorage', {
+  configurable: true,
+  value: {
+    getItem: (key: string) => (localStorageStore.has(key) ? localStorageStore.get(key)! : null),
+    setItem: (key: string, value: string) => void localStorageStore.set(key, String(value)),
+    removeItem: (key: string) => void localStorageStore.delete(key),
+    clear: () => localStorageStore.clear(),
+    key: (index: number) => Array.from(localStorageStore.keys())[index] ?? null,
+    get length() {
+      return localStorageStore.size;
+    },
+  },
+});
 
 // Mock AudioContext
 class MockAudioContext {
@@ -118,5 +129,5 @@ if (typeof globalThis.ResizeObserver === 'undefined') {
 // Reset mocks before each test
 beforeEach(() => {
   vi.clearAllMocks();
-  localStorageMock.getItem.mockReturnValue(null);
+  localStorageStore.clear();
 });
