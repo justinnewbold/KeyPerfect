@@ -24,13 +24,16 @@ import {
   ChordProgressionDictation,
   CircleOfFifthsGame,
   PracticeScreen,
+  ReverseModeGame,
+  MelodicDictationGame,
 } from './components';
 import type { Screen } from './components';
 import { LevelConfig, LEVELS } from './types/levels';
 import { MusicKeysLevelConfig, MUSIC_KEYS_LEVELS } from './types/musicKeysLevels';
 import { NotesLevelConfig, NOTES_LEVELS } from './types/notesLevels';
-import { GameModeType, ChallengeModeType, GameResult, AnswerRecord } from './types/gameModes';
+import { GameModeType, ChallengeModeType, GameResult, AnswerRecord, SessionSummary } from './types/gameModes';
 import { useGameState } from './hooks/useGameState';
+import { awardSession } from './utils/sessionResults';
 import { useSwipe } from './hooks/useSwipe';
 import { usePrefersReducedMotion } from './hooks/usePrefersReducedMotion';
 import {
@@ -71,7 +74,9 @@ type AppState =
   | { screen: 'intervalSinging' }
   | { screen: 'progressionDictation' }
   | { screen: 'circleOfFifths' }
-  | { screen: 'practice' };
+  | { screen: 'practice' }
+  | { screen: 'reverseMode' }
+  | { screen: 'melodicDictation' };
 
 /** Left-to-right order of the bottom nav; must match Navigation's navItems. */
 const NAV_ORDER: Screen[] = ['home', 'play', 'learn', 'tools', 'stats'];
@@ -219,10 +224,38 @@ function App() {
 
   // Start specific game mode
   const handleStartGameMode = useCallback((mode: GameModeType) => {
+    // These two have dedicated screens that generate their own questions,
+    // rather than routing through useGameState and the generic GameScreen.
+    if (mode === 'reverse') {
+      setAppState({ screen: 'reverseMode' });
+      return;
+    }
+    if (mode === 'melodic') {
+      setAppState({ screen: 'melodicDictation' });
+      return;
+    }
     const isPracticeMode = mode === 'practice';
     startGame(mode, 1);
     setAppState({ screen: 'game', level: LEVELS[0], isPracticeMode });
   }, [startGame]);
+
+  // Award a self-contained screen's session through the same path every other
+  // mode uses, then hand it to the shared result screen.
+  const handleStandaloneComplete = useCallback(
+    (mode: GameModeType, totalQuestions: number) => (session: SessionSummary) => {
+      const result = awardSession({
+        mode,
+        answers: session.answers,
+        score: session.score,
+        totalTime: session.totalTime,
+        totalQuestions,
+        // No level: these modes are not part of the level ladder, and writing
+        // progress for one would inflate its completion percentage.
+      });
+      setAppState({ screen: 'result', result });
+    },
+    [],
+  );
 
   // Start with a practice preset
   const handleStartPreset = useCallback((presetId: PracticePresetId) => {
@@ -584,13 +617,29 @@ function App() {
       case 'practice':
         return <PracticeScreen onBack={handleGoHome} />;
 
+      case 'reverseMode':
+        return (
+          <ReverseModeGame
+            onComplete={handleStandaloneComplete('reverse', 10)}
+            onExit={handleGoHome}
+          />
+        );
+
+      case 'melodicDictation':
+        return (
+          <MelodicDictationGame
+            onComplete={handleStandaloneComplete('melodic', 8)}
+            onExit={handleGoHome}
+          />
+        );
+
       default:
         return <HomeScreen onStartLevel={handleStartLevel} onStartChallenge={handleStartChallenge} onStartGameMode={handleStartGameMode} onStartPreset={handleStartPreset} onStartMusicKeys={handleStartMusicKeys} onStartNotes={handleStartNotes} onOpenGuidedLessons={handleOpenGuidedLessons} onOpenComparison={handleOpenComparison} onOpenWeeklyGoals={handleOpenWeeklyGoals} onOpenMastery={handleOpenMastery} onOpenSocialChallenges={handleOpenSocialChallenges} onOpenIntervalSinging={handleOpenIntervalSinging} onOpenProgressionDictation={handleOpenProgressionDictation} onOpenCircleOfFifths={handleOpenCircleOfFifths} onOpenFreePlay={handleOpenFreePlay} />;
     }
   };
 
   // Don't show navigation during game, tutorial, or feature screens
-  const hideNavScreens = ['game', 'musicKeysGame', 'notesGame', 'result', 'guidedLessons', 'comparison', 'weeklyGoals', 'mastery', 'socialChallenges', 'tutorial', 'mistakeReview', 'intervalSinging', 'progressionDictation', 'circleOfFifths'];
+  const hideNavScreens = ['game', 'musicKeysGame', 'notesGame', 'result', 'guidedLessons', 'comparison', 'weeklyGoals', 'mastery', 'socialChallenges', 'tutorial', 'mistakeReview', 'intervalSinging', 'progressionDictation', 'circleOfFifths', 'reverseMode', 'melodicDictation'];
   const showNavigation = !hideNavScreens.includes(appState.screen);
 
   // Which bottom-nav tab the current screen belongs to. Screens absent from
