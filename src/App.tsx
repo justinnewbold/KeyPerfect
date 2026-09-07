@@ -36,6 +36,7 @@ import { useGameState } from './hooks/useGameState';
 import { awardSession } from './utils/sessionResults';
 import { useSwipe } from './hooks/useSwipe';
 import { usePrefersReducedMotion } from './hooks/usePrefersReducedMotion';
+import { screenFromHash, hashForScreen, isRoutable } from './utils/routing';
 import {
   getDailyStats,
   updateDailyStats,
@@ -104,10 +105,20 @@ function App() {
     return stats.totalQuestionsAnswered === 0 && !localStorage.getItem('keyperfect_tutorial_completed');
   };
 
-  const [appState, setAppState] = useState<AppState>(
-    isFirstUser() ? { screen: 'tutorial' } : { screen: 'home' }
+  /*
+   * The URL is the source of truth for the landing screen, so a refresh or a
+   * shared link reopens what the player was on. A first-time visitor with no
+   * hash still gets the tutorial; an unrecognised hash degrades to Home rather
+   * than to a blank screen.
+   */
+  const [appState, setAppState] = useState<AppState>(() => {
+    const fromUrl = screenFromHash(window.location.hash);
+    if (fromUrl) return { screen: fromUrl } as AppState;
+    return isFirstUser() ? { screen: 'tutorial' } : { screen: 'home' };
+  });
+  const [currentNavScreen, setCurrentNavScreen] = useState<Screen>(
+    () => SCREEN_TO_NAV_TAB[screenFromHash(window.location.hash) ?? 'home'] ?? 'home',
   );
-  const [currentNavScreen, setCurrentNavScreen] = useState<Screen>('home');
   const [swipeTransition, setSwipeTransition] = useState<
     { tab: Screen; dir: 'forward' | 'back' } | null
   >(null);
@@ -731,6 +742,75 @@ function App() {
   const { ref: leftEdgeRef } = useSwipe<HTMLDivElement>(edgeSwipeOptions);
   const { ref: rightEdgeRef } = useSwipe<HTMLDivElement>(edgeSwipeOptions);
 
+  /*
+   * Keep the URL in step with the screen.
+   *
+   * `pushState` rather than assigning `location.hash`, so the browser's Back
+   * button — and Android's hardware back — walk back through the app instead
+   * of leaving it. Screens carrying required runtime state (a round in
+   * progress, a result) are not addressable; they show their parent's URL, so
+   * a refresh lands one tap from where the player was rather than on a screen
+   * with nothing to render.
+   */
+  useEffect(() => {
+    const nextHash = hashForScreen(appState.screen);
+    if (!nextHash || window.location.hash === nextHash) return;
+
+    // A non-addressable screen must not add a history entry of its own:
+    // otherwise Back from a finished round steps through the round itself.
+    if (isRoutable(appState.screen)) {
+      window.history.pushState(null, '', nextHash);
+    } else {
+      window.history.replaceState(null, '', nextHash);
+    }
+  }, [appState.screen]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const screen = screenFromHash(window.location.hash) ?? 'home';
+      setAppState(current => (current.screen === screen ? current : ({ screen } as AppState)));
+      setCurrentNavScreen(SCREEN_TO_NAV_TAB[screen] ?? 'home');
+    };
+    window.addEventListener('popstate', handlePopState);
+    window.addEventListener('hashchange', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('hashchange', handlePopState);
+    };
+  }, []);
+
+  /*
+   * Entrance animations are held off until the first screen has actually been
+   * painted.
+   *
+   * Every screen is wrapped in `.screen-enter`, whose keyframes start at
+   * `opacity: 0`. Chromium does not count a paint of a fully transparent
+   * element as contentful, and the opacity ramp runs on the compositor rather
+   * than the main thread, so no later frame re-triggers the check: the app
+   * reported `first-paint` and never `first-contentful-paint` at all.
+   * Lighthouse scored it NO_FCP, and real users' FCP and LCP went unreported.
+   *
+   * The flag has to be flipped from a committed effect rather than a timer in
+   * main.tsx: React schedules the initial commit, so a bare
+   * `requestAnimationFrame` at module scope can fire before the first screen
+   * has rendered and lift the gate too early.
+   */
+  useEffect(() => {
+    // Two frames, not one: a single rAF callback still runs *before* the
+    // current frame is painted, so the gate would be lifted before the paint
+    // it exists to protect. The second fires once that frame is on screen.
+    let inner = 0;
+    const outer = requestAnimationFrame(() => {
+      inner = requestAnimationFrame(() => {
+        document.documentElement.classList.add('kp-first-paint');
+      });
+    });
+    return () => {
+      cancelAnimationFrame(outer);
+      cancelAnimationFrame(inner);
+    };
+  }, []);
+
   const direction =
     swipeTransition && swipeTransition.tab === swipeTab ? swipeTransition.dir : null;
   const transitionClass = reducedMotion
@@ -751,9 +831,12 @@ function App() {
        */
       style={{ '--kp-nav-h': showNavigation ? `${NAV_HEIGHT_PX}px` : '0px' } as React.CSSProperties}
     >
-      <div key={appState.screen} className={transitionClass}>
+      {/* The one `main` landmark on the page: screen-reader users can jump
+          straight to the screen's content instead of tabbing past the header
+          and nav on every navigation. */}
+      <main id="main-content" key={appState.screen} className={transitionClass}>
         {renderScreen()}
-      </div>
+      </main>
       {swipeEnabled && (
         <>
           <div ref={leftEdgeRef} className="edge-swipe-zone left-0" aria-hidden="true" />

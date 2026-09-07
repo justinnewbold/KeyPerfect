@@ -246,6 +246,31 @@
   }
 }
 
+/*
+ * Entrance animations must not gate first-contentful-paint.
+ *
+ * `.screen-enter` wraps every screen, including the app's very first render,
+ * and its keyframes start at `opacity: 0`. Chromium does not count a paint of
+ * a fully transparent element as contentful, and the opacity ramp itself runs
+ * on the compositor rather than the main thread — so no later frame re-triggers
+ * the check either. The result was that the app reported `first-paint` and
+ * never `first-contentful-paint` at all: Lighthouse scored it NO_FCP, and real
+ * users' Core Web Vitals had no FCP or LCP to report.
+ *
+ * `kp-first-paint` is set on <html> one frame after mount (see main.tsx), so
+ * the first screen appears immediately and every transition after it animates
+ * as before.
+ */
+html:not(.kp-first-paint) .screen-enter,
+html:not(.kp-first-paint) .screen-enter-left,
+html:not(.kp-first-paint) .screen-enter-right,
+html:not(.kp-first-paint) .animate-in,
+html:not(.kp-first-paint) .animate-slide-up,
+html:not(.kp-first-paint) .animate-scale-in,
+html:not(.kp-first-paint) .animate-bounce-in {
+  animation: none !important;
+}
+
 /* Animations */
 @layer utilities {
   .animate-in {

@@ -1,7 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
-import { ErrorBoundary, UpdateBanner } from './components'
+import { ErrorBoundary, StatusBanner, UpdateBanner } from './components'
 import { registerServiceWorker } from './utils/serviceWorker'
 import './styles/globals.css'
 
@@ -21,6 +21,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ErrorBoundary>
       <App />
+      <StatusBanner />
       <UpdateBanner />
     </ErrorBoundary>
   </React.StrictMode>,
