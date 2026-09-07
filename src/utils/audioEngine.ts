@@ -15,13 +15,61 @@ const soundEffects: Map<string, AudioBuffer> = new Map();
 // Active sounds for cleanup
 const activeSounds: Set<{ stop: () => void }> = new Set();
 
+/*
+ * Browsers refuse to start an AudioContext until the page has had a user
+ * gesture, and an ear-training app whose only output is sound looks simply
+ * broken when that happens. `resume()` was called and its promise dropped, so
+ * nothing in the UI could tell the difference between "silent" and "blocked".
+ * These events let a banner offer the one thing that fixes it: a tap.
+ */
+export const AUDIO_BLOCKED_EVENT = 'keyperfect:audio-blocked';
+export const AUDIO_RESUMED_EVENT = 'keyperfect:audio-resumed';
+
+let audioBlocked = false;
+
+function setAudioBlocked(blocked: boolean) {
+  if (blocked === audioBlocked) return;
+  audioBlocked = blocked;
+  window.dispatchEvent(new CustomEvent(blocked ? AUDIO_BLOCKED_EVENT : AUDIO_RESUMED_EVENT));
+}
+
+export function isAudioBlocked(): boolean {
+  return audioBlocked;
+}
+
+/** Resume from inside a user gesture. Resolves true when sound is available. */
+export async function unblockAudio(): Promise<boolean> {
+  const ctx = getAudioContext();
+  try {
+    await ctx.resume();
+  } catch {
+    /* fall through to the state check below */
+  }
+  const running = ctx.state === 'running';
+  setAudioBlocked(!running);
+  return running;
+}
+
 export function getAudioContext(): AudioContext {
   if (!audioContext) {
     audioContext = new AudioContext();
     setupMasterChain();
   }
   if (audioContext.state === 'suspended') {
-    audioContext.resume();
+    const ctx = audioContext;
+    void ctx
+      .resume()
+      .then(() => setAudioBlocked(ctx.state !== 'running'))
+      .catch(() => setAudioBlocked(true));
+    /*
+     * Don't flag it immediately: `resume()` normally succeeds within a frame
+     * when there has been a gesture, and flashing a "sound is blocked" banner
+     * on every first note would be worse than the problem. Only a context
+     * still suspended after a beat is genuinely blocked.
+     */
+    setTimeout(() => setAudioBlocked(ctx.state === 'suspended'), 400);
+  } else {
+    setAudioBlocked(false);
   }
   return audioContext;
 }

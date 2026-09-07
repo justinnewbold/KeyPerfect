@@ -1,0 +1,5 @@
+# KeyPerfect is a public, anonymous web app — everything is crawlable.
+User-agent: *
+Allow: /
+
+Sitemap: https://music.newbold.cloud/sitemap.xml

@@ -232,4 +232,11 @@ if (typeof globalThis.ResizeObserver === 'undefined') {
 beforeEach(() => {
   vi.clearAllMocks();
   localStorageStore.clear();
+  /*
+   * The app reads `location.hash` to decide which screen to open on, and jsdom
+   * keeps one `window` for the whole file — so without this a test that
+   * navigated to Settings would leave `#/settings` behind and the next render
+   * would start there instead of on Home.
+   */
+  window.history.replaceState(null, '', window.location.pathname);
 });
