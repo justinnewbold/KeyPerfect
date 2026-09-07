@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { X } from 'lucide-react';
 import { useSwipe } from '../../hooks/useSwipe';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 interface ModalProps {
   isOpen: boolean;
@@ -46,6 +47,10 @@ export function Modal({
     return () => document.removeEventListener('keydown', handleEscape);
   }, [isOpen, onClose]);
 
+  // Keeps Tab inside the dialog and returns focus to the opener on close;
+  // without it Tab walks onto controls hidden behind the backdrop.
+  const panelRef = useFocusTrap<HTMLDivElement>({ enabled: isOpen });
+
   if (!isOpen) return null;
 
   const sizes = {
@@ -56,19 +61,21 @@ export function Modal({
   };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 safe-area-top safe-area-bottom animate-in"
-    >
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 safe-area-top safe-area-bottom animate-in">
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onClose}
+        aria-hidden="true"
       />
       <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        tabIndex={-1}
         // Capped and scrollable so a tall body cannot overflow the viewport
         // with no way to reach the rest of it.
-        className={`relative flex flex-col max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-2rem)] bg-gradient-to-br from-gray-900/95 to-gray-800/95 backdrop-blur-lg border border-white/20 rounded-2xl shadow-2xl w-full ${sizes[size]} animate-scale-in`}
+        className={`relative flex flex-col max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-2rem)] bg-gradient-to-br from-gray-900/95 to-gray-800/95 backdrop-blur-lg border border-white/20 rounded-2xl shadow-2xl w-full focus:outline-none ${sizes[size]} animate-scale-in`}
       >
         <div ref={dragHandleRef} className="touch-none shrink-0">
           {/* Grab handle: the affordance for swipe-down-to-dismiss on touch. */}
@@ -78,7 +85,9 @@ export function Modal({
               {title && <h2 className="text-xl font-semibold">{title}</h2>}
               {showClose && (
                 <button
+                  type="button"
                   onClick={onClose}
+                  aria-label={title ? `Close ${title}` : 'Close dialog'}
                   className="tap-target rounded-lg hover:bg-white/10 transition-colors"
                 >
                   <X className="w-5 h-5" />

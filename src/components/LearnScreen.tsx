@@ -335,6 +335,7 @@ function IntervalsSection() {
 
 function CircleOfFifthsSection() {
   const audio = useAudio();
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
   const circleNotes = [
     { major: 'C', minor: 'Am', position: 0 },
@@ -351,6 +352,14 @@ function CircleOfFifthsSection() {
     { major: 'F', minor: 'Dm', position: 11 },
   ];
 
+  const selected = circleNotes.find(n => n.major === selectedKey) ?? null;
+
+  const playKey = (note: typeof circleNotes[number]) => {
+    setSelectedKey(note.major);
+    const rootMidi = 60 + (note.position * 7) % 12;
+    audio.playChord([rootMidi, rootMidi + 4, rootMidi + 7]);
+  };
+
   return (
     <div className="space-y-4 animate-in">
       <Card className="p-4">
@@ -364,23 +373,53 @@ function CircleOfFifthsSection() {
       {/* Visual Circle */}
       <Card className="p-6">
         <div className="relative w-64 h-64 mx-auto">
+          {/*
+            The caption sits behind the wheel and takes no pointer events. It
+            used to be an `absolute inset-0` sibling painted after the note
+            buttons, which made it the topmost element across the whole 256px
+            box -- so every click aimed at a note landed on the caption instead.
+          */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center"
+          >
+            <div className="text-center">
+              {selected ? (
+                <>
+                  <div className="text-lg font-bold">{selected.major.split('/')[0]}</div>
+                  <div className="text-xs text-white/60">rel. minor {selected.minor.split('/')[0]}</div>
+                </>
+              ) : (
+                <>
+                  <div className="text-sm text-white/60">Circle of</div>
+                  <div className="text-lg font-bold">Fifths</div>
+                </>
+              )}
+            </div>
+          </div>
+
           {circleNotes.map((note, i) => {
             const angle = (i * 30 - 90) * (Math.PI / 180);
             const x = 50 + 40 * Math.cos(angle);
             const y = 50 + 40 * Math.sin(angle);
+            const isSelected = selectedKey === note.major;
 
             return (
               <button
                 key={note.major}
-                onClick={() => {
-                  // Play major chord
-                  const noteIndex = ['C', 'G', 'D', 'A', 'E', 'B', 'F#/Gb', 'Db', 'Ab', 'Eb', 'Bb', 'F'].indexOf(note.major);
-                  const rootMidi = 60 + (noteIndex * 7) % 12;
-                  audio.playChord([rootMidi, rootMidi + 4, rootMidi + 7]);
-                }}
-                className="absolute w-12 h-12 rounded-full bg-gradient-to-br from-purple-500/30 to-pink-500/30
-                           flex items-center justify-center text-sm font-semibold hover:from-purple-500/50 hover:to-pink-500/50
-                           transition-all transform hover:scale-110"
+                type="button"
+                aria-label={`Play ${note.major.split('/')[0]} major chord`}
+                aria-pressed={isSelected}
+                title={`${note.major} major — relative minor ${note.minor}`}
+                onClick={() => playKey(note)}
+                className={`absolute z-10 w-12 h-12 rounded-full bg-gradient-to-br
+                           flex items-center justify-center text-sm font-semibold
+                           transition-all transform hover:scale-110
+                           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f0c29] ${
+                             isSelected
+                               ? 'from-purple-500 to-pink-500 ring-2 ring-white'
+                               : 'from-purple-500/30 to-pink-500/30 hover:from-purple-500/50 hover:to-pink-500/50'
+                           }`}
                 style={{
                   left: `calc(${x}% - 24px)`,
                   top: `calc(${y}% - 24px)`,
@@ -390,15 +429,14 @@ function CircleOfFifthsSection() {
               </button>
             );
           })}
-
-          {/* Center */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-center">
-              <div className="text-sm text-white/60">Circle of</div>
-              <div className="text-lg font-bold">Fifths</div>
-            </div>
-          </div>
         </div>
+
+        {/* Live region so the selection is announced, not only coloured. */}
+        <p role="status" aria-live="polite" className="mt-4 text-center text-sm text-white/60 min-h-[1.25rem]">
+          {selected
+            ? `${selected.major} major — relative minor ${selected.minor}`
+            : 'Select a key to hear its major chord'}
+        </p>
       </Card>
 
       {/* Key List */}

@@ -3,6 +3,7 @@ import { Mic, MicOff, Volume2, Target, Award } from 'lucide-react';
 import { Card, Button, Badge } from './ui';
 import { createPitchDetector, playNote, getAudioContext } from '../utils/audioEngine';
 import { NOTE_NAMES, getMidiFromNote, NoteName, Octave } from '../types/music';
+import { describeMicError, MicErrorCopy } from '../utils/micErrors';
 
 function parseNoteString(noteStr: string): { name: NoteName; octave: Octave } | null {
   const match = noteStr.match(/^([A-G]#?)(-?\d+)$/);
@@ -34,7 +35,7 @@ export function PitchDetector({
     note: string;
     cents: number;
   } | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<MicErrorCopy | null>(null);
   const [score, setScore] = useState(0);
   const [streak, setStreak] = useState(0);
   const [currentTarget, setCurrentTarget] = useState(targetNote || 'C4');
@@ -125,8 +126,10 @@ export function PitchDetector({
       await detectorRef.current.start();
       setIsListening(true);
     } catch (err) {
-      setError('Could not access microphone. Please allow microphone access.');
+      // Name the actual failure and put the way out next to it: a blocked
+      // permission, a missing device and a busy device need different answers.
       console.error(err);
+      setError(describeMicError(err));
     }
   }, []);
 
@@ -200,8 +203,20 @@ export function PitchDetector({
 
         {/* Error message */}
         {error && (
-          <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 text-red-200">
-            {error}
+          <div
+            role="alert"
+            className="bg-amber-500/10 border border-amber-500/40 rounded-lg p-4 space-y-2"
+          >
+            <p className="font-semibold text-amber-300">{error.title}</p>
+            <p className="text-sm text-white/70">{error.detail}</p>
+            <div className="flex flex-wrap gap-2 pt-1">
+              <Button size="sm" variant="secondary" onClick={startListening}>
+                Try again
+              </Button>
+              <Button size="sm" variant="secondary" onClick={() => setError(null)}>
+                Dismiss
+              </Button>
+            </div>
           </div>
         )}
 

@@ -3,6 +3,7 @@ import { X, Plus, Play, Save, Trash2, Music, Settings2 } from 'lucide-react';
 import { ChordQuality, ScaleType, CHORD_TYPES, SCALE_TYPES } from '../types/music';
 import { useSwipe } from '../hooks/useSwipe';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import { Card, Button, Badge } from './ui';
 
 export interface CustomPracticeSet {
@@ -145,10 +146,17 @@ export function CustomPracticeBuilder({
     thresholds: { distance: 60 },
   });
 
+  const panelRef = useFocusTrap<HTMLDivElement>({ onEscape: onClose });
+
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 safe-area-top safe-area-bottom">
       <Card
-        className="w-full max-w-4xl max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-2rem)] overflow-hidden flex flex-col"
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="custom-practice-title"
+        tabIndex={-1}
+        className="w-full max-w-4xl max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-2rem)] overflow-hidden flex flex-col focus:outline-none"
       >
         <div ref={dragHandleRef} className="touch-none shrink-0">
           {/* Grab handle: the affordance for swipe-down-to-dismiss on touch. */}
@@ -157,9 +165,9 @@ export function CustomPracticeBuilder({
           <div className="flex items-center justify-between p-4 border-b border-white/10">
             <div className="flex items-center gap-3">
               <Settings2 className="w-6 h-6 text-purple-400" />
-              <h2 className="text-xl font-bold">Custom Practice Builder</h2>
+              <h2 id="custom-practice-title" className="text-xl font-bold">Custom Practice Builder</h2>
             </div>
-            <button onClick={onClose} className="tap-target rounded-lg hover:bg-white/10 transition-colors">
+            <button type="button" onClick={onClose} aria-label="Close Custom Practice Builder" className="tap-target rounded-lg hover:bg-white/10 transition-colors">
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -192,8 +200,9 @@ export function CustomPracticeBuilder({
               {/* Name & Description */}
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <label className="block text-sm font-medium mb-2">Practice Set Name</label>
+                  <label htmlFor="cp-name" className="block text-sm font-medium mb-2">Practice Set Name</label>
                   <input
+                    id="cp-name"
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
@@ -202,8 +211,9 @@ export function CustomPracticeBuilder({
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2">Description (optional)</label>
+                  <label htmlFor="cp-description" className="block text-sm font-medium mb-2">Description (optional)</label>
                   <input
+                    id="cp-description"
                     type="text"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
@@ -216,14 +226,18 @@ export function CustomPracticeBuilder({
               {/* Settings */}
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <label className="block text-sm font-medium mb-2">Questions: {questionCount}</label>
+                  <label htmlFor="cp-question-count" className="block text-sm font-medium mb-2">
+                    Questions: {questionCount}
+                  </label>
                   <input
+                    id="cp-question-count"
                     type="range"
                     min={5}
                     max={50}
                     step={5}
                     value={questionCount}
                     onChange={(e) => setQuestionCount(Number(e.target.value))}
+                    aria-valuetext={`${questionCount} questions`}
                     className="range-slider"
                   />
                 </div>
@@ -233,10 +247,13 @@ export function CustomPracticeBuilder({
                     {(['easy', 'medium', 'hard'] as const).map(d => (
                       <button
                         key={d}
+                        type="button"
+                        aria-label={`Difficulty: ${d}`}
+                        aria-pressed={difficulty === d}
                         onClick={() => setDifficulty(d)}
                         className={`flex-1 py-2 px-3 rounded-lg font-medium transition-colors ${
                           difficulty === d
-                            ? 'bg-purple-500 text-white'
+                            ? 'bg-purple-700 text-white'
                             : 'bg-white/5 text-white/60 hover:bg-white/10'
                         }`}
                       >
@@ -256,51 +273,61 @@ export function CustomPracticeBuilder({
                 <div className="space-y-2">
                   {Object.entries(CHORD_CATEGORIES).map(([category, chords]) => {
                     const selectedCount = chords.filter(c => selectedChords.includes(c)).length;
+                    const allSelected = selectedCount === chords.length;
                     const isExpanded = expandedCategory === `chord-${category}`;
                     const toggle = () =>
                       setExpandedCategory(isExpanded ? null : `chord-${category}`);
 
                     return (
                       <div key={category} className="bg-white/5 rounded-lg overflow-hidden">
-                        {/* Header is a div, not a button, so the Select All
-                            button below isn't nested inside another button. */}
-                        <div
-                          role="button"
-                          tabIndex={0}
-                          onClick={toggle}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault();
-                              toggle();
-                            }
-                          }}
-                          className="w-full flex items-center justify-between p-3 hover:bg-white/5 cursor-pointer"
-                        >
-                          <span className="font-medium">{category}</span>
-                          <div className="flex items-center gap-2">
+                        {/*
+                          The disclosure control and Select All are siblings,
+                          not nested. When Select All lived inside a role=button
+                          header, the header's accessible name absorbed the word
+                          "Select All" and the header's hit area extended under
+                          it, so a press aimed at Select All could expand the
+                          category instead of selecting anything.
+                        */}
+                        <div className="w-full flex items-center justify-between gap-2 p-3">
+                          <button
+                            type="button"
+                            onClick={toggle}
+                            aria-expanded={isExpanded}
+                            aria-controls={`chord-panel-${category}`}
+                            aria-label={`${category} chords, ${selectedCount} of ${chords.length} selected`}
+                            className="flex-1 min-w-0 flex items-center gap-2 text-left rounded hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400"
+                          >
+                            <span className="font-medium">{category}</span>
+                          </button>
+                          <div className="flex items-center gap-2 shrink-0">
                             <Badge variant={selectedCount > 0 ? 'purple' : 'default'}>
-                              {selectedCount}/{chords.length}
+                              <span data-testid={`chord-count-${category}`}>
+                                {selectedCount}/{chords.length}
+                              </span>
                             </Badge>
                             <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                selectCategory(category, 'chord');
-                              }}
-                              className="text-xs px-2 py-1 bg-purple-500/20 hover:bg-purple-500/30 rounded text-purple-300"
+                              type="button"
+                              onClick={() => selectCategory(category, 'chord')}
+                              aria-label={`${allSelected ? 'Deselect' : 'Select'} all ${category} chords`}
+                              className="text-xs px-2 py-1 min-h-[32px] bg-purple-500/20 hover:bg-purple-500/30 rounded text-purple-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400"
                             >
-                              {selectedCount === chords.length ? 'Deselect All' : 'Select All'}
+                              {allSelected ? 'Deselect All' : 'Select All'}
                             </button>
                           </div>
                         </div>
                         {isExpanded && (
-                          <div className="p-3 pt-0 flex flex-wrap gap-2">
+                          <div id={`chord-panel-${category}`} className="p-3 pt-0 flex flex-wrap gap-2">
                             {chords.map(chord => (
                               <button
                                 key={chord}
+                                type="button"
+                                aria-pressed={selectedChords.includes(chord)}
                                 onClick={() => toggleChord(chord)}
-                                className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
+                                className={`px-3 py-1.5 rounded-full text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 ${
                                   selectedChords.includes(chord)
-                                    ? 'bg-purple-500 text-white'
+                                    // purple-700, not purple-500: white on
+                                    // #a855f7 is about 3:1, under the 4.5:1 floor.
+                                    ? 'bg-purple-700 text-white'
                                     : 'bg-white/10 text-white/70 hover:bg-white/20'
                                 }`}
                               >
@@ -324,49 +351,51 @@ export function CustomPracticeBuilder({
                 <div className="space-y-2">
                   {Object.entries(SCALE_CATEGORIES).map(([category, scales]) => {
                     const selectedCount = scales.filter(s => selectedScales.includes(s)).length;
+                    const allSelected = selectedCount === scales.length;
                     const isExpanded = expandedCategory === `scale-${category}`;
                     const toggle = () =>
                       setExpandedCategory(isExpanded ? null : `scale-${category}`);
 
                     return (
                       <div key={category} className="bg-white/5 rounded-lg overflow-hidden">
-                        <div
-                          role="button"
-                          tabIndex={0}
-                          onClick={toggle}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault();
-                              toggle();
-                            }
-                          }}
-                          className="w-full flex items-center justify-between p-3 hover:bg-white/5 cursor-pointer"
-                        >
-                          <span className="font-medium">{category}</span>
-                          <div className="flex items-center gap-2">
+                        <div className="w-full flex items-center justify-between gap-2 p-3">
+                          <button
+                            type="button"
+                            onClick={toggle}
+                            aria-expanded={isExpanded}
+                            aria-controls={`scale-panel-${category}`}
+                            aria-label={`${category} scales, ${selectedCount} of ${scales.length} selected`}
+                            className="flex-1 min-w-0 flex items-center gap-2 text-left rounded hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                          >
+                            <span className="font-medium">{category}</span>
+                          </button>
+                          <div className="flex items-center gap-2 shrink-0">
                             <Badge variant={selectedCount > 0 ? 'info' : 'default'}>
-                              {selectedCount}/{scales.length}
+                              <span data-testid={`scale-count-${category}`}>
+                                {selectedCount}/{scales.length}
+                              </span>
                             </Badge>
                             <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                selectCategory(category, 'scale');
-                              }}
-                              className="text-xs px-2 py-1 bg-blue-500/20 hover:bg-blue-500/30 rounded text-blue-300"
+                              type="button"
+                              onClick={() => selectCategory(category, 'scale')}
+                              aria-label={`${allSelected ? 'Deselect' : 'Select'} all ${category} scales`}
+                              className="text-xs px-2 py-1 min-h-[32px] bg-blue-500/20 hover:bg-blue-500/30 rounded text-blue-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                             >
-                              {selectedCount === scales.length ? 'Deselect All' : 'Select All'}
+                              {allSelected ? 'Deselect All' : 'Select All'}
                             </button>
                           </div>
                         </div>
                         {isExpanded && (
-                          <div className="p-3 pt-0 flex flex-wrap gap-2">
+                          <div id={`scale-panel-${category}`} className="p-3 pt-0 flex flex-wrap gap-2">
                             {scales.map(scale => (
                               <button
                                 key={scale}
+                                type="button"
+                                aria-pressed={selectedScales.includes(scale)}
                                 onClick={() => toggleScale(scale)}
-                                className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
+                                className={`px-3 py-1.5 rounded-full text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
                                   selectedScales.includes(scale)
-                                    ? 'bg-blue-500 text-white'
+                                    ? 'bg-blue-700 text-white'
                                     : 'bg-white/10 text-white/70 hover:bg-white/20'
                                 }`}
                               >

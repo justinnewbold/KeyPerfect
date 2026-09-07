@@ -4,6 +4,7 @@ import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { useMetronome } from '../hooks/useAudio';
 import { createPitchDetector, getAudioContext } from '../utils/audioEngine';
+import { describeMicError } from '../utils/micErrors';
 import { PitchDetector } from './PitchDetector';
 import { SongAnalysis } from './SongAnalysis';
 import { CustomPracticeBuilder } from './CustomPracticeBuilder';
@@ -16,6 +17,9 @@ import {
 } from '../types/instruments';
 
 type ToolType = 'tuner' | 'metronome' | 'singback' | 'songanalysis' | 'custompractice';
+
+const MIN_BPM = 30;
+const MAX_BPM = 300;
 
 export function GuitarTools() {
   const [activeTool, setActiveTool] = useState<ToolType>('metronome');
@@ -105,7 +109,7 @@ function Metronome() {
   ];
 
   const handleBpmChange = (delta: number) => {
-    const newBpm = Math.max(30, Math.min(300, bpm + delta));
+    const newBpm = Math.max(MIN_BPM, Math.min(MAX_BPM, bpm + delta));
     setBpm(newBpm);
   };
 
@@ -115,11 +119,12 @@ function Metronome() {
     <div className="space-y-6 animate-in">
       {/* BPM Display */}
       <Card className="p-6 text-center">
-        <div className="text-6xl font-bold mb-2">{bpm}</div>
-        <div className="text-sm text-white/60 mb-6">BPM</div>
+        <div className="text-6xl font-bold mb-2" aria-hidden="true">{bpm}</div>
+        <div className="text-sm text-white/60 mb-6" aria-hidden="true">BPM</div>
+        <span className="sr-only">Tempo: {bpm} beats per minute</span>
 
         {/* Beat Indicators */}
-        <div className="flex justify-center gap-2 mb-6">
+        <div className="flex justify-center gap-2 mb-6" aria-hidden="true">
           {Array.from({ length: timeSignature[0] }).map((_, i) => (
             <div
               key={i}
@@ -134,18 +139,30 @@ function Metronome() {
           ))}
         </div>
 
-        {/* BPM Controls */}
+        {/*
+          Every control here is icon-only, so each needs a name of its own:
+          without one a screen reader announces three unlabelled buttons and a
+          number, and there is no way to tell −5 from +5 from start/stop.
+        */}
         <div className="flex items-center justify-center gap-4">
           <button
+            type="button"
             onClick={() => handleBpmChange(-5)}
-            className="p-3 rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
+            disabled={bpm <= MIN_BPM}
+            aria-label="Decrease tempo by 5 BPM"
+            title="Decrease tempo by 5 BPM"
+            className="tap-target p-3 rounded-xl bg-white/10 hover:bg-white/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f0c29]"
           >
             <Minus className="w-6 h-6" />
           </button>
 
           <button
+            type="button"
             onClick={toggle}
-            className={`w-20 h-20 rounded-full flex items-center justify-center transition-all ${
+            aria-pressed={isRunning}
+            aria-label={isRunning ? 'Stop metronome' : 'Start metronome'}
+            title={isRunning ? 'Stop metronome' : 'Start metronome'}
+            className={`w-20 h-20 rounded-full flex items-center justify-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f0c29] ${
               isRunning
                 ? 'bg-red-500 hover:bg-red-600'
                 : 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600'
@@ -159,12 +176,20 @@ function Metronome() {
           </button>
 
           <button
+            type="button"
             onClick={() => handleBpmChange(5)}
-            className="p-3 rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
+            disabled={bpm >= MAX_BPM}
+            aria-label="Increase tempo by 5 BPM"
+            title="Increase tempo by 5 BPM"
+            className="tap-target p-3 rounded-xl bg-white/10 hover:bg-white/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f0c29]"
           >
             <Plus className="w-6 h-6" />
           </button>
         </div>
+
+        <p role="status" aria-live="polite" className="sr-only">
+          {isRunning ? `Metronome running at ${bpm} BPM` : 'Metronome stopped'}
+        </p>
       </Card>
 
       {/* Quick BPM Selection */}
@@ -174,8 +199,11 @@ function Metronome() {
           {commonBpms.map(tempo => (
             <button
               key={tempo}
+              type="button"
+              aria-label={`Set tempo to ${tempo} BPM`}
+              aria-pressed={bpm === tempo}
               onClick={() => setBpm(tempo)}
-              className={`py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`py-2 min-h-[44px] rounded-lg text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 ${
                 bpm === tempo
                   ? 'bg-purple-500/30 text-purple-300 border border-purple-500/50'
                   : 'bg-white/10 hover:bg-white/20'
@@ -194,8 +222,11 @@ function Metronome() {
           {timeSignatures.map(sig => (
             <button
               key={`${sig[0]}/${sig[1]}`}
+              type="button"
+              aria-label={`Time signature ${sig[0]} over ${sig[1]}`}
+              aria-pressed={timeSignature[0] === sig[0] && timeSignature[1] === sig[1]}
               onClick={() => setTimeSignature(sig)}
-              className={`py-3 rounded-lg text-sm font-medium transition-all ${
+              className={`py-3 min-h-[44px] rounded-lg text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 ${
                 timeSignature[0] === sig[0] && timeSignature[1] === sig[1]
                   ? 'bg-purple-500/30 text-purple-300 border border-purple-500/50'
                   : 'bg-white/10 hover:bg-white/20'
@@ -209,13 +240,15 @@ function Metronome() {
 
       {/* BPM Slider */}
       <Card className="p-4">
-        <h3 className="text-sm font-medium text-white/60 mb-3">Fine Tune</h3>
+        <h3 className="text-sm font-medium text-white/60 mb-3" id="metronome-fine-tune">Fine Tune</h3>
         <input
           type="range"
-          min="30"
-          max="300"
+          min={MIN_BPM}
+          max={MAX_BPM}
           value={bpm}
           onChange={(e) => setBpm(parseInt(e.target.value))}
+          aria-labelledby="metronome-fine-tune"
+          aria-valuetext={`${bpm} beats per minute`}
           className="range-slider"
         />
         <div className="flex justify-between text-xs text-white/40 mt-2">
@@ -235,6 +268,12 @@ function Tuner() {
   const [note, setNote] = useState<string>('--');
   const [cents, setCents] = useState(0);
   const [detector, setDetector] = useState<{ start: () => Promise<void>; stop: () => void } | null>(null);
+  /*
+   * Microphone failures used to surface as a window.alert, which says nothing
+   * about which failure happened and offers no way forward. Keeping it in the
+   * page lets the copy name the cause and put the recovery next to it.
+   */
+  const [micError, setMicError] = useState<{ title: string; detail: string } | null>(null);
 
   // Tuning selection state
   const [instrumentCategory, setInstrumentCategory] = useState<InstrumentCategory>('6-string');
@@ -287,11 +326,12 @@ function Tuner() {
       setCents(0);
     } else {
       try {
+        setMicError(null);
         await detector.start();
         setIsListening(true);
       } catch (error) {
         console.error('Could not access microphone:', error);
-        alert('Could not access microphone. Please allow microphone access.');
+        setMicError(describeMicError(error));
       }
     }
   };
@@ -458,8 +498,31 @@ function Tuner() {
           <span>Sharp</span>
         </div>
 
+        {micError && (
+          <div
+            role="alert"
+            className="mb-4 text-left bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 space-y-2"
+          >
+            <p className="font-semibold text-amber-300">{micError.title}</p>
+            <p className="text-sm text-white/70">{micError.detail}</p>
+            <div className="flex flex-wrap gap-2 pt-1">
+              <Button size="sm" variant="secondary" onClick={toggleListening}>
+                Try again
+              </Button>
+              <Button size="sm" variant="secondary" onClick={() => setMicError(null)}>
+                Dismiss
+              </Button>
+            </div>
+            <p className="text-xs text-white/50">
+              The tuner needs the microphone. Everything else in KeyPerfect works without it.
+            </p>
+          </div>
+        )}
+
         {/* Listen Button */}
         <button
+          type="button"
+          aria-label={isListening ? 'Stop listening' : 'Start listening for a note'}
           onClick={toggleListening}
           className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto transition-all ${
             isListening

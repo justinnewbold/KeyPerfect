@@ -11,6 +11,7 @@ import {
   ACHIEVEMENTS,
 } from '../types/stats';
 import { InstrumentType } from '../types/instruments';
+import { APP_VERSION } from '../version';
 
 const STORAGE_KEYS = {
   USER_STATS: 'keyperfect_user_stats',
@@ -1057,8 +1058,20 @@ export function resetAllData(): void {
 }
 
 // Export data
+/**
+ * Bumped when the shape of an exported field changes in a way an older import
+ * cannot read. Files written before versioning began carry no `schemaVersion`
+ * and are treated as version 1.
+ */
+export const EXPORT_SCHEMA_VERSION = 2;
+
+export const EXPORT_APP = 'keyperfect';
+
 export function exportData(): string {
   const data = {
+    app: EXPORT_APP,
+    schemaVersion: EXPORT_SCHEMA_VERSION,
+    appVersion: APP_VERSION,
     userStats: getUserStats(),
     levelProgress: getLevelProgress(),
     chordStats: getChordStats(),
@@ -1084,32 +1097,140 @@ export function exportData(): string {
 }
 
 // Import data
-export function importData(jsonString: string): boolean {
-  try {
-    const data = JSON.parse(jsonString);
+export type ImportErrorCode =
+  | 'empty'
+  | 'not_json'
+  | 'not_an_object'
+  | 'foreign_file'
+  | 'no_recognised_data'
+  | 'too_new'
+  | 'write_failed';
 
-    if (data.userStats) setItem(STORAGE_KEYS.USER_STATS, data.userStats);
-    if (data.levelProgress) setItem(STORAGE_KEYS.LEVEL_PROGRESS, data.levelProgress);
-    if (data.chordStats) setItem(STORAGE_KEYS.CHORD_STATS, data.chordStats);
-    if (data.scaleStats) setItem(STORAGE_KEYS.SCALE_STATS, data.scaleStats);
-    if (data.intervalStats) setItem(STORAGE_KEYS.INTERVAL_STATS, data.intervalStats);
-    if (data.keyStats) setItem(STORAGE_KEYS.KEY_STATS, data.keyStats);
-    if (data.noteStats) setItem(STORAGE_KEYS.NOTE_STATS, data.noteStats);
-    if (data.musicKeysProgress) setItem(STORAGE_KEYS.MUSIC_KEYS_PROGRESS, data.musicKeysProgress);
-    if (data.notesProgress) setItem(STORAGE_KEYS.NOTES_PROGRESS, data.notesProgress);
-    if (data.dailyStats) setItem(STORAGE_KEYS.DAILY_STATS, data.dailyStats);
-    if (data.gameModeStats) setItem(STORAGE_KEYS.GAME_MODE_STATS, data.gameModeStats);
-    if (data.achievements) setItem(STORAGE_KEYS.ACHIEVEMENTS, data.achievements);
-    if (data.settings) setItem(STORAGE_KEYS.SETTINGS, data.settings);
-    if (data.sessionHistory) setItem(STORAGE_KEYS.SESSION_HISTORY, data.sessionHistory);
-    if (data.usedInstruments) setItem(STORAGE_KEYS.USED_INSTRUMENTS, data.usedInstruments);
-    if (data.weeklyGoals) setItem(STORAGE_KEYS.WEEKLY_GOALS, data.weeklyGoals);
-    if (data.streakFreeze) setItem(STORAGE_KEYS.STREAK_FREEZE, data.streakFreeze);
-    if (data.socialChallenges) setItem(STORAGE_KEYS.SOCIAL_CHALLENGES, data.socialChallenges);
-    if (data.masteryData) setItem(STORAGE_KEYS.MASTERY_DATA, data.masteryData);
+export interface ImportResult {
+  ok: boolean;
+  code?: ImportErrorCode;
+  /** One sentence, safe to show verbatim. */
+  message: string;
+  /** Fields actually restored, for the success summary. */
+  restored?: string[];
+  schemaVersion?: number;
+}
 
-    return true;
-  } catch {
-    return false;
+/** Every field importData knows how to restore, in the order it writes them. */
+const IMPORTABLE_FIELDS: [field: string, key: string][] = [
+  ['userStats', STORAGE_KEYS.USER_STATS],
+  ['levelProgress', STORAGE_KEYS.LEVEL_PROGRESS],
+  ['chordStats', STORAGE_KEYS.CHORD_STATS],
+  ['scaleStats', STORAGE_KEYS.SCALE_STATS],
+  ['intervalStats', STORAGE_KEYS.INTERVAL_STATS],
+  ['keyStats', STORAGE_KEYS.KEY_STATS],
+  ['noteStats', STORAGE_KEYS.NOTE_STATS],
+  ['musicKeysProgress', STORAGE_KEYS.MUSIC_KEYS_PROGRESS],
+  ['notesProgress', STORAGE_KEYS.NOTES_PROGRESS],
+  ['dailyStats', STORAGE_KEYS.DAILY_STATS],
+  ['gameModeStats', STORAGE_KEYS.GAME_MODE_STATS],
+  ['achievements', STORAGE_KEYS.ACHIEVEMENTS],
+  ['settings', STORAGE_KEYS.SETTINGS],
+  ['sessionHistory', STORAGE_KEYS.SESSION_HISTORY],
+  ['usedInstruments', STORAGE_KEYS.USED_INSTRUMENTS],
+  ['weeklyGoals', STORAGE_KEYS.WEEKLY_GOALS],
+  ['streakFreeze', STORAGE_KEYS.STREAK_FREEZE],
+  ['socialChallenges', STORAGE_KEYS.SOCIAL_CHALLENGES],
+  ['masteryData', STORAGE_KEYS.MASTERY_DATA],
+];
+
+/**
+ * Validates before writing anything.
+ *
+ * The previous version returned `true` for any input that merely parsed as
+ * JSON — `{}`, `[]`, `"hello"`, or somebody else's backup — so an import that
+ * restored nothing at all reported success.
+ */
+export function importDataDetailed(jsonString: string): ImportResult {
+  if (typeof jsonString !== 'string' || jsonString.trim() === '') {
+    return { ok: false, code: 'empty', message: 'That file is empty. Pick a KeyPerfect backup file and try again.' };
   }
+
+  let data: unknown;
+  try {
+    data = JSON.parse(jsonString);
+  } catch {
+    return {
+      ok: false,
+      code: 'not_json',
+      message: "That file isn't valid JSON. Export a fresh backup from Settings and import that.",
+    };
+  }
+
+  if (data === null || typeof data !== 'object' || Array.isArray(data)) {
+    return {
+      ok: false,
+      code: 'not_an_object',
+      message: "That file isn't a KeyPerfect backup. Look for a file named keyperfect-backup-<date>.json.",
+    };
+  }
+
+  const record = data as Record<string, unknown>;
+
+  if (typeof record.app === 'string' && record.app !== EXPORT_APP) {
+    return {
+      ok: false,
+      code: 'foreign_file',
+      message: `That backup was written by "${record.app}", not KeyPerfect.`,
+    };
+  }
+
+  const rawVersion = record.schemaVersion;
+  // Pre-versioning exports are still readable: the fields they carry are a
+  // subset of today's, so they import as version 1.
+  const schemaVersion = typeof rawVersion === 'number' && Number.isFinite(rawVersion) ? rawVersion : 1;
+
+  if (schemaVersion > EXPORT_SCHEMA_VERSION) {
+    return {
+      ok: false,
+      code: 'too_new',
+      schemaVersion,
+      message: `That backup was written by a newer version of KeyPerfect (format ${schemaVersion}, this build reads ${EXPORT_SCHEMA_VERSION}). Update the app, then import again.`,
+    };
+  }
+
+  const present = IMPORTABLE_FIELDS.filter(([field]) => {
+    const value = record[field];
+    return value !== undefined && value !== null;
+  });
+
+  if (present.length === 0) {
+    return {
+      ok: false,
+      code: 'no_recognised_data',
+      schemaVersion,
+      message: 'That file has no KeyPerfect progress in it. Nothing was changed.',
+    };
+  }
+
+  try {
+    for (const [field, key] of present) {
+      setItem(key, record[field]);
+    }
+  } catch (error) {
+    console.error('Import failed while writing:', error);
+    return {
+      ok: false,
+      code: 'write_failed',
+      schemaVersion,
+      message: "Couldn't save the imported data — your browser storage may be full or blocked.",
+    };
+  }
+
+  return {
+    ok: true,
+    schemaVersion,
+    restored: present.map(([field]) => field),
+    message: `Restored ${present.length} section${present.length === 1 ? '' : 's'} from your backup.`,
+  };
+}
+
+/** Boolean wrapper kept for callers that only need pass/fail. */
+export function importData(jsonString: string): boolean {
+  return importDataDetailed(jsonString).ok;
 }

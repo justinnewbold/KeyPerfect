@@ -6,3 +6,4 @@ export { useLongPress } from './useLongPress';
 export type { LongPressOptions } from './useLongPress';
 export { usePrefersReducedMotion } from './usePrefersReducedMotion';
 export { useBodyScrollLock } from './useBodyScrollLock';
+export { useFocusTrap } from './useFocusTrap';

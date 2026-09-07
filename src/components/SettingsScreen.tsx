@@ -20,7 +20,6 @@ import {
 } from 'lucide-react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
-import { Badge } from './ui/Badge';
 import { INSTRUMENTS, InstrumentType, getInstrumentList } from '../types/instruments';
 import {
   getSettings,
@@ -28,7 +27,7 @@ import {
   AppSettings,
   resetAllData,
   exportData,
-  importData,
+  importDataDetailed,
   trackInstrumentUsage,
   getStreakFreezeData,
   updateStreakFreezeSettings,
@@ -37,6 +36,7 @@ import { useAudio } from '../hooks/useAudio';
 import { playChord as playChordRaw } from '../utils/audioEngine';
 import { midiManager } from '../utils/midiInput';
 import { useAccessibility, AccessibilitySettings } from '../utils/accessibility';
+import { APP_VERSION } from '../version';
 
 interface SettingsScreenProps {
   onReplayTutorial?: () => void;
@@ -52,7 +52,7 @@ interface SettingsScreenProps {
 export function SettingsScreen({ onReplayTutorial, onBack }: SettingsScreenProps = {}) {
   const [settings, setSettings] = useState<AppSettings>(getSettings());
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [importStatus, setImportStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [importFeedback, setImportFeedback] = useState<{ ok: boolean; message: string } | null>(null);
   const [streakFreezeEnabled, setStreakFreezeEnabled] = useState(getStreakFreezeData().autoFreezeEnabled);
   const [midiState, setMidiState] = useState(() => midiManager.getState());
   const audio = useAudio();
@@ -153,25 +153,30 @@ export function SettingsScreen({ onReplayTutorial, onBack }: SettingsScreenProps
     URL.revokeObjectURL(url);
   }, []);
 
+  /*
+   * Import reports what actually happened. It used to flash a bare "Failed"
+   * badge for three seconds, which covered a missing file, a foreign backup
+   * and a corrupt one alike — and reported success for any file that merely
+   * parsed as JSON, restoring nothing.
+   */
   const handleImportData = useCallback(() => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.json';
+    input.accept = 'application/json,.json';
     input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const content = e.target?.result as string;
-          const success = importData(content);
-          setImportStatus(success ? 'success' : 'error');
-          if (success) {
-            setSettings(getSettings());
-          }
-          setTimeout(() => setImportStatus('idle'), 3000);
-        };
-        reader.readAsText(file);
-      }
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onerror = () => {
+        setImportFeedback({ ok: false, message: "Couldn't read that file. Try picking it again." });
+      };
+      reader.onload = (ev) => {
+        const result = importDataDetailed((ev.target?.result as string) ?? '');
+        setImportFeedback({ ok: result.ok, message: result.message });
+        if (result.ok) setSettings(getSettings());
+      };
+      reader.readAsText(file);
     };
     input.click();
   }, []);
@@ -214,7 +219,7 @@ export function SettingsScreen({ onReplayTutorial, onBack }: SettingsScreenProps
           ) : (
             <VolumeX className="w-5 h-5 text-gray-400" />
           )}
-          <h3 className="font-semibold">Volume</h3>
+          <h3 className="font-semibold" id="settings-volume-label">Volume</h3>
           <span className="ml-auto text-sm text-white/60">
             {Math.round(settings.volume * 100)}%
           </span>
@@ -226,6 +231,8 @@ export function SettingsScreen({ onReplayTutorial, onBack }: SettingsScreenProps
           step="0.01"
           value={settings.volume}
           onChange={handleVolumeChange}
+          aria-labelledby="settings-volume-label"
+          aria-valuetext={`${Math.round(settings.volume * 100)} percent`}
           className="range-slider"
         />
       </Card>
@@ -240,15 +247,27 @@ export function SettingsScreen({ onReplayTutorial, onBack }: SettingsScreenProps
           {instruments.map(inst => (
             <button
               key={inst.id}
+              type="button"
               onClick={() => handleInstrumentChange(inst.id)}
-              className={`p-2 rounded-xl flex flex-col items-center gap-1 transition-all ${
+              aria-label={inst.name}
+              aria-pressed={settings.instrument === inst.id}
+              title={inst.name}
+              className={`p-2 min-h-[76px] rounded-xl flex flex-col items-center justify-start gap-1 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 ${
                 settings.instrument === inst.id
                   ? 'bg-purple-500/30 border-2 border-purple-500'
                   : 'bg-white/10 border-2 border-transparent hover:bg-white/20'
               }`}
             >
-              <span className="text-xl">{inst.icon}</span>
-              <span className="text-xs truncate w-full text-center">{inst.name}</span>
+              <span className="text-xl" aria-hidden="true">{inst.icon}</span>
+              {/* Wraps instead of truncating: "Heavy Metal Guitar" rendered as
+                  "Heavy Metal…" in a three-across grid, which is the one thing
+                  a chooser must not do to the names it is choosing between. */}
+              <span
+                aria-hidden="true"
+                className="text-[11px] leading-tight text-center w-full break-words hyphens-auto"
+              >
+                {inst.name}
+              </span>
             </button>
           ))}
         </div>
@@ -264,8 +283,11 @@ export function SettingsScreen({ onReplayTutorial, onBack }: SettingsScreenProps
           {themes.map(theme => (
             <button
               key={theme.id}
+              type="button"
+              aria-label={`Theme: ${theme.name}`}
+              aria-pressed={settings.theme === theme.id}
               onClick={() => handleThemeChange(theme.id)}
-              className={`p-3 rounded-xl bg-gradient-to-br ${theme.color} flex items-center justify-center gap-2 transition-all ${
+              className={`p-3 min-h-[44px] rounded-xl bg-gradient-to-br ${theme.color} flex items-center justify-center gap-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white ${
                 settings.theme === theme.id
                   ? 'ring-2 ring-purple-500 ring-offset-2 ring-offset-[#0f0c29]'
                   : 'opacity-60 hover:opacity-100'
@@ -526,20 +548,29 @@ export function SettingsScreen({ onReplayTutorial, onBack }: SettingsScreenProps
               <Eye className="w-5 h-5 text-blue-400" />
               <span>Color Blind Mode</span>
             </div>
-            <div className="grid grid-cols-4 gap-2">
-              {(['none', 'protanopia', 'deuteranopia', 'tritanopia'] as const).map(mode => (
-                <button
-                  key={mode}
-                  onClick={() => a11y.updateSetting('colorBlindMode', mode)}
-                  className={`p-2 rounded-xl text-xs text-center transition-all ${
-                    a11y.settings.colorBlindMode === mode
-                      ? 'bg-purple-500/30 border-2 border-purple-500'
-                      : 'bg-white/10 border-2 border-transparent hover:bg-white/20'
-                  }`}
-                >
-                  {mode === 'none' ? 'Off' : mode.charAt(0).toUpperCase() + mode.slice(1)}
-                </button>
-              ))}
+            {/* Two across below 400px: four columns gave each button 54px for
+                words like "Deuteranopia", which overflowed the grid and spilled
+                the page sideways at 320px. */}
+            <div className="grid grid-cols-2 min-[400px]:grid-cols-4 gap-2">
+              {(['none', 'protanopia', 'deuteranopia', 'tritanopia'] as const).map(mode => {
+                const label = mode === 'none' ? 'Off' : mode.charAt(0).toUpperCase() + mode.slice(1);
+                return (
+                  <button
+                    key={mode}
+                    type="button"
+                    aria-label={`Color blind mode: ${label}`}
+                    aria-pressed={a11y.settings.colorBlindMode === mode}
+                    onClick={() => a11y.updateSetting('colorBlindMode', mode)}
+                    className={`p-2 min-h-[44px] rounded-xl text-xs text-center leading-tight break-words transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 ${
+                      a11y.settings.colorBlindMode === mode
+                        ? 'bg-purple-500/30 border-2 border-purple-500'
+                        : 'bg-white/10 border-2 border-transparent hover:bg-white/20'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -566,13 +597,30 @@ export function SettingsScreen({ onReplayTutorial, onBack }: SettingsScreenProps
             icon={<Upload className="w-4 h-4" />}
           >
             Import Progress
-            {importStatus === 'success' && (
-              <Badge variant="success" size="sm" className="ml-2">Imported!</Badge>
-            )}
-            {importStatus === 'error' && (
-              <Badge variant="danger" size="sm" className="ml-2">Failed</Badge>
-            )}
           </Button>
+
+          {importFeedback && (
+            <div
+              role="status"
+              aria-live="polite"
+              data-testid="import-feedback"
+              className={`rounded-xl p-3 text-sm flex items-start gap-2 ${
+                importFeedback.ok
+                  ? 'bg-green-500/10 border border-green-500/30 text-green-200'
+                  : 'bg-amber-500/10 border border-amber-500/30 text-amber-200'
+              }`}
+            >
+              <span className="flex-1">{importFeedback.message}</span>
+              <button
+                type="button"
+                onClick={() => setImportFeedback(null)}
+                aria-label="Dismiss import message"
+                className="shrink-0 px-2 text-white/60 hover:text-white"
+              >
+                ×
+              </button>
+            </div>
+          )}
 
           {!showResetConfirm ? (
             <Button
@@ -584,22 +632,38 @@ export function SettingsScreen({ onReplayTutorial, onBack }: SettingsScreenProps
               Reset All Data
             </Button>
           ) : (
-            <div className="flex gap-2">
-              <Button
-                variant="secondary"
-                fullWidth
-                onClick={() => setShowResetConfirm(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="danger"
-                fullWidth
-                onClick={handleResetData}
-                icon={<Trash2 className="w-4 h-4" />}
-              >
-                Confirm Reset
-              </Button>
+            /*
+             * Two steps, and the destructive half is never the default: the
+             * confirmation spells out what is lost and Cancel is what a stray
+             * second tap in the same place lands on.
+             */
+            <div
+              role="alertdialog"
+              aria-label="Confirm resetting all data"
+              className="rounded-xl border border-red-500/40 bg-red-500/10 p-3 space-y-3"
+            >
+              <p className="text-sm font-semibold text-red-200">Reset all data?</p>
+              <p className="text-xs text-white/70">
+                This erases your XP, streak, level progress, stats and saved settings on this
+                device. It cannot be undone. Export your progress first if you want a backup.
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="secondary"
+                  fullWidth
+                  onClick={() => setShowResetConfirm(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="danger"
+                  fullWidth
+                  onClick={handleResetData}
+                  icon={<Trash2 className="w-4 h-4" />}
+                >
+                  Yes, erase everything
+                </Button>
+              </div>
             </div>
           )}
         </div>
@@ -609,7 +673,7 @@ export function SettingsScreen({ onReplayTutorial, onBack }: SettingsScreenProps
       <Card className="p-4">
         <h3 className="font-semibold mb-2">About</h3>
         <p className="text-sm text-white/60 mb-2">
-          KeyPerfect v14.0.0
+          KeyPerfect v{APP_VERSION}
         </p>
         <p className="text-xs text-white/40 mb-4">
           A music theory ear training app to help you master chord recognition,
