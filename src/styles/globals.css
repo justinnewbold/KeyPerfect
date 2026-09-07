@@ -102,6 +102,19 @@
     overscroll-behavior: none;
   }
 
+  /*
+   * The screen-enter animations slide in from 20-24px off-axis, which at 320px
+   * made the page 16px wider for the length of every transition and flashed a
+   * horizontal scrollbar. Clipping on the mount point rather than on `body`
+   * matters: an overflow set on `body` is propagated to the viewport instead
+   * of clipping there, so the page stays as wide as its widest frame. `clip`
+   * rather than `hidden` keeps this from becoming a scroll container, which
+   * would break the `position: sticky` headers inside it.
+   */
+  #root {
+    overflow-x: clip;
+  }
+
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;

@@ -35,6 +35,7 @@ import { GAME_MODES, CHALLENGE_MODES, GameModeType, ChallengeModeType } from '..
 import { InstrumentType, INSTRUMENTS, getInstrumentList } from '../types/instruments';
 import { useAudio } from '../hooks/useAudio';
 import { playChord as playChordRaw } from '../utils/audioEngine';
+import { ModeQueryProvider, ModeSection, ModeTile, matchesQuery } from './ModeCatalog';
 
 interface HomeScreenProps {
   /** Opens the level ladder. */
@@ -70,6 +71,38 @@ export function HomeScreen({ onStartLevel, onStartRecommendedLevel, onStartChall
   const [currentInstrument, setCurrentInstrument] = useState<InstrumentType>(getSettings().instrument);
   const [showInstrumentDropdown, setShowInstrumentDropdown] = useState(false);
   const [showAllModes, setShowAllModes] = useState(() => getSettings().homeModesExpanded === true);
+  const [modeQuery, setModeQuery] = useState('');
+
+  /*
+   * Every keyword string the catalogue can match, so "no results" is only ever
+   * shown when nothing at all matched — including the two data-driven grids.
+   */
+  const catalogKeywords = [
+    'chord training chords recognition ladder levels ear training beginner medium',
+    'music keys key identification ear training e a g d b f intermediate',
+    'notes note identification single notes pitch c d e f sharp beginner',
+    'daily challenge new every day short quick mixed',
+    'speed run speedrun 60 seconds fast timed one minute hard',
+    'survival 3 lives endless streak hard long',
+    'time attack timed beat the clock fast',
+    'guided lessons learn theory tutorial what to listen for beginner',
+    'compare sounds comparison side by side listening ear training beginner',
+    'mastery per topic progress stats review',
+    'weekly goals practice targets streak habit',
+    'challenges social friends share code seed compete',
+    'practice mode no xp no pressure relaxed untimed beginner',
+    'sing intervals singing voice pitch match microphone intervals',
+    'progression dictation play back chord progressions harmony hard',
+    'free play explore chords piano keyboard sandbox untimed',
+    'circle of fifths key signatures wheel theory game relative minor',
+    'settings sound instrument midi data preferences accessibility',
+    'focus areas weak spots drill review mistakes spaced repetition',
+    ...Object.values(PRACTICE_PRESETS).map(
+      p => `${p.name} ${p.description} ${p.questionCount} questions ${p.timeLimit ? 'timed time limit' : 'untimed'} quick start preset`,
+    ),
+    ...Object.values(GAME_MODES).map(m => `${m.name} ${m.description} ${m.id} training mode`),
+  ];
+  const hasModeMatches = catalogKeywords.some(k => matchesQuery(k, modeQuery));
   const instruments = getInstrumentList();
   const instrumentDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -276,87 +309,124 @@ export function HomeScreen({ onStartLevel, onStartRecommendedLevel, onStartChall
         </button>
 
         {showAllModes && (
+        <ModeQueryProvider query={modeQuery}>
         <div className="space-y-6">
-        {/* Main Play Buttons - Two Card Layout */}
-        <div className="grid grid-cols-1 gap-3">
-          {/* Chord Training */}
-          <Card
-            hover
-            onClick={onStartLevel}
-            className="p-5 bg-gradient-to-r from-purple-500/20 to-pink-500/20 border-purple-500/30"
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/30">
-                <Play className="w-7 h-7" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-bold">Chord Training</h3>
-                <p className="text-sm text-white/60">Master chord recognition</p>
-                {chordLevelsUnlocked > 1 && (
-                  <div className="mt-2">
-                    <Progress value={chordLevelsUnlocked} max={LEVELS.length} size="sm" color="purple" />
-                    <p className="text-xs text-white/50 mt-1">{chordLevelsUnlocked}/{LEVELS.length} levels unlocked</p>
-                  </div>
-                )}
-              </div>
-              <ChevronRight className="w-5 h-5 text-white/40" />
+          {/*
+            Grouping alone stops helping once a player knows the name of what
+            they want: the catalogue runs to about thirty tiles under five
+            headings, so it is searchable by name, skill, difficulty and
+            length as well as browsable.
+          */}
+          <div>
+            <label htmlFor="mode-search" className="sr-only">
+              Search training modes
+            </label>
+            <input
+              id="mode-search"
+              type="search"
+              value={modeQuery}
+              onChange={e => setModeQuery(e.target.value)}
+              placeholder="Search modes — try “intervals”, “timed”, “beginner”"
+              className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm placeholder:text-white/40 focus:outline-none focus:border-purple-500"
+            />
+          </div>
+
+          {modeQuery.trim() !== '' && !hasModeMatches && (
+            <div role="status" className="text-center py-8 text-white/60 text-sm space-y-3">
+              <p>No modes match “{modeQuery.trim()}”.</p>
+              <Button size="sm" variant="secondary" onClick={() => setModeQuery('')}>
+                Clear search
+              </Button>
             </div>
-          </Card>
+          )}
+
+        <ModeSection className="grid grid-cols-1 gap-3">
+          {/* Chord Training */}
+          <ModeTile keywords="chord training chords recognition ladder levels ear training beginner medium">
+            <Card
+              hover
+              onClick={onStartLevel}
+              className="p-5 bg-gradient-to-r from-purple-500/20 to-pink-500/20 border-purple-500/30"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/30">
+                  <Play className="w-7 h-7" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-bold">Chord Training</h3>
+                  <p className="text-sm text-white/60">Master chord recognition</p>
+                  {chordLevelsUnlocked > 1 && (
+                    <div className="mt-2">
+                      <Progress value={chordLevelsUnlocked} max={LEVELS.length} size="sm" color="purple" />
+                      <p className="text-xs text-white/50 mt-1">{chordLevelsUnlocked}/{LEVELS.length} levels unlocked</p>
+                    </div>
+                  )}
+                </div>
+                <ChevronRight className="w-5 h-5 text-white/40" />
+              </div>
+            </Card>
+          </ModeTile>
 
           {/* Music Keys - NEW PROMINENT SECTION */}
-          <Card
-            hover
-            onClick={onStartMusicKeys}
-            className="p-5 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border-emerald-500/30"
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/30">
-                <Key className="w-7 h-7" />
+          <ModeTile keywords="music keys key identification ear training e a g d b f intermediate">
+            <Card
+              hover
+              onClick={onStartMusicKeys}
+              className="p-5 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border-emerald-500/30"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                  <Key className="w-7 h-7" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-bold">Music Keys</h3>
+                  <p className="text-sm text-white/60">Identify keys by ear (E, A, G, D, B, F...)</p>
+                  {musicKeysCompleted > 0 && (
+                    <div className="mt-2">
+                      <Progress value={musicKeysCompleted} max={MUSIC_KEYS_LEVELS.length} size="sm" color="green" />
+                      <p className="text-xs text-white/50 mt-1">{musicKeysCompleted}/{MUSIC_KEYS_LEVELS.length} levels</p>
+                    </div>
+                  )}
+                </div>
+                <ChevronRight className="w-5 h-5 text-white/40" />
               </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-bold">Music Keys</h3>
-                <p className="text-sm text-white/60">Identify keys by ear (E, A, G, D, B, F...)</p>
-                {musicKeysCompleted > 0 && (
-                  <div className="mt-2">
-                    <Progress value={musicKeysCompleted} max={MUSIC_KEYS_LEVELS.length} size="sm" color="green" />
-                    <p className="text-xs text-white/50 mt-1">{musicKeysCompleted}/{MUSIC_KEYS_LEVELS.length} levels</p>
-                  </div>
-                )}
-              </div>
-              <ChevronRight className="w-5 h-5 text-white/40" />
-            </div>
-          </Card>
+            </Card>
+          </ModeTile>
 
           {/* Notes - INDIVIDUAL NOTE IDENTIFICATION */}
-          <Card
-            hover
-            onClick={onStartNotes}
-            className="p-5 bg-gradient-to-r from-sky-500/20 to-blue-500/20 border-sky-500/30"
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-sky-500 to-blue-500 flex items-center justify-center shadow-lg shadow-sky-500/30">
-                <Music className="w-7 h-7" />
+          <ModeTile keywords="notes note identification single notes pitch c d e f sharp beginner">
+            <Card
+              hover
+              onClick={onStartNotes}
+              className="p-5 bg-gradient-to-r from-sky-500/20 to-blue-500/20 border-sky-500/30"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-sky-500 to-blue-500 flex items-center justify-center shadow-lg shadow-sky-500/30">
+                  <Music className="w-7 h-7" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-bold">Notes</h3>
+                  <p className="text-sm text-white/60">Identify individual notes (C, D, E, F#...)</p>
+                  {notesCompleted > 0 && (
+                    <div className="mt-2">
+                      <Progress value={notesCompleted} max={NOTES_LEVELS.length} size="sm" color="purple" />
+                      <p className="text-xs text-white/50 mt-1">{notesCompleted}/{NOTES_LEVELS.length} levels</p>
+                    </div>
+                  )}
+                </div>
+                <ChevronRight className="w-5 h-5 text-white/40" />
               </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-bold">Notes</h3>
-                <p className="text-sm text-white/60">Identify individual notes (C, D, E, F#...)</p>
-                {notesCompleted > 0 && (
-                  <div className="mt-2">
-                    <Progress value={notesCompleted} max={NOTES_LEVELS.length} size="sm" color="purple" />
-                    <p className="text-xs text-white/50 mt-1">{notesCompleted}/{NOTES_LEVELS.length} levels</p>
-                  </div>
-                )}
-              </div>
-              <ChevronRight className="w-5 h-5 text-white/40" />
-            </div>
-          </Card>
-        </div>
+            </Card>
+          </ModeTile>
+        </ModeSection>
 
         {/* Practice Presets */}
-        <div>
-          <h2 className="text-lg font-semibold mb-3">Quick Start</h2>
-          <div className="grid grid-cols-2 gap-3">
+        <ModeSection title="Quick Start" className="grid grid-cols-2 gap-3">
             {Object.values(PRACTICE_PRESETS).map(preset => (
+              <ModeTile
+                key={preset.id}
+                keywords={`${preset.name} ${preset.description} ${preset.questionCount} questions ${preset.timeLimit ? 'timed time limit' : 'untimed'} quick start preset`}
+              >
               <Card
                 key={preset.id}
                 hover
@@ -388,286 +458,310 @@ export function HomeScreen({ onStartLevel, onStartRecommendedLevel, onStartChall
                   )}
                 </div>
               </Card>
+              </ModeTile>
             ))}
-          </div>
-        </div>
+        </ModeSection>
 
         {/* Challenge Modes */}
-        <div>
-          <h2 className="text-lg font-semibold mb-3">Challenge Modes</h2>
-          <div className="grid grid-cols-2 gap-3">
+        <ModeSection title="Challenge Modes" className="grid grid-cols-2 gap-3">
             {/* Daily Challenge */}
-            <Card
-              hover={canPlayDaily}
-              onClick={() => canPlayDaily && onStartChallenge('daily')}
-              className={`p-4 ${!canPlayDaily ? 'opacity-60' : ''}`}
-            >
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center">
-                  <Calendar className="w-5 h-5" />
+            <ModeTile keywords="daily challenge new every day short quick mixed">
+              <Card
+                hover={canPlayDaily}
+                onClick={() => canPlayDaily && onStartChallenge('daily')}
+                className={`p-4 ${!canPlayDaily ? 'opacity-60' : ''}`}
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center">
+                    <Calendar className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold">Daily</h4>
+                    {!canPlayDaily && (
+                      <Badge variant="success" size="sm">Completed</Badge>
+                    )}
+                  </div>
                 </div>
-                <div>
-                  <h4 className="font-semibold">Daily</h4>
-                  {!canPlayDaily && (
-                    <Badge variant="success" size="sm">Completed</Badge>
-                  )}
-                </div>
-              </div>
-              <p className="text-xs text-white/60">New challenge every day</p>
-            </Card>
+                <p className="text-xs text-white/60">New challenge every day</p>
+              </Card>
+            </ModeTile>
 
             {/* Speed Run */}
-            <Card
-              hover
-              onClick={() => onStartChallenge('speedrun')}
-              className="p-4"
-            >
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-yellow-500 to-orange-500 flex items-center justify-center">
-                  <Zap className="w-5 h-5" />
+            <ModeTile keywords="speed run speedrun 60 seconds fast timed one minute hard">
+              <Card
+                hover
+                onClick={() => onStartChallenge('speedrun')}
+                className="p-4"
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-yellow-500 to-orange-500 flex items-center justify-center">
+                    <Zap className="w-5 h-5" />
+                  </div>
+                  <h4 className="font-semibold">Speed Run</h4>
                 </div>
-                <h4 className="font-semibold">Speed Run</h4>
-              </div>
-              <p className="text-xs text-white/60">60 seconds, max points</p>
-            </Card>
+                <p className="text-xs text-white/60">60 seconds, max points</p>
+              </Card>
+            </ModeTile>
 
             {/* Survival */}
-            <Card
-              hover
-              onClick={() => onStartChallenge('survival')}
-              className="p-4"
-            >
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center">
-                  <Heart className="w-5 h-5" />
+            <ModeTile keywords="survival 3 lives endless streak hard long">
+              <Card
+                hover
+                onClick={() => onStartChallenge('survival')}
+                className="p-4"
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center">
+                    <Heart className="w-5 h-5" />
+                  </div>
+                  <h4 className="font-semibold">Survival</h4>
                 </div>
-                <h4 className="font-semibold">Survival</h4>
-              </div>
-              <p className="text-xs text-white/60">3 lives, how far can you go?</p>
-            </Card>
+                <p className="text-xs text-white/60">3 lives, how far can you go?</p>
+              </Card>
+            </ModeTile>
 
             {/* Time Attack */}
-            <Card
-              hover
-              onClick={() => onStartChallenge('timeattack')}
-              className="p-4"
-            >
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
-                  <Timer className="w-5 h-5" />
+            <ModeTile keywords="time attack timed beat the clock fast">
+              <Card
+                hover
+                onClick={() => onStartChallenge('timeattack')}
+                className="p-4"
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
+                    <Timer className="w-5 h-5" />
+                  </div>
+                  <h4 className="font-semibold">Time Attack</h4>
                 </div>
-                <h4 className="font-semibold">Time Attack</h4>
-              </div>
-              <p className="text-xs text-white/60">Beat the clock</p>
-            </Card>
-          </div>
-        </div>
+                <p className="text-xs text-white/60">Beat the clock</p>
+              </Card>
+            </ModeTile>
+        </ModeSection>
 
         {/* New Features: Learning & Tools */}
-        <div>
-          <h2 className="text-lg font-semibold mb-3">Learn & Improve</h2>
-          <div className="grid grid-cols-2 gap-3">
+        <ModeSection title="Learn & Improve" className="grid grid-cols-2 gap-3">
             {/* Guided Lessons */}
-            <Card
-              hover
-              onClick={onOpenGuidedLessons}
-              className="p-4 bg-gradient-to-br from-indigo-500/10 to-blue-500/10 border-indigo-500/20"
-            >
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center">
-                  <BookOpen className="w-5 h-5" />
+            <ModeTile keywords="guided lessons learn theory tutorial what to listen for beginner">
+              <Card
+                hover
+                onClick={onOpenGuidedLessons}
+                className="p-4 bg-gradient-to-br from-indigo-500/10 to-blue-500/10 border-indigo-500/20"
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center">
+                    <BookOpen className="w-5 h-5" />
+                  </div>
+                  <h4 className="font-semibold text-sm">Guided Lessons</h4>
                 </div>
-                <h4 className="font-semibold text-sm">Guided Lessons</h4>
-              </div>
-              <p className="text-xs text-white/60">Learn what to listen for</p>
-            </Card>
+                <p className="text-xs text-white/60">Learn what to listen for</p>
+              </Card>
+            </ModeTile>
 
             {/* Comparison Mode */}
-            <Card
-              hover
-              onClick={onOpenComparison}
-              className="p-4 bg-gradient-to-br from-teal-500/10 to-emerald-500/10 border-teal-500/20"
-            >
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 flex items-center justify-center">
-                  <ArrowLeftRight className="w-5 h-5" />
+            <ModeTile keywords="compare sounds comparison side by side listening ear training beginner">
+              <Card
+                hover
+                onClick={onOpenComparison}
+                className="p-4 bg-gradient-to-br from-teal-500/10 to-emerald-500/10 border-teal-500/20"
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 flex items-center justify-center">
+                    <ArrowLeftRight className="w-5 h-5" />
+                  </div>
+                  <h4 className="font-semibold text-sm">Compare Sounds</h4>
                 </div>
-                <h4 className="font-semibold text-sm">Compare Sounds</h4>
-              </div>
-              <p className="text-xs text-white/60">Side-by-side listening</p>
-            </Card>
+                <p className="text-xs text-white/60">Side-by-side listening</p>
+              </Card>
+            </ModeTile>
 
             {/* Mastery Indicators */}
-            <Card
-              hover
-              onClick={onOpenMastery}
-              className="p-4 bg-gradient-to-br from-yellow-500/10 to-amber-500/10 border-yellow-500/20"
-            >
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-yellow-500 to-amber-600 flex items-center justify-center">
-                  <Star className="w-5 h-5" />
+            <ModeTile keywords="mastery per topic progress stats review">
+              <Card
+                hover
+                onClick={onOpenMastery}
+                className="p-4 bg-gradient-to-br from-yellow-500/10 to-amber-500/10 border-yellow-500/20"
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-yellow-500 to-amber-600 flex items-center justify-center">
+                    <Star className="w-5 h-5" />
+                  </div>
+                  <h4 className="font-semibold text-sm">Mastery</h4>
                 </div>
-                <h4 className="font-semibold text-sm">Mastery</h4>
-              </div>
-              <p className="text-xs text-white/60">Per-topic progress</p>
-            </Card>
+                <p className="text-xs text-white/60">Per-topic progress</p>
+              </Card>
+            </ModeTile>
 
             {/* Weekly Goals */}
-            <Card
-              hover
-              onClick={onOpenWeeklyGoals}
-              className="p-4 bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-green-500/20"
-            >
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
-                  <Target className="w-5 h-5" />
+            <ModeTile keywords="weekly goals practice targets streak habit">
+              <Card
+                hover
+                onClick={onOpenWeeklyGoals}
+                className="p-4 bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-green-500/20"
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
+                    <Target className="w-5 h-5" />
+                  </div>
+                  <h4 className="font-semibold text-sm">Weekly Goals</h4>
                 </div>
-                <h4 className="font-semibold text-sm">Weekly Goals</h4>
-              </div>
-              <p className="text-xs text-white/60">Set practice targets</p>
-            </Card>
+                <p className="text-xs text-white/60">Set practice targets</p>
+              </Card>
+            </ModeTile>
 
             {/* Social Challenges */}
-            <Card
-              hover
-              onClick={onOpenSocialChallenges}
-              className="p-4 bg-gradient-to-br from-pink-500/10 to-rose-500/10 border-pink-500/20"
-            >
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center">
-                  <Users className="w-5 h-5" />
+            <ModeTile keywords="challenges social friends share code seed compete">
+              <Card
+                hover
+                onClick={onOpenSocialChallenges}
+                className="p-4 bg-gradient-to-br from-pink-500/10 to-rose-500/10 border-pink-500/20"
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center">
+                    <Users className="w-5 h-5" />
+                  </div>
+                  <h4 className="font-semibold text-sm">Challenges</h4>
                 </div>
-                <h4 className="font-semibold text-sm">Challenges</h4>
-              </div>
-              {/* "Local only" sat directly above "Share codes, play same
-                  seed", which reads as a contradiction. Nothing is sent
-                  anywhere: a challenge code is a seed you pass to someone
-                  yourself, and both devices generate the same questions from
-                  it. Say that once, plainly. */}
-              <p className="text-xs text-white/60">
-                Pass a code to a friend, play the same questions
-              </p>
-            </Card>
+                {/* "Local only" sat directly above "Share codes, play same
+                    seed", which reads as a contradiction. Nothing is sent
+                    anywhere: a challenge code is a seed you pass to someone
+                    yourself, and both devices generate the same questions from
+                    it. Say that once, plainly. */}
+                <p className="text-xs text-white/60">
+                  Pass a code to a friend, play the same questions
+                </p>
+              </Card>
+            </ModeTile>
 
             {/* Practice Mode (No Stakes) */}
-            <Card
-              hover
-              onClick={() => onStartGameMode('practice')}
-              className="p-4 bg-gradient-to-br from-gray-500/10 to-slate-500/10 border-gray-500/20"
-            >
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gray-500 to-slate-600 flex items-center justify-center">
-                  <Shield className="w-5 h-5" />
+            <ModeTile keywords="practice mode no xp no pressure relaxed untimed beginner">
+              <Card
+                hover
+                onClick={() => onStartGameMode('practice')}
+                className="p-4 bg-gradient-to-br from-gray-500/10 to-slate-500/10 border-gray-500/20"
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gray-500 to-slate-600 flex items-center justify-center">
+                    <Shield className="w-5 h-5" />
+                  </div>
+                  <h4 className="font-semibold text-sm">Practice Mode</h4>
                 </div>
-                <h4 className="font-semibold text-sm">Practice Mode</h4>
-              </div>
-              <p className="text-xs text-white/60">No XP, no pressure</p>
-            </Card>
+                <p className="text-xs text-white/60">No XP, no pressure</p>
+              </Card>
+            </ModeTile>
 
             {/* Interval Singing */}
-            <Card
-              hover
-              onClick={onOpenIntervalSinging}
-              className="p-4 bg-gradient-to-br from-violet-500/10 to-purple-500/10 border-violet-500/20"
-            >
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
-                  <Mic className="w-5 h-5" />
+            <ModeTile keywords="sing intervals singing voice pitch match microphone intervals">
+              <Card
+                hover
+                onClick={onOpenIntervalSinging}
+                className="p-4 bg-gradient-to-br from-violet-500/10 to-purple-500/10 border-violet-500/20"
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+                    <Mic className="w-5 h-5" />
+                  </div>
+                  <h4 className="font-semibold text-sm">Sing Intervals</h4>
                 </div>
-                <h4 className="font-semibold text-sm">Sing Intervals</h4>
-              </div>
-              <p className="text-xs text-white/60">Match pitches with your voice</p>
-            </Card>
+                <p className="text-xs text-white/60">Match pitches with your voice</p>
+              </Card>
+            </ModeTile>
 
             {/* Chord Progression Dictation */}
-            <Card
-              hover
-              onClick={onOpenProgressionDictation}
-              className="p-4 bg-gradient-to-br from-orange-500/10 to-amber-500/10 border-orange-500/20"
-            >
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center">
-                  <Layers className="w-5 h-5" />
+            <ModeTile keywords="progression dictation play back chord progressions harmony hard">
+              <Card
+                hover
+                onClick={onOpenProgressionDictation}
+                className="p-4 bg-gradient-to-br from-orange-500/10 to-amber-500/10 border-orange-500/20"
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center">
+                    <Layers className="w-5 h-5" />
+                  </div>
+                  {/* Named for what it is, so it isn't a second tile called
+                      "Progressions" beside the Chord Progressions quiz in
+                      Training Modes. This one is dictation: you play the
+                      progression back rather than pick it from a list. */}
+                  <h4 className="font-semibold text-sm">Progression Dictation</h4>
                 </div>
-                {/* Named for what it is, so it isn't a second tile called
-                    "Progressions" beside the Chord Progressions quiz in
-                    Training Modes. This one is dictation: you play the
-                    progression back rather than pick it from a list. */}
-                <h4 className="font-semibold text-sm">Progression Dictation</h4>
-              </div>
-              <p className="text-xs text-white/60">Play back what you hear</p>
-            </Card>
+                <p className="text-xs text-white/60">Play back what you hear</p>
+              </Card>
+            </ModeTile>
 
             {/* Free Play piano */}
-            <Card
-              hover
-              onClick={onOpenFreePlay}
-              className="p-4 bg-gradient-to-br from-sky-500/10 to-blue-500/10 border-sky-500/20"
-            >
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center">
-                  <Piano className="w-5 h-5" />
+            <ModeTile keywords="free play explore chords piano keyboard sandbox untimed">
+              <Card
+                hover
+                onClick={onOpenFreePlay}
+                className="p-4 bg-gradient-to-br from-sky-500/10 to-blue-500/10 border-sky-500/20"
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center">
+                    <Piano className="w-5 h-5" />
+                  </div>
+                  <h4 className="font-semibold text-sm">Free Play</h4>
                 </div>
-                <h4 className="font-semibold text-sm">Free Play</h4>
-              </div>
-              <p className="text-xs text-white/60">Explore chords on the piano</p>
-            </Card>
+                <p className="text-xs text-white/60">Explore chords on the piano</p>
+              </Card>
+            </ModeTile>
 
             {/* Circle of Fifths */}
-            <Card
-              hover
-              onClick={onOpenCircleOfFifths}
-              className="p-4 bg-gradient-to-br from-cyan-500/10 to-teal-500/10 border-cyan-500/20"
-            >
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-teal-600 flex items-center justify-center">
-                  <RefreshCw className="w-5 h-5" />
+            <ModeTile keywords="circle of fifths key signatures wheel theory game relative minor">
+              <Card
+                hover
+                onClick={onOpenCircleOfFifths}
+                className="p-4 bg-gradient-to-br from-cyan-500/10 to-teal-500/10 border-cyan-500/20"
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-teal-600 flex items-center justify-center">
+                    <RefreshCw className="w-5 h-5" />
+                  </div>
+                  <h4 className="font-semibold text-sm">Circle of 5ths</h4>
                 </div>
-                <h4 className="font-semibold text-sm">Circle of 5ths</h4>
-              </div>
-              <p className="text-xs text-white/60">Interactive wheel game</p>
-            </Card>
+                <p className="text-xs text-white/60">Interactive wheel game</p>
+              </Card>
+            </ModeTile>
 
             {/* Settings. The bottom nav has no sixth slot, so Settings has
                 only ever hung off a gear in the header — easy to miss when
                 you are looking for it in a list of things you can do. */}
             {onOpenSettings && (
-              <Card
-                hover
-                onClick={onOpenSettings}
-                className="p-4 bg-gradient-to-br from-slate-500/10 to-gray-500/10 border-slate-500/20"
-              >
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-500 to-gray-600 flex items-center justify-center">
-                    <Settings className="w-5 h-5" />
+              <ModeTile keywords="settings sound instrument midi data preferences accessibility">
+                <Card
+                  hover
+                  onClick={onOpenSettings}
+                  className="p-4 bg-gradient-to-br from-slate-500/10 to-gray-500/10 border-slate-500/20"
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-500 to-gray-600 flex items-center justify-center">
+                      <Settings className="w-5 h-5" />
+                    </div>
+                    <h4 className="font-semibold text-sm">Settings</h4>
                   </div>
-                  <h4 className="font-semibold text-sm">Settings</h4>
-                </div>
-                <p className="text-xs text-white/60">Sound, instrument, MIDI, data</p>
-              </Card>
+                  <p className="text-xs text-white/60">Sound, instrument, MIDI, data</p>
+                </Card>
+              </ModeTile>
             )}
 
             {/* Focus Areas / Review Weak Spots */}
-            <Card
-              hover
-              onClick={onOpenFocusAreas}
-              className="p-4 bg-gradient-to-br from-red-500/10 to-rose-500/10 border-red-500/20"
-            >
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center">
-                  <RotateCcw className="w-5 h-5" />
+            <ModeTile keywords="focus areas weak spots drill review mistakes spaced repetition">
+              <Card
+                hover
+                onClick={onOpenFocusAreas}
+                className="p-4 bg-gradient-to-br from-red-500/10 to-rose-500/10 border-red-500/20"
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center">
+                    <RotateCcw className="w-5 h-5" />
+                  </div>
+                  <h4 className="font-semibold text-sm">Focus Areas</h4>
                 </div>
-                <h4 className="font-semibold text-sm">Focus Areas</h4>
-              </div>
-              <p className="text-xs text-white/60">Drill your weak spots</p>
-            </Card>
-          </div>
-        </div>
+                <p className="text-xs text-white/60">Drill your weak spots</p>
+              </Card>
+            </ModeTile>
+        </ModeSection>
 
         {/* Training Modes */}
-        <div>
-          <h2 className="text-lg font-semibold mb-3">Training Modes</h2>
-          <div className="grid grid-cols-2 gap-3">
+        <ModeSection title="Training Modes" className="grid grid-cols-2 gap-3">
             {Object.values(GAME_MODES).filter(mode =>
               // 'practice', 'comparison', 'musickeys' and 'notes' are surfaced
               // through other entry points on this screen. 'reverse' and
@@ -680,8 +774,8 @@ export function HomeScreen({ onStartLevel, onStartRecommendedLevel, onStartChall
               // Recognition" as if they were different things.
               !['practice', 'comparison', 'musickeys', 'notes', 'chords'].includes(mode.id)
             ).map(mode => (
+              <ModeTile key={mode.id} keywords={`${mode.name} ${mode.description} ${mode.id} training mode`}>
               <Card
-                key={mode.id}
                 hover
                 onClick={() => onStartGameMode(mode.id)}
                 className="p-4"
@@ -694,11 +788,12 @@ export function HomeScreen({ onStartLevel, onStartRecommendedLevel, onStartChall
                 </div>
                 <p className="text-xs text-white/60 line-clamp-2">{mode.description}</p>
               </Card>
+              </ModeTile>
             ))}
-          </div>
-        </div>
+        </ModeSection>
 
         </div>
+        </ModeQueryProvider>
         )}
 
         {/* Instrument Selector */}

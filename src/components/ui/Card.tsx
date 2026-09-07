@@ -1,6 +1,6 @@
 import React from 'react';
 
-interface CardProps {
+interface CardProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'onClick' | 'className' | 'children'> {
   children: React.ReactNode;
   className?: string;
   hover?: boolean;
@@ -10,7 +10,9 @@ interface CardProps {
   ref?: React.Ref<HTMLDivElement>;
 }
 
-export function Card({ children, className = '', hover = false, gradient = false, onClick, ref }: CardProps) {
+// `rest` carries ARIA and identity attributes through: modal sheets are built
+// on Card and need role/aria-modal/aria-labelledby on the panel element itself.
+export function Card({ children, className = '', hover = false, gradient = false, onClick, ref, ...rest }: CardProps) {
   const baseStyles = 'bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl';
   const hoverStyles = hover ? 'transition-all duration-300 hover:bg-white/15 hover:border-white/30 hover:transform hover:scale-[1.02] cursor-pointer' : '';
   const gradientStyles = gradient ? 'gradient-border' : '';
@@ -35,6 +37,7 @@ export function Card({ children, className = '', hover = false, gradient = false
       onKeyDown={onClick ? handleKeyDown : undefined}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
+      {...rest}
     >
       {children}
     </div>
