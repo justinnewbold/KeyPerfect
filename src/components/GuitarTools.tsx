@@ -30,7 +30,7 @@ export function GuitarTools() {
   return (
     <div className="screen-root">
       {/* Header */}
-      <div className="sticky top-0 z-40 bg-gradient-to-b from-[#0f0c29] via-[#0f0c29] to-transparent pb-4 px-4 pt-6">
+      <div className="sticky top-0 z-40 header-fade pb-4 px-4 pt-6">
         <h1 className="text-2xl font-bold mb-4">Music Tools</h1>
 
         {/* Tab Selector - scrollable for more tabs */}

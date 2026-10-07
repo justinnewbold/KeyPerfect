@@ -36,6 +36,7 @@ import { useGameState } from './hooks/useGameState';
 import { awardSession } from './utils/sessionResults';
 import { useSwipe } from './hooks/useSwipe';
 import { usePrefersReducedMotion } from './hooks/usePrefersReducedMotion';
+import { applyTheme, applyGlassIntensity, watchSystemTheme } from './utils/theme';
 import { screenFromHash, hashForScreen, isRoutable } from './utils/routing';
 import {
   getDailyStats,
@@ -141,12 +142,13 @@ function App() {
     applyAccessibilitySettings(loadAccessibilitySettings());
   }, []);
 
-  // Apply theme to document
+  // Apply theme and glass intensity to the document. `system` also follows
+  // the OS appearance while this screen is mounted.
   useEffect(() => {
-    const theme = getSettings().theme;
-    const root = document.documentElement;
-    root.classList.remove('theme-dark', 'theme-purple', 'theme-blue', 'theme-light');
-    root.classList.add(`theme-${theme}`);
+    const settings = getSettings();
+    applyTheme(settings.theme);
+    applyGlassIntensity(settings.glassIntensity ?? 'balanced');
+    return watchSystemTheme(settings.theme);
   }, [appState]); // Re-check on any screen change in case settings changed
 
   // Track screen transitions for animation
@@ -823,7 +825,7 @@ function App() {
 
   return (
     <div
-      className="min-h-dvh safe-area-x bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] text-white"
+      className="min-h-dvh safe-area-x app-bg text-white"
       /*
        * Screens read this to size their bottom clearance and to position their
        * fixed action bars. It is 0 when the nav is hidden, so a `.action-bar`

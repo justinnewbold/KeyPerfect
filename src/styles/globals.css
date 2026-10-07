@@ -77,7 +77,91 @@
   :root {
     /* Overridden inline by App.tsx per screen; see components/Navigation.tsx. */
     --kp-nav-h: 0px;
+
+    /*
+     * Liquid Glass material. Every glass surface (.glass, .glass-nav, Card)
+     * reads these; `data-glass` on <html> (utils/theme.ts) and the light theme
+     * below re-tune them. "balanced" is the default and matches the iOS 27
+     * middle of the slider: enough tint to read text over busy content.
+     */
+    --kp-glass-bg: rgba(255, 255, 255, 0.10);
+    --kp-glass-bg-strong: rgba(255, 255, 255, 0.16);
+    --kp-glass-blur: 24px;
+    --kp-glass-saturate: 170%;
+    --kp-glass-border: rgba(255, 255, 255, 0.18);
+    /* Specular edge: a thin bright line along the top, the way light catches
+       the rim of real glass. */
+    --kp-glass-highlight: rgba(255, 255, 255, 0.35);
+    --kp-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.28);
+    --kp-glass-nav-bg: rgba(18, 12, 40, 0.55);
+    --kp-glass-indicator: rgba(255, 255, 255, 0.15);
+    --kp-glass-radius: 1rem;
+
+    /*
+     * Theme background stops. The App root, every sticky header fade and
+     * every fixed action-bar fade paint from these, so switching the
+     * `theme-*` class on <html> recolours the whole app. (They used to be
+     * hard-coded Tailwind arbitrary colours in each component, which is why
+     * picking Purple, Blue or Light only ever recoloured the <body> hiding
+     * underneath the app and nothing visible.)
+     */
+    --kp-bg-0: #0f0c29;
+    --kp-bg-1: #302b63;
+    --kp-bg-2: #24243e;
   }
+
+  html.theme-purple {
+    --kp-bg-0: #1a0533;
+    --kp-bg-1: #3b1463;
+    --kp-bg-2: #1e0a3e;
+  }
+
+  html.theme-blue {
+    --kp-bg-0: #0c1929;
+    --kp-bg-1: #1e3a5f;
+    --kp-bg-2: #0d2137;
+  }
+
+  html.theme-light {
+    --kp-bg-0: #f0f0f5;
+    --kp-bg-1: #e0dff0;
+    --kp-bg-2: #d5d4e8;
+  }
+
+  html[data-glass="clear"] {
+    --kp-glass-bg: rgba(255, 255, 255, 0.05);
+    --kp-glass-bg-strong: rgba(255, 255, 255, 0.10);
+    --kp-glass-blur: 32px;
+    --kp-glass-saturate: 190%;
+    --kp-glass-border: rgba(255, 255, 255, 0.14);
+    --kp-glass-highlight: rgba(255, 255, 255, 0.45);
+    --kp-glass-nav-bg: rgba(18, 12, 40, 0.35);
+  }
+
+  html[data-glass="tinted"] {
+    --kp-glass-bg: rgba(255, 255, 255, 0.16);
+    --kp-glass-bg-strong: rgba(255, 255, 255, 0.24);
+    --kp-glass-blur: 16px;
+    --kp-glass-saturate: 140%;
+    --kp-glass-border: rgba(255, 255, 255, 0.24);
+    --kp-glass-highlight: rgba(255, 255, 255, 0.28);
+    --kp-glass-nav-bg: rgba(18, 12, 40, 0.82);
+  }
+
+  /* iOS "Reduce Transparency" maps onto the tinted preset: same solid look
+     the system gives its own glass. */
+  @media (prefers-reduced-transparency: reduce) {
+    html, html[data-glass="clear"], html[data-glass="balanced"] {
+      --kp-glass-bg: rgba(255, 255, 255, 0.18);
+      --kp-glass-bg-strong: rgba(255, 255, 255, 0.26);
+      --kp-glass-blur: 0px;
+      --kp-glass-saturate: 100%;
+      --kp-glass-nav-bg: rgba(18, 12, 40, 0.94);
+    }
+  }
+
+  html { color-scheme: dark; }
+  html.theme-light { color-scheme: light; }
 
   html {
     scroll-behavior: smooth;
@@ -97,8 +181,12 @@
   }
 
   body {
-    @apply bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] min-h-screen text-white;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    @apply min-h-screen text-white;
+    background: linear-gradient(to bottom right, var(--kp-bg-0), var(--kp-bg-1), var(--kp-bg-2));
+    /* Inter is never loaded, so the system stack is what actually renders;
+       leading with it means SF Pro on Apple devices, the same face as the
+       OS around the app. */
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', 'Segoe UI', Roboto, sans-serif;
     overscroll-behavior: none;
   }
 
@@ -135,34 +223,88 @@
   }
 }
 
-/* Glass morphism utilities */
+/*
+ * Liquid Glass surfaces.
+ *
+ * Layered the way the iOS 26/27 material is: a blurred, saturated backdrop
+ * (so colour behind the panel bleeds through), a faint fill, a 1px rim with a
+ * brighter specular line along the top edge, and a soft drop shadow for
+ * separation. Intensity comes from the --kp-glass-* variables (see :root).
+ */
 @layer components {
-  .glass {
-    @apply bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl;
+  .glass,
+  .glass-card,
+  .glass-dark,
+  .glass-button,
+  .glass-nav {
+    background-color: var(--kp-glass-bg);
+    -webkit-backdrop-filter: blur(var(--kp-glass-blur)) saturate(var(--kp-glass-saturate));
+    backdrop-filter: blur(var(--kp-glass-blur)) saturate(var(--kp-glass-saturate));
+    border: 1px solid var(--kp-glass-border);
+    box-shadow:
+      inset 0 1px 0 var(--kp-glass-highlight),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.08),
+      var(--kp-glass-shadow);
+  }
+
+  .glass,
+  .glass-dark {
+    border-radius: var(--kp-glass-radius);
   }
 
   .glass-dark {
-    @apply bg-black/20 backdrop-blur-lg border border-white/10 rounded-2xl;
+    background-color: rgba(0, 0, 0, 0.22);
   }
 
   .glass-card {
-    @apply bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl p-4 transition-all duration-300;
+    @apply rounded-xl p-4 transition-all duration-300;
   }
 
   .glass-button {
-    @apply bg-white/10 backdrop-blur-md border border-white/20 rounded-xl px-4 py-2
-           transition-all duration-200 active:scale-95 cursor-pointer;
+    @apply rounded-xl px-4 py-2 transition-all duration-200 active:scale-95 cursor-pointer;
+  }
+
+  /* The floating tab bar: darker fill than a card so white glyphs stay legible
+     over any screen content it floats above. */
+  .glass-nav {
+    background-color: var(--kp-glass-nav-bg);
+    border-radius: 9999px;
+    box-shadow:
+      inset 0 1px 0 var(--kp-glass-highlight),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.12),
+      0 10px 30px rgba(0, 0, 0, 0.35);
+  }
+
+  /* Theme-aware page background and the fades that sticky headers and fixed
+     action bars use to blend into it. */
+  .app-bg {
+    background-image: linear-gradient(to bottom right, var(--kp-bg-0), var(--kp-bg-1), var(--kp-bg-2));
+  }
+
+  .header-fade {
+    background-image: linear-gradient(to bottom, var(--kp-bg-0), var(--kp-bg-0), transparent);
+  }
+
+  .footer-fade {
+    background-image: linear-gradient(to top, var(--kp-bg-0), var(--kp-bg-0), transparent);
+  }
+
+  /* Selected-tab highlight inside .glass-nav; slides via transform. */
+  .glass-nav-indicator {
+    background-color: var(--kp-glass-indicator);
+    box-shadow: inset 0 1px 0 var(--kp-glass-highlight);
   }
 
   /* Hover is a pointer affordance. On touch it latches after a tap and stays
      latched until something else is tapped, which reads as a stuck selection. */
   @media (hover: hover) {
-    .glass-card:hover {
-      @apply bg-white/15 border-white/30 transform scale-[1.02];
+    .glass-card:hover,
+    .glass-button:hover {
+      background-color: var(--kp-glass-bg-strong);
     }
 
-    .glass-button:hover {
-      @apply bg-white/20 border-white/30;
+    .glass-card:hover {
+      @apply transform scale-[1.02];
     }
   }
 
@@ -330,28 +472,43 @@ html:not(.kp-first-paint) .animate-bounce-in {
   }
 }
 
-/* Theme system */
-html.theme-purple body {
-  background: linear-gradient(to bottom right, #1a0533, #3b1463, #1e0a3e) !important;
-}
-
-html.theme-blue body {
-  background: linear-gradient(to bottom right, #0c1929, #1e3a5f, #0d2137) !important;
-}
-
+/* Theme system: background stops live on :root / html.theme-* above. */
 html.theme-light body {
-  background: linear-gradient(to bottom right, #f0f0f5, #e0dff0, #d5d4e8) !important;
   color: #1a1a2e;
 }
 
-html.theme-light .text-white { color: #1a1a2e; }
-html.theme-light .text-white\/60 { color: rgba(26, 26, 46, 0.6); }
-html.theme-light .text-white\/40 { color: rgba(26, 26, 46, 0.4); }
-html.theme-light .text-white\/70 { color: rgba(26, 26, 46, 0.7); }
+/* Glass over a light background: whiter fill, dark rim, softer shadow. */
+html.theme-light {
+  --kp-glass-bg: rgba(255, 255, 255, 0.62);
+  --kp-glass-bg-strong: rgba(255, 255, 255, 0.78);
+  --kp-glass-border: rgba(0, 0, 0, 0.08);
+  --kp-glass-highlight: rgba(255, 255, 255, 0.9);
+  --kp-glass-shadow: 0 8px 24px rgba(40, 30, 80, 0.12);
+  --kp-glass-nav-bg: rgba(255, 255, 255, 0.72);
+  --kp-glass-indicator: rgba(60, 40, 120, 0.10);
+}
 
-html.theme-light .bg-white\/10,
-html.theme-light .glass,
-html.theme-light .glass-card {
+html.theme-light[data-glass="clear"] {
+  --kp-glass-bg: rgba(255, 255, 255, 0.45);
+  --kp-glass-nav-bg: rgba(255, 255, 255, 0.55);
+}
+
+html.theme-light[data-glass="tinted"] {
+  --kp-glass-bg: rgba(255, 255, 255, 0.82);
+  --kp-glass-nav-bg: rgba(255, 255, 255, 0.92);
+}
+
+html.theme-light .text-white { color: #1a1a2e; }
+html.theme-light .text-white\/90 { color: rgba(26, 26, 46, 0.9); }
+html.theme-light .text-white\/80 { color: rgba(26, 26, 46, 0.8); }
+html.theme-light .text-white\/70 { color: rgba(26, 26, 46, 0.7); }
+html.theme-light .text-white\/60 { color: rgba(26, 26, 46, 0.6); }
+html.theme-light .text-white\/50 { color: rgba(26, 26, 46, 0.5); }
+html.theme-light .text-white\/40 { color: rgba(26, 26, 46, 0.4); }
+html.theme-light .text-white\/30 { color: rgba(26, 26, 46, 0.3); }
+html.theme-light .bg-white\/5 { background: rgba(0, 0, 0, 0.04); }
+
+html.theme-light .bg-white\/10 {
   background: rgba(255, 255, 255, 0.7);
   border-color: rgba(0, 0, 0, 0.1);
 }

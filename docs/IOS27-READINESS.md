@@ -81,6 +81,9 @@ Gaps that will show immediately on an iPhone:
 ## 3. Tier 1: do now on the web (makes the PWA look iOS 27 native)
 
 Each item is small, safe, and testable in Safari on your iPhone 17 Pro Max.
+Items 1 to 5 shipped in the "iOS 27 Tier 1 polish" PR, which also made the
+Purple, Blue and Light themes actually recolour the page (they previously
+only painted the body hidden under the app).
 
 1. **Icons and install metadata.** Generate 180x180 `apple-touch-icon.png`,
    plus 192, 512 and maskable PNGs. Add `apple-touch-icon`,
