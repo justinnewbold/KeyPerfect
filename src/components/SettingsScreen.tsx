@@ -307,7 +307,7 @@ export function SettingsScreen({ onReplayTutorial, onBack }: SettingsScreenProps
               style={{ color: theme.id === 'light' ? '#1a1a2e' : '#ffffff' }}
               className={`p-3 min-h-[44px] rounded-xl bg-gradient-to-br ${theme.color} flex items-center justify-center gap-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white ${
                 settings.theme === theme.id
-                  ? 'ring-2 ring-purple-500 ring-offset-2 ring-offset-[#0f0c29]'
+                  ? 'ring-2 ring-purple-500 ring-offset-2 ring-offset-(--kp-bg-0)'
                   : 'opacity-60 hover:opacity-100'
               }`}
             >

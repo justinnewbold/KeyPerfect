@@ -75,7 +75,7 @@ export function Modal({
         tabIndex={-1}
         // Capped and scrollable so a tall body cannot overflow the viewport
         // with no way to reach the rest of it.
-        className={`relative flex flex-col max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-2rem)] bg-gradient-to-br from-gray-900/95 to-gray-800/95 backdrop-blur-lg border border-white/20 rounded-2xl shadow-2xl w-full focus:outline-none ${sizes[size]} animate-scale-in`}
+        className={`relative flex flex-col max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-2rem)] glass-sheet rounded-2xl w-full focus:outline-none ${sizes[size]} animate-scale-in`}
       >
         <div ref={dragHandleRef} className="touch-none shrink-0">
           {/* Grab handle: the affordance for swipe-down-to-dismiss on touch. */}

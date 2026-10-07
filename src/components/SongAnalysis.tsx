@@ -499,6 +499,10 @@ export function SongAnalysis({ onClose }: SongAnalysisProps) {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
                 <input
                   type="search"
+                  inputMode="search"
+                  enterKeyHint="search"
+                  autoCorrect="off"
+                  autoCapitalize="none"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search songs..."

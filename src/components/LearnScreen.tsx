@@ -415,7 +415,7 @@ function CircleOfFifthsSection() {
                 className={`absolute z-10 w-12 h-12 rounded-full bg-gradient-to-br
                            flex items-center justify-center text-sm font-semibold
                            transition-all transform hover:scale-110
-                           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f0c29] ${
+                           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-(--kp-bg-0) ${
                              isSelected
                                ? 'from-purple-500 to-pink-500 ring-2 ring-white'
                                : 'from-purple-500/30 to-pink-500/30 hover:from-purple-500/50 hover:to-pink-500/50'

@@ -11,16 +11,10 @@
 
 export type HapticType = 'light' | 'medium' | 'heavy' | 'success' | 'error' | 'warning';
 
+import { isApplePlatform } from './platform';
+
 function hasVibrate(): boolean {
   return typeof navigator !== 'undefined' && 'vibrate' in navigator;
-}
-
-function isApplePlatform(): boolean {
-  if (typeof navigator === 'undefined') return false;
-  const ua = navigator.userAgent || '';
-  if (/iPhone|iPad|iPod/.test(ua)) return true;
-  // iPadOS reports itself as a Mac; the touch check tells them apart.
-  return /Macintosh/.test(ua) && typeof document !== 'undefined' && 'ontouchend' in document;
 }
 
 // Check if any haptics engine is available

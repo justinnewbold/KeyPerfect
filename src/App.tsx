@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, lazy, Suspense } from 'react';
 import {
   Navigation,
   NAV_HEIGHT_PX,
@@ -6,28 +6,92 @@ import {
   LevelSelect,
   MusicKeysLevelSelect,
   NotesLevelSelect,
-  GameScreen,
-  ResultScreen,
-  StatsScreen,
-  GuitarTools,
-  LearnScreen,
-  SettingsScreen,
-  TutorialScreen,
-  GuidedLessons,
-  ComparisonMode,
-  WeeklyGoals,
-  MasteryIndicators,
-  SocialChallenges,
-  MistakeReviewScreen,
   Confetti,
-  IntervalSingingMode,
-  ChordProgressionDictation,
-  CircleOfFifthsGame,
-  PracticeScreen,
-  ReverseModeGame,
-  MelodicDictationGame,
 } from './components';
 import type { Screen } from './components';
+
+/*
+ * Every screen past Home is its own chunk. The app used to ship as one 600 KB
+ * bundle, all of which had to download, parse and compile before the first
+ * tap did anything; Home and the level pickers are what a launch actually
+ * needs. The loaders are kept in one list so they can be warmed in idle time
+ * below, which keeps the service worker's offline cache complete and makes a
+ * later tap on a mode feel instant.
+ */
+const lazyLoaders = {
+  GameScreen: () => import('./components/GameScreen'),
+  ResultScreen: () => import('./components/ResultScreen'),
+  StatsScreen: () => import('./components/StatsScreen'),
+  GuitarTools: () => import('./components/GuitarTools'),
+  LearnScreen: () => import('./components/LearnScreen'),
+  SettingsScreen: () => import('./components/SettingsScreen'),
+  TutorialScreen: () => import('./components/TutorialScreen'),
+  GuidedLessons: () => import('./components/GuidedLessons'),
+  ComparisonMode: () => import('./components/ComparisonMode'),
+  WeeklyGoals: () => import('./components/WeeklyGoals'),
+  MasteryIndicators: () => import('./components/MasteryIndicators'),
+  SocialChallenges: () => import('./components/SocialChallenges'),
+  MistakeReviewScreen: () => import('./components/MistakeReviewScreen'),
+  IntervalSingingMode: () => import('./components/IntervalSingingMode'),
+  ChordProgressionDictation: () => import('./components/ChordProgressionDictation'),
+  CircleOfFifthsGame: () => import('./components/CircleOfFifthsGame'),
+  PracticeScreen: () => import('./components/PracticeScreen'),
+  ReverseModeGame: () => import('./components/ReverseModeGame'),
+  MelodicDictationGame: () => import('./components/MelodicDictationGame'),
+};
+
+const GameScreen = lazy(() => lazyLoaders.GameScreen().then(m => ({ default: m.GameScreen })));
+const ResultScreen = lazy(() => lazyLoaders.ResultScreen().then(m => ({ default: m.ResultScreen })));
+const StatsScreen = lazy(() => lazyLoaders.StatsScreen().then(m => ({ default: m.StatsScreen })));
+const GuitarTools = lazy(() => lazyLoaders.GuitarTools().then(m => ({ default: m.GuitarTools })));
+const LearnScreen = lazy(() => lazyLoaders.LearnScreen().then(m => ({ default: m.LearnScreen })));
+const SettingsScreen = lazy(() => lazyLoaders.SettingsScreen().then(m => ({ default: m.SettingsScreen })));
+const TutorialScreen = lazy(() => lazyLoaders.TutorialScreen().then(m => ({ default: m.TutorialScreen })));
+const GuidedLessons = lazy(() => lazyLoaders.GuidedLessons().then(m => ({ default: m.GuidedLessons })));
+const ComparisonMode = lazy(() => lazyLoaders.ComparisonMode().then(m => ({ default: m.ComparisonMode })));
+const WeeklyGoals = lazy(() => lazyLoaders.WeeklyGoals().then(m => ({ default: m.WeeklyGoals })));
+const MasteryIndicators = lazy(() => lazyLoaders.MasteryIndicators().then(m => ({ default: m.MasteryIndicators })));
+const SocialChallenges = lazy(() => lazyLoaders.SocialChallenges().then(m => ({ default: m.SocialChallenges })));
+const MistakeReviewScreen = lazy(() => lazyLoaders.MistakeReviewScreen().then(m => ({ default: m.MistakeReviewScreen })));
+const IntervalSingingMode = lazy(() => lazyLoaders.IntervalSingingMode().then(m => ({ default: m.IntervalSingingMode })));
+const ChordProgressionDictation = lazy(() => lazyLoaders.ChordProgressionDictation().then(m => ({ default: m.ChordProgressionDictation })));
+const CircleOfFifthsGame = lazy(() => lazyLoaders.CircleOfFifthsGame().then(m => ({ default: m.CircleOfFifthsGame })));
+const PracticeScreen = lazy(() => lazyLoaders.PracticeScreen().then(m => ({ default: m.PracticeScreen })));
+const ReverseModeGame = lazy(() => lazyLoaders.ReverseModeGame().then(m => ({ default: m.ReverseModeGame })));
+const MelodicDictationGame = lazy(() => lazyLoaders.MelodicDictationGame().then(m => ({ default: m.MelodicDictationGame })));
+
+/** Warm every lazy chunk once the first screen is settled and the CPU is idle. */
+function prefetchLazyScreens(): () => void {
+  const nav = navigator as Navigator & { connection?: { saveData?: boolean } };
+  if (nav.connection?.saveData) return () => {};
+  const run = () => {
+    Object.values(lazyLoaders).forEach(load => {
+      load().catch(() => {
+        /* offline or a failed fetch; the screen loads on demand later */
+      });
+    });
+  };
+  const w = window as Window & {
+    requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+    cancelIdleCallback?: (id: number) => void;
+  };
+  if (typeof w.requestIdleCallback === 'function') {
+    const id = w.requestIdleCallback(run, { timeout: 4000 });
+    return () => w.cancelIdleCallback?.(id);
+  }
+  const id = window.setTimeout(run, 2500);
+  return () => window.clearTimeout(id);
+}
+
+/** Shown for the few milliseconds a screen's chunk takes to arrive. */
+function ScreenFallback() {
+  return (
+    <div className="screen-root flex items-center justify-center" aria-busy="true" aria-live="polite">
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-purple-400" />
+      <span className="sr-only">Loading</span>
+    </div>
+  );
+}
 import { LevelConfig, LEVELS } from './types/levels';
 import { MusicKeysLevelConfig, MUSIC_KEYS_LEVELS } from './types/musicKeysLevels';
 import { NotesLevelConfig, NOTES_LEVELS } from './types/notesLevels';
@@ -37,6 +101,8 @@ import { awardSession } from './utils/sessionResults';
 import { useSwipe } from './hooks/useSwipe';
 import { usePrefersReducedMotion } from './hooks/usePrefersReducedMotion';
 import { applyTheme, applyGlassIntensity, watchSystemTheme } from './utils/theme';
+import { applyDynamicType, watchDynamicType } from './utils/dynamicType';
+import { syncAppBadge } from './utils/badge';
 import { screenFromHash, hashForScreen, isRoutable } from './utils/routing';
 import {
   getDailyStats,
@@ -140,7 +206,21 @@ function App() {
   useEffect(() => {
     injectAccessibilityStyles();
     applyAccessibilitySettings(loadAccessibilitySettings());
+    applyDynamicType();
+    const stopDynamicType = watchDynamicType();
+    const stopPrefetch = prefetchLazyScreens();
+    return () => {
+      stopDynamicType();
+      stopPrefetch();
+    };
   }, []);
+
+  // Keep the Home Screen icon badge equal to the number of reviews due.
+  // Re-checked on every screen change, which is when a session can have
+  // cleared some or scheduled more.
+  useEffect(() => {
+    void syncAppBadge();
+  }, [appState]);
 
   // Apply theme and glass intensity to the document. `system` also follows
   // the OS appearance while this screen is mounted.
@@ -837,7 +917,7 @@ function App() {
           straight to the screen's content instead of tabbing past the header
           and nav on every navigation. */}
       <main id="main-content" key={appState.screen} className={transitionClass}>
-        {renderScreen()}
+        <Suspense fallback={<ScreenFallback />}>{renderScreen()}</Suspense>
       </main>
       {swipeEnabled && (
         <>

@@ -1,4 +1,6 @@
 import { InstrumentType, INSTRUMENTS, VoiceConfig } from '../types/instruments';
+import { ensurePlaybackSession, installInterruptionRecovery } from './audioSession';
+import { acquireWakeLock } from './wakeLock';
 
 // Audio context singleton
 let audioContext: AudioContext | null = null;
@@ -40,6 +42,9 @@ export function isAudioBlocked(): boolean {
 /** Resume from inside a user gesture. Resolves true when sound is available. */
 export async function unblockAudio(): Promise<boolean> {
   const ctx = getAudioContext();
+  // Inside a gesture: the one place iOS lets the silent loop start, which is
+  // what makes Web Audio play through the ringer switch. See audioSession.ts.
+  void ensurePlaybackSession();
   try {
     await ctx.resume();
   } catch {
@@ -54,7 +59,13 @@ export function getAudioContext(): AudioContext {
   if (!audioContext) {
     audioContext = new AudioContext();
     setupMasterChain();
+    // A phone call or Siri suspends the context behind our back; bring it
+    // back when the app is visible again, or ask for a tap if that fails.
+    installInterruptionRecovery(audioContext, setAudioBlocked);
   }
+  // Usually reached from a tap (play a note, answer a question), which is
+  // when the ringer-switch workaround can take effect. No-op once it has.
+  void ensurePlaybackSession();
   if (audioContext.state === 'suspended') {
     const ctx = audioContext;
     void ctx
@@ -1032,6 +1043,9 @@ export function createPitchDetector(onPitch: (frequency: number, note: string, c
   let mediaStream: MediaStream | null = null;
   let analyser: AnalyserNode | null = null;
   let animationId: number | null = null;
+  // Keeps the screen awake while the mic is open: singing or tuning means not
+  // touching the screen, and an idle lock would end the mic session too.
+  let releaseWakeLock: (() => void) | null = null;
 
   const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
@@ -1136,6 +1150,10 @@ export function createPitchDetector(onPitch: (frequency: number, note: string, c
       mediaStream = null;
     }
     analyser = null;
+    if (releaseWakeLock) {
+      releaseWakeLock();
+      releaseWakeLock = null;
+    }
   }
 
   return {
@@ -1148,6 +1166,7 @@ export function createPitchDetector(onPitch: (frequency: number, note: string, c
       stop();
       const ctx = getAudioContext();
       mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      releaseWakeLock = acquireWakeLock();
       const source = ctx.createMediaStreamSource(mediaStream);
       analyser = ctx.createAnalyser();
       analyser.fftSize = 2048;

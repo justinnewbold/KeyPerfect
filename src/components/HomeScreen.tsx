@@ -324,6 +324,10 @@ export function HomeScreen({ onStartLevel, onStartRecommendedLevel, onStartChall
             <input
               id="mode-search"
               type="search"
+              inputMode="search"
+              enterKeyHint="search"
+              autoCorrect="off"
+              autoCapitalize="none"
               value={modeQuery}
               onChange={e => setModeQuery(e.target.value)}
               placeholder="Search modes — try “intervals”, “timed”, “beginner”"

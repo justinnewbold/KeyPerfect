@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import { ErrorBoundary, StatusBanner, UpdateBanner } from './components'
+import { InstallHint } from './components/InstallHint'
 import { registerServiceWorker } from './utils/serviceWorker'
 import './styles/globals.css'
 
@@ -23,6 +24,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <App />
       <StatusBanner />
       <UpdateBanner />
+      <InstallHint />
     </ErrorBoundary>
   </React.StrictMode>,
 )

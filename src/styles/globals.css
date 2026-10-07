@@ -94,6 +94,7 @@
     --kp-glass-highlight: rgba(255, 255, 255, 0.35);
     --kp-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.28);
     --kp-glass-nav-bg: rgba(18, 12, 40, 0.55);
+    --kp-glass-sheet-bg: rgba(24, 18, 48, 0.92);
     --kp-glass-indicator: rgba(255, 255, 255, 0.15);
     --kp-glass-radius: 1rem;
 
@@ -166,6 +167,9 @@
   html {
     scroll-behavior: smooth;
     -webkit-text-size-adjust: 100%;
+    /* Dynamic Type: every rem-based size follows the phone's text-size
+       setting. utils/dynamicType.ts measures and sets the variable. */
+    font-size: calc(100% * var(--kp-dyn-scale, 1));
   }
 
   /*
@@ -236,6 +240,7 @@
   .glass-card,
   .glass-dark,
   .glass-button,
+  .glass-sheet,
   .glass-nav {
     background-color: var(--kp-glass-bg);
     -webkit-backdrop-filter: blur(var(--kp-glass-blur)) saturate(var(--kp-glass-saturate));
@@ -262,6 +267,15 @@
 
   .glass-button {
     @apply rounded-xl px-4 py-2 transition-all duration-200 active:scale-95 cursor-pointer;
+  }
+
+  /* Modal sheets: the most opaque glass, so a dialog reads as a surface of
+     its own rather than a tint over whatever it covers. */
+  .glass-sheet {
+    background-color: var(--kp-glass-sheet-bg);
+    box-shadow:
+      inset 0 1px 0 var(--kp-glass-highlight),
+      0 24px 60px rgba(0, 0, 0, 0.45);
   }
 
   /* The floating tab bar: darker fill than a card so white glyphs stay legible
@@ -485,7 +499,31 @@ html.theme-light {
   --kp-glass-highlight: rgba(255, 255, 255, 0.9);
   --kp-glass-shadow: 0 8px 24px rgba(40, 30, 80, 0.12);
   --kp-glass-nav-bg: rgba(255, 255, 255, 0.72);
+  --kp-glass-sheet-bg: rgba(250, 250, 255, 0.94);
   --kp-glass-indicator: rgba(60, 40, 120, 0.10);
+}
+
+/*
+ * Installed-app status bar in the light theme. The Home Screen app uses the
+ * translucent status bar, whose clock and battery glyphs are always white,
+ * and they vanish over a light page. A dark, blurred strip the height of the
+ * top inset keeps them readable; in a browser tab the inset is 0 and the
+ * browser owns that area anyway.
+ */
+@media (display-mode: standalone) {
+  html.theme-light body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: env(safe-area-inset-top);
+    z-index: 95;
+    pointer-events: none;
+    background: rgba(15, 12, 41, 0.72);
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+  }
 }
 
 html.theme-light[data-glass="clear"] {

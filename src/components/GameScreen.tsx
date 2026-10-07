@@ -478,7 +478,7 @@ export function GameScreen({
                 audio.isPlaying ? 'Playing' : hasPlayed ? 'Play the sound again' : 'Play the sound'
               }
               title={hasPlayed ? 'Play again' : 'Play the sound'}
-              className={`w-20 h-20 rounded-full flex items-center justify-center transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f0c29] ${
+              className={`w-20 h-20 rounded-full flex items-center justify-center transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-(--kp-bg-0) ${
                 audio.isPlaying
                   ? 'bg-purple-500 animate-pulse'
                   : hasPlayed
