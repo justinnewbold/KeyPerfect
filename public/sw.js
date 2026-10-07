@@ -12,7 +12,7 @@
 // got the previous build's HTML, pointing at the previous build's assets. The
 // background revalidate only helped the load *after* that one, so every deploy
 // took two reloads to reach anyone who had opened the app before.
-const CACHE_NAME = 'keyperfect-v16.0.0';
+const CACHE_NAME = 'keyperfect-v17.0.0';
 const DYNAMIC_CACHE = 'keyperfect-dynamic-v16.0.0';
 
 // The app shell. Only the offline fallback needs precaching; the hashed

@@ -3,53 +3,79 @@ import {
   Home,
   Music,
   BarChart3,
-  Settings,
   BookOpen,
   Guitar,
 } from 'lucide-react';
 
 export type Screen = 'home' | 'play' | 'learn' | 'stats' | 'tools' | 'settings';
 
+/** Gap between the floating pill and the safe-area edge. */
+const NAV_LIFT_PX = 12;
+
 /**
- * Rendered height of the bar below, excluding the safe-area inset: 1px top
- * border + 8px container padding + 54px button (8px padding, 20px icon, 2px
- * gap, ~16px label, 8px padding). App.tsx publishes this as `--kp-nav-h` so
- * screen padding and fixed action bars stay in step with whether the nav is
- * actually rendered. Keep it in sync with the markup below.
+ * Vertical space the floating tab bar claims above the safe-area inset:
+ * NAV_LIFT_PX of air under the pill, then the pill itself (1px border +
+ * 6px padding + 54px button + 6px padding + 1px border = 68px). App.tsx
+ * publishes this as `--kp-nav-h` so screen padding and fixed action bars stay
+ * in step with whether the nav is actually rendered. Keep it in sync with the
+ * markup below.
  */
-export const NAV_HEIGHT_PX = 64;
+export const NAV_HEIGHT_PX = NAV_LIFT_PX + 68;
 
 interface NavigationProps {
   currentScreen: Screen;
   onNavigate: (screen: Screen) => void;
 }
 
+const NAV_ITEMS: { id: Screen; icon: React.ReactNode; label: string }[] = [
+  { id: 'home', icon: <Home className="w-5 h-5" strokeWidth={1.75} />, label: 'Home' },
+  { id: 'play', icon: <Music className="w-5 h-5" strokeWidth={1.75} />, label: 'Play' },
+  { id: 'learn', icon: <BookOpen className="w-5 h-5" strokeWidth={1.75} />, label: 'Learn' },
+  { id: 'tools', icon: <Guitar className="w-5 h-5" strokeWidth={1.75} />, label: 'Tools' },
+  { id: 'stats', icon: <BarChart3 className="w-5 h-5" strokeWidth={1.75} />, label: 'Stats' },
+];
+
+/**
+ * Floating Liquid Glass tab bar, in the shape iOS 26/27 gives its own: a
+ * rounded pill inset from the screen edges and lifted off the home indicator,
+ * with a selection highlight that slides between tabs rather than snapping.
+ */
 export function Navigation({ currentScreen, onNavigate }: NavigationProps) {
-  const navItems: { id: Screen; icon: React.ReactNode; label: string }[] = [
-    { id: 'home', icon: <Home className="w-5 h-5" />, label: 'Home' },
-    { id: 'play', icon: <Music className="w-5 h-5" />, label: 'Play' },
-    { id: 'learn', icon: <BookOpen className="w-5 h-5" />, label: 'Learn' },
-    { id: 'tools', icon: <Guitar className="w-5 h-5" />, label: 'Tools' },
-    { id: 'stats', icon: <BarChart3 className="w-5 h-5" />, label: 'Stats' },
-  ];
+  const activeIndex = NAV_ITEMS.findIndex(item => item.id === currentScreen);
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-black/30 backdrop-blur-xl border-t border-white/10 safe-area-bottom">
-      <div className="flex items-center justify-around max-w-lg mx-auto px-2 py-1">
-        {navItems.map(item => (
-          <button
-            key={item.id}
-            onClick={() => onNavigate(item.id)}
-            className={`flex flex-col items-center gap-0.5 py-2 px-4 rounded-xl transition-all duration-200 ${
-              currentScreen === item.id
-                ? 'text-purple-400 bg-purple-500/10'
-                : 'text-white/60 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            {item.icon}
-            <span className="text-xs font-medium">{item.label}</span>
-          </button>
-        ))}
+    <nav
+      aria-label="Main"
+      // The outer element is only a positioning frame; taps on the air beside
+      // the pill fall through to the page.
+      className="fixed left-3 right-3 z-50 pointer-events-none"
+      style={{ bottom: `calc(env(safe-area-inset-bottom) + ${NAV_LIFT_PX}px)` }}
+    >
+      <div className="glass-nav pointer-events-auto relative grid grid-cols-5 max-w-lg mx-auto p-1.5">
+        {activeIndex >= 0 && (
+          <div
+            aria-hidden="true"
+            className="glass-nav-indicator absolute top-1.5 bottom-1.5 left-1.5 w-[calc((100%-0.75rem)/5)] rounded-full transition-transform duration-300 ease-out"
+            style={{ transform: `translateX(${activeIndex * 100}%)` }}
+          />
+        )}
+        {NAV_ITEMS.map(item => {
+          const active = currentScreen === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              aria-current={active ? 'page' : undefined}
+              onClick={() => onNavigate(item.id)}
+              className={`relative z-10 flex flex-col items-center gap-0.5 py-2 rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
+                active ? 'text-white' : 'text-white/60 hover:text-white'
+              }`}
+            >
+              {item.icon}
+              <span className="text-xs font-medium">{item.label}</span>
+            </button>
+          );
+        })}
       </div>
     </nav>
   );
@@ -64,7 +90,7 @@ interface HeaderProps {
 
 export function Header({ title, subtitle, onBack, rightAction }: HeaderProps) {
   return (
-    <header className="sticky top-0 z-40 bg-gradient-to-b from-[#0f0c29] via-[#0f0c29] to-transparent pb-4">
+    <header className="sticky top-0 z-40 header-fade pb-4">
       <div className="flex items-center justify-between px-4 pt-4">
         <div className="flex items-center gap-3">
           {onBack && (

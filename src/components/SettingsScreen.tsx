@@ -36,6 +36,7 @@ import { useAudio } from '../hooks/useAudio';
 import { playChord as playChordRaw } from '../utils/audioEngine';
 import { midiManager } from '../utils/midiInput';
 import { useAccessibility, AccessibilitySettings } from '../utils/accessibility';
+import { applyTheme, applyGlassIntensity, GlassIntensity } from '../utils/theme';
 import { APP_VERSION } from '../version';
 
 interface SettingsScreenProps {
@@ -91,11 +92,15 @@ export function SettingsScreen({ onReplayTutorial, onBack }: SettingsScreenProps
     setSettings(prev => ({ ...prev, theme }));
     updateSettings({ theme });
     // App.tsx's theme effect only fires on appState changes, so without
-    // applying the class here the new theme wouldn't show until the user
-    // navigated away from Settings.
-    const root = document.documentElement;
-    root.classList.remove('theme-dark', 'theme-purple', 'theme-blue', 'theme-light');
-    root.classList.add(`theme-${theme}`);
+    // applying it here the new theme wouldn't show until the user navigated
+    // away from Settings.
+    applyTheme(theme);
+  }, []);
+
+  const handleGlassChange = useCallback((glassIntensity: GlassIntensity) => {
+    setSettings(prev => ({ ...prev, glassIntensity }));
+    updateSettings({ glassIntensity });
+    applyGlassIntensity(glassIntensity);
   }, []);
 
   const handlePlayModeChange = useCallback((playMode: AppSettings['playMode']) => {
@@ -190,11 +195,21 @@ export function SettingsScreen({ onReplayTutorial, onBack }: SettingsScreenProps
   const instruments = getInstrumentList();
 
   const themes = [
+    { id: 'system', name: 'System', color: 'from-gray-900 via-gray-500 to-gray-100' },
     { id: 'dark', name: 'Dark', color: 'from-gray-800 to-gray-900' },
     { id: 'purple', name: 'Purple', color: 'from-purple-800 to-indigo-900' },
     { id: 'blue', name: 'Blue', color: 'from-blue-800 to-cyan-900' },
     { id: 'light', name: 'Light', color: 'from-gray-100 to-gray-300' },
   ] as const;
+
+  // Mirrors the iOS 27 Liquid Glass slider, from most see-through to most
+  // opaque. Tinted is the most readable over busy content.
+  const glassLevels: { id: GlassIntensity; name: string; hint: string }[] = [
+    { id: 'clear', name: 'Clear', hint: 'Most see-through' },
+    { id: 'balanced', name: 'Balanced', hint: 'Default' },
+    { id: 'tinted', name: 'Tinted', hint: 'Most readable' },
+  ];
+  const glassIntensity = settings.glassIntensity ?? 'balanced';
 
   return (
     <div className="screen-root px-4 pt-6">
@@ -279,7 +294,7 @@ export function SettingsScreen({ onReplayTutorial, onBack }: SettingsScreenProps
           <Palette className="w-5 h-5 text-purple-400" />
           <h3 className="font-semibold">Theme</h3>
         </div>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-3 min-[480px]:grid-cols-5 gap-2">
           {themes.map(theme => (
             <button
               key={theme.id}
@@ -287,6 +302,9 @@ export function SettingsScreen({ onReplayTutorial, onBack }: SettingsScreenProps
               aria-label={`Theme: ${theme.name}`}
               aria-pressed={settings.theme === theme.id}
               onClick={() => handleThemeChange(theme.id)}
+              // Swatch labels sit on the swatch colour, not the page, so they
+              // must not follow the light theme's text-white override.
+              style={{ color: theme.id === 'light' ? '#1a1a2e' : '#ffffff' }}
               className={`p-3 min-h-[44px] rounded-xl bg-gradient-to-br ${theme.color} flex items-center justify-center gap-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white ${
                 settings.theme === theme.id
                   ? 'ring-2 ring-purple-500 ring-offset-2 ring-offset-[#0f0c29]'
@@ -297,6 +315,34 @@ export function SettingsScreen({ onReplayTutorial, onBack }: SettingsScreenProps
               <span className="text-sm font-medium">{theme.name}</span>
             </button>
           ))}
+        </div>
+        <p className="mt-2 text-xs text-white/50">
+          System follows your phone's light and dark appearance.
+        </p>
+
+        <div className="mt-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium">Glass</span>
+            <span className="text-xs text-white/50">{glassLevels.find(l => l.id === glassIntensity)?.hint}</span>
+          </div>
+          <div role="radiogroup" aria-label="Glass intensity" className="grid grid-cols-3 gap-2">
+            {glassLevels.map(level => (
+              <button
+                key={level.id}
+                type="button"
+                role="radio"
+                aria-checked={glassIntensity === level.id}
+                onClick={() => handleGlassChange(level.id)}
+                className={`glass-button min-h-[44px] text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white ${
+                  glassIntensity === level.id
+                    ? 'ring-2 ring-purple-500 text-white'
+                    : 'text-white/70'
+                }`}
+              >
+                {level.name}
+              </button>
+            ))}
+          </div>
         </div>
       </Card>
 

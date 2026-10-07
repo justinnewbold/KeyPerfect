@@ -242,7 +242,7 @@ export function MelodicDictationGame({ onComplete, onExit }: MelodicDictationGam
   return (
     <div className="screen-root flex flex-col">
       {/* Header */}
-      <div className="sticky top-0 z-40 bg-gradient-to-b from-[#0f0c29] via-[#0f0c29] to-transparent pb-4 px-4 pt-4">
+      <div className="sticky top-0 z-40 header-fade pb-4 px-4 pt-4">
         <div className="flex items-center gap-3 mb-3">
           <button
             onClick={onExit}
@@ -417,7 +417,7 @@ export function MelodicDictationGame({ onComplete, onExit }: MelodicDictationGam
       </div>
 
       {/* Bottom Action */}
-      <div className="action-bar px-4 py-3 bg-gradient-to-t from-[#0f0c29] via-[#0f0c29] to-transparent">
+      <div className="action-bar px-4 py-3 footer-fade">
         {result && (
           <Button
             variant="primary"

@@ -161,7 +161,7 @@ export function HomeScreen({ onStartLevel, onStartRecommendedLevel, onStartChall
   return (
     <div className="screen-root">
       {/* Header */}
-      <div className="sticky top-0 z-40 bg-gradient-to-b from-[#0f0c29] via-[#0f0c29] to-transparent pb-4 px-4 pt-6">
+      <div className="sticky top-0 z-40 header-fade pb-4 px-4 pt-6">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-2xl font-bold gradient-text">KeyPerfect</h1>

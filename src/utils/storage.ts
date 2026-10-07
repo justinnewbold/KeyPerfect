@@ -101,7 +101,18 @@ export interface AppSettings {
   autoAdvance: boolean;
   showHints: boolean;
   playMode: 'chord' | 'arpeggio';
-  theme: 'dark' | 'light' | 'purple' | 'blue';
+  /**
+   * `system` follows the OS appearance (prefers-color-scheme) and re-resolves
+   * when it changes; the others are fixed. See utils/theme.ts.
+   */
+  theme: 'system' | 'dark' | 'light' | 'purple' | 'blue';
+  /**
+   * How see-through glass surfaces are. Mirrors the iOS 27 Liquid Glass
+   * slider: `clear` is the most translucent, `tinted` the most opaque and
+   * readable. Missing on settings saved before this existed; treat as
+   * `balanced`.
+   */
+  glassIntensity?: 'clear' | 'balanced' | 'tinted';
   notifications: boolean;
   /**
    * Whether the player has opted into Web MIDI. Off until they ask for it:
@@ -192,6 +203,7 @@ function getDefaultSettings(): AppSettings {
     showHints: true,
     playMode: 'chord',
     theme: 'dark',
+    glassIntensity: 'balanced',
     notifications: true,
     midiEnabled: false,
   };
