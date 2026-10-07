@@ -151,7 +151,7 @@ function Metronome() {
             disabled={bpm <= MIN_BPM}
             aria-label="Decrease tempo by 5 BPM"
             title="Decrease tempo by 5 BPM"
-            className="tap-target p-3 rounded-xl bg-white/10 hover:bg-white/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f0c29]"
+            className="tap-target p-3 rounded-xl bg-white/10 hover:bg-white/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-2 focus-visible:ring-offset-(--kp-bg-0)"
           >
             <Minus className="w-6 h-6" />
           </button>
@@ -162,7 +162,7 @@ function Metronome() {
             aria-pressed={isRunning}
             aria-label={isRunning ? 'Stop metronome' : 'Start metronome'}
             title={isRunning ? 'Stop metronome' : 'Start metronome'}
-            className={`w-20 h-20 rounded-full flex items-center justify-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f0c29] ${
+            className={`w-20 h-20 rounded-full flex items-center justify-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-(--kp-bg-0) ${
               isRunning
                 ? 'bg-red-500 hover:bg-red-600'
                 : 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600'
@@ -181,7 +181,7 @@ function Metronome() {
             disabled={bpm >= MAX_BPM}
             aria-label="Increase tempo by 5 BPM"
             title="Increase tempo by 5 BPM"
-            className="tap-target p-3 rounded-xl bg-white/10 hover:bg-white/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f0c29]"
+            className="tap-target p-3 rounded-xl bg-white/10 hover:bg-white/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-2 focus-visible:ring-offset-(--kp-bg-0)"
           >
             <Plus className="w-6 h-6" />
           </button>

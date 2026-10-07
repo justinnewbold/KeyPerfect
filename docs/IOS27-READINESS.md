@@ -85,6 +85,15 @@ Items 1 to 5 shipped in the "iOS 27 Tier 1 polish" PR, which also made the
 Purple, Blue and Light themes actually recolour the page (they previously
 only painted the body hidden under the app).
 
+The "iOS 27 phone behaviour" PR then shipped: Web Audio through the ringer
+switch (silent-loop playback session) and interruption recovery; code
+splitting with idle prefetch (main bundle 600 KB to 398 KB); a dark status-bar
+strip for the installed app in the light theme; screen wake lock while the
+mic is open; Dynamic Type via `-apple-system-body` (replaces the planned
+picker in item 6); the Home Screen badge (Tier 2 item 2); an Add to Home
+Screen hint for Safari; live reduced-motion and contrast following; keyboard
+hints on inputs; glass modal sheets; and the last hard-coded dark values.
+
 1. **Icons and install metadata.** Generate 180x180 `apple-touch-icon.png`,
    plus 192, 512 and maskable PNGs. Add `apple-touch-icon`,
    `apple-mobile-web-app-title`, and `color-scheme` meta tags to `index.html`.

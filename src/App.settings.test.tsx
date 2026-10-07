@@ -37,21 +37,23 @@ describe('reaching Settings from Home', () => {
 
   afterEach(cleanup);
 
-  it('opens Settings from the Home header', () => {
+  // Settings is a lazily loaded chunk, so its heading arrives a tick after
+  // the tap; `findBy` waits for it.
+  it('opens Settings from the Home header', async () => {
     render(<App />);
 
     expect(screen.queryByRole('heading', { name: 'Settings' })).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
 
-    expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Settings' })).toBeInTheDocument();
   });
 
-  it('gets back to Home from Settings', () => {
+  it('gets back to Home from Settings', async () => {
     render(<App />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Back' }));
 
     expect(screen.queryByRole('heading', { name: 'Settings' })).toBeNull();
     expect(screen.getByRole('heading', { name: 'KeyPerfect' })).toBeInTheDocument();

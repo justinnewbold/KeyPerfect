@@ -213,6 +213,25 @@ export function useAccessibility() {
     }
   }, []);
 
+  // Follow the OS switches while the app is open. A change event is the user
+  // flipping Reduce Motion or Increase Contrast in Settings just now, which is
+  // a clearer signal than a stored value from an earlier session; the guard
+  // above only protects the saved choice from being overwritten on mount.
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+    const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const contrast = window.matchMedia('(prefers-contrast: more)');
+    const onMotion = (e: MediaQueryListEvent) => updateSetting('reducedMotion', e.matches);
+    const onContrast = (e: MediaQueryListEvent) => updateSetting('highContrast', e.matches);
+    if (typeof motion.addEventListener !== 'function') return;
+    motion.addEventListener('change', onMotion);
+    contrast.addEventListener('change', onContrast);
+    return () => {
+      motion.removeEventListener('change', onMotion);
+      contrast.removeEventListener('change', onContrast);
+    };
+  }, []);
+
   useEffect(() => {
     applyAccessibilitySettings(settings);
     saveAccessibilitySettings(settings);
@@ -318,8 +337,10 @@ export const accessibilityStyles = `
   }
 
   /* Large Text Mode */
+  /* Multiplies the Dynamic Type scale (utils/dynamicType.ts) rather than
+     replacing it, so Large Text on top of a large system size still grows. */
   .large-text {
-    font-size: 120%;
+    font-size: calc(120% * var(--kp-dyn-scale, 1));
   }
 
   .large-text h1 { font-size: 2.5rem; }

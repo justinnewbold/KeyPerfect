@@ -204,6 +204,8 @@ export function CustomPracticeBuilder({
                   <input
                     id="cp-name"
                     type="text"
+                    enterKeyHint="next"
+                    autoCapitalize="words"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="e.g., Jazz Voicings"
@@ -215,6 +217,8 @@ export function CustomPracticeBuilder({
                   <input
                     id="cp-description"
                     type="text"
+                    enterKeyHint="done"
+                    autoCapitalize="sentences"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="e.g., Focus on extended chords"

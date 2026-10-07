@@ -87,6 +87,8 @@ export function SocialChallenges({ onBack, onStartChallenge }: SocialChallengesP
               <div className="flex items-center gap-2">
                 <input
                   type="text"
+                  enterKeyHint="done"
+                  autoComplete="nickname"
                   value={nameInput}
                   onChange={(e) => setNameInput(e.target.value)}
                   className="bg-white/10 border border-white/20 rounded-lg px-3 py-1 text-sm w-32"
