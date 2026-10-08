@@ -332,7 +332,7 @@ export function SongAnalysis({ onClose }: SongAnalysisProps) {
                     id="sa-chord-type"
                     value={selectedChord}
                     onChange={(e) => setSelectedChord(e.target.value as ChordQuality)}
-                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-purple-500"
+                    className="kp-select w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-purple-500"
                   >
                     {Object.entries(CHORD_TYPES).map(([key, value]) => (
                       <option key={key} value={key}>

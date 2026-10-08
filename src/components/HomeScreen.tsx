@@ -427,7 +427,7 @@ export function HomeScreen({ onStartLevel, onStartRecommendedLevel, onStartChall
         </ModeSection>
 
         {/* Practice Presets */}
-        <ModeSection title="Quick Start" className="grid grid-cols-2 gap-3">
+        <ModeSection title="Quick Start" className="mode-grid grid grid-cols-2 gap-3">
             {Object.values(PRACTICE_PRESETS).map(preset => (
               <ModeTile
                 key={preset.id}
@@ -469,7 +469,7 @@ export function HomeScreen({ onStartLevel, onStartRecommendedLevel, onStartChall
         </ModeSection>
 
         {/* Challenge Modes */}
-        <ModeSection title="Challenge Modes" className="grid grid-cols-2 gap-3">
+        <ModeSection title="Challenge Modes" className="mode-grid grid grid-cols-2 gap-3">
             {/* Daily Challenge */}
             <ModeTile keywords="daily challenge new every day short quick mixed">
               <Card
@@ -545,7 +545,7 @@ export function HomeScreen({ onStartLevel, onStartRecommendedLevel, onStartChall
         </ModeSection>
 
         {/* New Features: Learning & Tools */}
-        <ModeSection title="Learn & Improve" className="grid grid-cols-2 gap-3">
+        <ModeSection title="Learn & Improve" className="mode-grid grid grid-cols-2 gap-3">
             {/* Guided Lessons */}
             <ModeTile keywords="guided lessons learn theory tutorial what to listen for beginner">
               <Card
@@ -767,7 +767,7 @@ export function HomeScreen({ onStartLevel, onStartRecommendedLevel, onStartChall
         </ModeSection>
 
         {/* Training Modes */}
-        <ModeSection title="Training Modes" className="grid grid-cols-2 gap-3">
+        <ModeSection title="Training Modes" className="mode-grid grid grid-cols-2 gap-3">
             {Object.values(GAME_MODES).filter(mode =>
               // 'practice', 'comparison', 'musickeys' and 'notes' are surfaced
               // through other entry points on this screen. 'reverse' and

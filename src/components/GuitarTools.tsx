@@ -18,13 +18,18 @@ import {
 import { SymbolIcon } from './ui/SymbolIcon';
 import { LargeTitleHeader } from './ui/LargeTitleHeader';
 
-type ToolType = 'tuner' | 'metronome' | 'singback' | 'songanalysis' | 'custompractice';
+export type ToolType = 'tuner' | 'metronome' | 'singback' | 'songanalysis' | 'custompractice';
 
 const MIN_BPM = 30;
 const MAX_BPM = 300;
 
-export function GuitarTools() {
-  const [activeTool, setActiveTool] = useState<ToolType>('metronome');
+interface GuitarToolsProps {
+  /** Tool to open on, from a deep link such as `#/tools/tuner`. */
+  initialTool?: ToolType;
+}
+
+export function GuitarTools({ initialTool }: GuitarToolsProps = {}) {
+  const [activeTool, setActiveTool] = useState<ToolType>(initialTool ?? 'metronome');
 
   const [showSongAnalysis, setShowSongAnalysis] = useState(false);
   const [showCustomPractice, setShowCustomPractice] = useState(false);
@@ -38,6 +43,7 @@ export function GuitarTools() {
         <div className="flex gap-2 overflow-x-auto snap-strip pb-2 -mx-4 px-4">
           <button
             onClick={() => setActiveTool('metronome')}
+            aria-pressed={activeTool === 'metronome'}
             className={`py-3 px-4 rounded-xl font-medium transition-all whitespace-nowrap ${
               activeTool === 'metronome'
                 ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
@@ -48,6 +54,7 @@ export function GuitarTools() {
           </button>
           <button
             onClick={() => setActiveTool('tuner')}
+            aria-pressed={activeTool === 'tuner'}
             className={`py-3 px-4 rounded-xl font-medium transition-all whitespace-nowrap ${
               activeTool === 'tuner'
                 ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
@@ -58,6 +65,7 @@ export function GuitarTools() {
           </button>
           <button
             onClick={() => setActiveTool('singback')}
+            aria-pressed={activeTool === 'singback'}
             className={`py-3 px-4 rounded-xl font-medium transition-all whitespace-nowrap ${
               activeTool === 'singback'
                 ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
