@@ -4,6 +4,8 @@ import { Card } from './ui/Card';
 import { Badge } from './ui/Badge';
 import { CHORD_TYPES, SCALE_TYPES, INTERVALS, NOTE_NAMES } from '../types/music';
 import { useAudio } from '../hooks/useAudio';
+import { SymbolIcon } from './ui/SymbolIcon';
+import { LargeTitleHeader } from './ui/LargeTitleHeader';
 
 type LearnSection = 'overview' | 'chords' | 'scales' | 'intervals' | 'circle';
 
@@ -13,8 +15,7 @@ export function LearnScreen() {
   return (
     <div className="screen-root">
       {/* Header */}
-      <div className="sticky top-0 z-40 header-fade pb-4 px-4 pt-6">
-        <h1 className="text-2xl font-bold mb-4">Learn</h1>
+      <LargeTitleHeader title="Learn">
 
         {/* Section Tabs */}
         <div className="flex gap-2 overflow-x-auto snap-strip pb-2 -mx-4 px-4">
@@ -38,7 +39,7 @@ export function LearnScreen() {
             </button>
           ))}
         </div>
-      </div>
+      </LargeTitleHeader>
 
       <div className="px-4">
         {activeSection === 'overview' && <OverviewSection setSection={setActiveSection} />}
@@ -101,7 +102,7 @@ function OverviewSection({ setSection }: { setSection: (s: LearnSection) => void
         >
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/30 to-pink-500/30 flex items-center justify-center text-2xl">
-              {topic.icon}
+              <SymbolIcon symbol={topic.icon} className="w-6 h-6" />
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">

@@ -10,7 +10,7 @@ test.describe('Tools / Song Analysis', () => {
   test.beforeEach(async ({ page }) => {
     await gotoApp(page);
     await openTab(page, 'Tools');
-    await page.getByRole('button', { name: '🎼 Song Analysis' }).click();
+    await page.getByRole('button', { name: 'Song Analysis' }).click();
     await expect(page.getByRole('dialog', { name: 'Song Analysis' })).toBeVisible();
   });
 

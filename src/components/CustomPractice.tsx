@@ -22,6 +22,7 @@ import { GameQuestion, AnswerRecord, GameResult } from '../types/gameModes';
 import { generateAdaptivePractice, getPracticeRecommendation, getLearningProgress } from '../utils/spacedRepetition';
 import { useGameState } from '../hooks/useGameState';
 import { generateQuestion } from '../utils/gameHelpers';
+import { SymbolIcon } from './ui/SymbolIcon';
 
 type PracticeType = 'chord' | 'scale' | 'interval' | 'mixed';
 
@@ -170,9 +171,10 @@ export function CustomPractice({ onBack }: { onBack: () => void }) {
     return (
       <div className="screen-root px-4 pt-6">
         <Card className="p-6 text-center">
-          <div className="text-6xl mb-4">
-            {gameResult.accuracy >= 90 ? '🏆' : gameResult.accuracy >= 70 ? '🌟' : '💪'}
-          </div>
+          <SymbolIcon
+            symbol={gameResult.accuracy >= 90 ? '🏆' : gameResult.accuracy >= 70 ? '🌟' : '💪'}
+            className="w-14 h-14 mx-auto mb-4 text-amber-300"
+          />
           <h2 className="text-2xl font-bold mb-2">Practice Complete!</h2>
 
           <div className="grid grid-cols-2 gap-4 my-6">
@@ -275,9 +277,10 @@ export function CustomPractice({ onBack }: { onBack: () => void }) {
                   : 'bg-white/10 border-2 border-transparent hover:bg-white/20'
               }`}
             >
-              <span className="text-lg">
-                {type === 'chord' ? '🎹' : type === 'scale' ? '🎼' : type === 'interval' ? '📏' : '🎯'}
-              </span>
+              <SymbolIcon
+                symbol={type === 'chord' ? '🎹' : type === 'scale' ? '🎼' : type === 'interval' ? '📏' : '🎯'}
+                className="w-5 h-5 mx-auto"
+              />
               <div className="text-xs mt-1 capitalize">{type}</div>
             </button>
           ))}

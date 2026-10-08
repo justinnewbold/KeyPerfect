@@ -36,6 +36,8 @@ import { InstrumentType, INSTRUMENTS, getInstrumentList } from '../types/instrum
 import { useAudio } from '../hooks/useAudio';
 import { playChord as playChordRaw } from '../utils/audioEngine';
 import { ModeQueryProvider, ModeSection, ModeTile, matchesQuery } from './ModeCatalog';
+import { SymbolIcon } from './ui/SymbolIcon';
+import { LargeTitleHeader } from './ui/LargeTitleHeader';
 
 interface HomeScreenProps {
   /** Opens the level ladder. */
@@ -160,14 +162,12 @@ export function HomeScreen({ onStartLevel, onStartRecommendedLevel, onStartChall
 
   return (
     <div className="screen-root">
-      {/* Header */}
-      <div className="sticky top-0 z-40 header-fade pb-4 px-4 pt-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h1 className="text-2xl font-bold gradient-text">KeyPerfect</h1>
-            <p className="text-sm text-white/60">Master your musical ear</p>
-          </div>
-          <div className="flex items-center gap-2">
+      <LargeTitleHeader
+        title="KeyPerfect"
+        subtitle="Master your musical ear"
+        titleClassName="gradient-text"
+        actions={
+          <>
             {/* A freeze protects a streak, so it only means anything once
                 there is one. On a first run it was an unexplained pill on a
                 zero-day streak — a bit of vocabulary the player had no way to
@@ -198,9 +198,11 @@ export function HomeScreen({ onStartLevel, onStartRecommendedLevel, onStartChall
                 <Settings className="w-5 h-5" />
               </button>
             )}
-          </div>
-        </div>
+          </>
+        }
+      />
 
+      <div className="px-4 pb-6">
         {/* XP Progress Card */}
         <Card className="p-4">
           <div className="flex items-center gap-4">
@@ -446,7 +448,7 @@ export function HomeScreen({ onStartLevel, onStartRecommendedLevel, onStartChall
                 className="p-3"
               >
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-lg">{preset.icon}</span>
+                  <SymbolIcon symbol={preset.icon} className="w-5 h-5 text-purple-300 shrink-0" />
                   <h4 className="font-semibold text-sm">{preset.name}</h4>
                 </div>
                 <p className="text-xs text-white/60">{preset.description}</p>
@@ -786,7 +788,7 @@ export function HomeScreen({ onStartLevel, onStartRecommendedLevel, onStartChall
               >
                 <div className="flex items-center gap-3 mb-2">
                   <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${mode.color} flex items-center justify-center`}>
-                    <span className="text-lg">{mode.icon}</span>
+                    <SymbolIcon symbol={mode.icon} className="w-5 h-5 text-lg" />
                   </div>
                   <h4 className="font-semibold text-sm">{mode.name}</h4>
                 </div>
@@ -807,7 +809,7 @@ export function HomeScreen({ onStartLevel, onStartRecommendedLevel, onStartChall
             className="w-full p-3 rounded-xl bg-white/10 border border-white/20 flex items-center justify-between"
           >
             <div className="flex items-center gap-3">
-              <span className="text-xl">{INSTRUMENTS[currentInstrument].icon}</span>
+              <SymbolIcon symbol={INSTRUMENTS[currentInstrument].icon} className="w-6 h-6 text-purple-300 shrink-0" />
               <div className="text-left">
                 <div className="text-sm font-medium">{INSTRUMENTS[currentInstrument].name}</div>
                 <div className="text-xs text-white/60">Tap to change instrument</div>
@@ -817,7 +819,7 @@ export function HomeScreen({ onStartLevel, onStartRecommendedLevel, onStartChall
           </button>
 
           {showInstrumentDropdown && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-[#1a1a2e] border border-white/20 rounded-xl shadow-xl z-50 max-h-64 overflow-y-auto">
+            <div className="absolute top-full left-0 right-0 mt-2 glass-sheet rounded-xl z-50 max-h-64 overflow-y-auto">
               {instruments.map(inst => (
                 <button
                   key={inst.id}
@@ -826,7 +828,7 @@ export function HomeScreen({ onStartLevel, onStartRecommendedLevel, onStartChall
                     currentInstrument === inst.id ? 'bg-purple-500/20' : ''
                   }`}
                 >
-                  <span className="text-xl">{inst.icon}</span>
+                  <SymbolIcon symbol={inst.icon} className="w-6 h-6 text-purple-300 shrink-0" />
                   <div className="text-left flex-1">
                     <div className="text-sm font-medium">{inst.name}</div>
                     <div className="text-xs text-white/60">{inst.description}</div>
@@ -864,7 +866,7 @@ export function HomeScreen({ onStartLevel, onStartRecommendedLevel, onStartChall
               {unlockedAchievements.slice(-4).reverse().map(achievement => (
                 <Card key={achievement.id} className="p-3 min-w-[140px] flex-shrink-0">
                   <div className="text-center">
-                    <span className="text-3xl">{achievement.icon}</span>
+                    <SymbolIcon symbol={achievement.icon} className="w-8 h-8 mx-auto text-amber-300" />
                     <p className="text-sm font-medium mt-1">{achievement.name}</p>
                   </div>
                 </Card>

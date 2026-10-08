@@ -303,6 +303,35 @@
     background-image: linear-gradient(to top, var(--kp-bg-0), var(--kp-bg-0), transparent);
   }
 
+  /* iOS large title: 34pt bold, tight tracking. */
+  .large-title {
+    font-size: 2.125rem;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+  }
+
+  /* Sticky bar under a large title; see components/ui/LargeTitleHeader.tsx.
+     The glass lives on ::before so it can fade in on its own. */
+  .large-title-bar {
+    position: sticky;
+    isolation: isolate;
+  }
+
+  .large-title-bar::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background-color: var(--kp-glass-nav-bg);
+    -webkit-backdrop-filter: blur(var(--kp-glass-blur)) saturate(var(--kp-glass-saturate));
+    backdrop-filter: blur(var(--kp-glass-blur)) saturate(var(--kp-glass-saturate));
+    border-bottom: 1px solid var(--kp-glass-border);
+  }
+
+  .large-title-compact {
+    display: none;
+  }
+
   /* Selected-tab highlight inside .glass-nav; slides via transform. */
   .glass-nav-indicator {
     background-color: var(--kp-glass-indicator);
@@ -504,13 +533,28 @@ html.theme-light {
 }
 
 /*
- * Installed-app status bar in the light theme. The Home Screen app uses the
- * translucent status bar, whose clock and battery glyphs are always white,
- * and they vanish over a light page. A dark, blurred strip the height of the
- * top inset keeps them readable; in a browser tab the inset is 0 and the
- * browser owns that area anyway.
+ * Installed-app status bar. The Home Screen app draws edge to edge under a
+ * translucent status bar, so content scrolling up would run under the clock
+ * and the Dynamic Island. A blurred strip the height of the top inset keeps
+ * the status bar readable over anything. In the light theme the strip is dark
+ * because the status bar glyphs are always white. In a browser tab the inset
+ * is 0 and the browser owns that area anyway.
  */
 @media (display-mode: standalone) {
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: env(safe-area-inset-top);
+    z-index: 95;
+    pointer-events: none;
+    background: color-mix(in srgb, var(--kp-bg-0) 82%, transparent);
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+  }
+
   html.theme-light body::before {
     content: '';
     position: fixed;
@@ -545,6 +589,11 @@ html.theme-light .text-white\/50 { color: rgba(26, 26, 46, 0.5); }
 html.theme-light .text-white\/40 { color: rgba(26, 26, 46, 0.4); }
 html.theme-light .text-white\/30 { color: rgba(26, 26, 46, 0.3); }
 html.theme-light .bg-white\/5 { background: rgba(0, 0, 0, 0.04); }
+/* Accent tints sized for a dark page wash out on a light one. */
+html.theme-light .text-purple-300,
+html.theme-light .text-purple-400 { color: #7c3aed; }
+html.theme-light .text-amber-300,
+html.theme-light .text-amber-400 { color: #d97706; }
 
 html.theme-light .bg-white\/10 {
   background: rgba(255, 255, 255, 0.7);
@@ -749,5 +798,107 @@ html.theme-light .border-white\/10 { border-color: rgba(0, 0, 0, 0.06); }
 @media (min-width: 1280px) {
   .options-grid {
     grid-template-columns: repeat(6, 1fr);
+  }
+}
+
+/*
+ * View Transitions: iOS push and pop (utils/screenTransition.ts sets
+ * data-vt on <html> for the length of the transition). The curve is the
+ * UIKit navigation spring's familiar fast-out, long settle.
+ */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 340ms;
+  animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+  mix-blend-mode: normal;
+}
+
+html[data-vt="push"]::view-transition-old(root) { animation-name: kp-vt-recede; }
+html[data-vt="push"]::view-transition-new(root) { animation-name: kp-vt-enter-from-right; }
+html[data-vt="pop"]::view-transition-old(root) { animation-name: kp-vt-exit-to-right; z-index: 1; }
+html[data-vt="pop"]::view-transition-new(root) { animation-name: kp-vt-return; }
+
+@keyframes kp-vt-enter-from-right { from { transform: translateX(100%); } }
+@keyframes kp-vt-recede { to { transform: translateX(-28%); filter: brightness(0.7); } }
+@keyframes kp-vt-exit-to-right { to { transform: translateX(100%); } }
+@keyframes kp-vt-return { from { transform: translateX(-28%); filter: brightness(0.7); } }
+
+/* The tab bar (view-transition-name kp-tab-bar) keeps the default animation:
+   a seamless crossfade when it is on both screens, a fade out when pushing
+   into a full-screen round, and a fade in on the way back. */
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
+
+/*
+ * Top safe area. Unlayered on purpose: unlayered rules beat Tailwind's
+ * utilities layer, so this wins over the `top-0` every sticky header carries.
+ * Screens start below the status bar, and sticky bars stick just under it
+ * rather than behind it. Both are 0 in a browser tab.
+ */
+#main-content {
+  padding-top: env(safe-area-inset-top);
+}
+
+.header-fade,
+.large-title-bar {
+  top: env(safe-area-inset-top);
+}
+
+/*
+ * Large titles collapse as you scroll: the large title fades as it scrolls
+ * off, then a compact centred title and the bar's glass fade in. Driven by
+ * the document's scroll position, so it runs on the compositor with no
+ * scroll listener. Without support the bar keeps its glass from the start.
+ */
+@keyframes kp-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes kp-title-recede { to { opacity: 0; transform: scale(0.96); } }
+
+@supports (animation-timeline: scroll()) {
+  /* The compact row overlaps the bottom of the large-title block rather than
+     adding a gap under it; it is invisible until scrolled, and taps pass
+     through it to the title row's buttons. */
+  .large-title-bar {
+    margin-top: -2.75rem;
+    pointer-events: none;
+  }
+
+  .large-title-bar > :not(.large-title-compact) {
+    pointer-events: auto;
+  }
+
+  .large-title {
+    transform-origin: left bottom;
+    animation: kp-title-recede linear both;
+    animation-timeline: scroll(root block);
+    animation-range: 0px 56px;
+  }
+
+  /* Hidden is the base state, not just the animation's start: when a screen
+     is too short to scroll the timeline is inactive and the animation has no
+     effect at all, and these must stay hidden then. */
+  .large-title-bar::before {
+    opacity: 0;
+    animation: kp-fade-in linear both;
+    animation-timeline: scroll(root block);
+    animation-range: 24px 64px;
+  }
+
+  .large-title-compact {
+    display: flex;
+    height: 2.75rem;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.0625rem;
+    font-weight: 600;
+    opacity: 0;
+    animation: kp-fade-in linear both;
+    animation-timeline: scroll(root block);
+    animation-range: 40px 72px;
   }
 }

@@ -5,6 +5,7 @@ import { Badge } from './ui/Badge';
 import { Progress } from './ui/Progress';
 import { getChordStats, getScaleStats, getIntervalStats, getKeyStats, getNoteStats } from '../utils/storage';
 import { CHORD_TYPES, SCALE_TYPES, INTERVALS, ChordQuality, ScaleType, IntervalType } from '../types/music';
+import { SymbolIcon } from './ui/SymbolIcon';
 
 interface MasteryIndicatorsProps {
   onBack: () => void;
@@ -214,7 +215,7 @@ export function MasteryIndicators({ onBack }: MasteryIndicatorsProps) {
                 : 'bg-white/10 text-white/60 hover:bg-white/20'
             }`}
           >
-            <span>{cat.icon}</span>
+            <SymbolIcon symbol={cat.icon} className="w-4 h-4" />
             <span className="text-sm font-medium">{cat.label}</span>
           </button>
         ))}

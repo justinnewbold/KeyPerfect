@@ -11,7 +11,7 @@ test.describe('Tools / Custom Practice Builder', () => {
   test.beforeEach(async ({ page }) => {
     await gotoApp(page);
     await openTab(page, 'Tools');
-    await page.getByRole('button', { name: '⚙️ Custom Practice' }).click();
+    await page.getByRole('button', { name: 'Custom Practice' }).click();
     await expect(page.getByRole('dialog', { name: 'Custom Practice Builder' })).toBeVisible();
   });
 

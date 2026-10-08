@@ -30,6 +30,8 @@ import { getLevelFromXP, getXPProgress, ACHIEVEMENTS } from '../types/stats';
 import { calculateWeakAreas, getDisplayName, formatTime } from '../utils/gameHelpers';
 import { getWeakItems, ReviewItem } from '../utils/spacedRepetition';
 import { GameModeType } from '../types/gameModes';
+import { SymbolIcon } from './ui/SymbolIcon';
+import { LargeTitleHeader } from './ui/LargeTitleHeader';
 
 type TabType = 'overview' | 'accuracy' | 'achievements' | 'insights' | 'analytics';
 
@@ -75,8 +77,7 @@ export function StatsScreen({ onStartGameMode, initialTab }: StatsScreenProps = 
   return (
     <div className="screen-root">
       {/* Header */}
-      <div className="sticky top-0 z-40 header-fade pb-4 px-4 pt-6">
-        <h1 className="text-2xl font-bold mb-4">Statistics</h1>
+      <LargeTitleHeader title="Statistics">
 
         {/* Tabs */}
         <div className="flex gap-2 overflow-x-auto snap-strip pb-2 -mx-4 px-4">
@@ -95,7 +96,7 @@ export function StatsScreen({ onStartGameMode, initialTab }: StatsScreenProps = 
             </button>
           ))}
         </div>
-      </div>
+      </LargeTitleHeader>
 
       <div className="px-4">
         {activeTab === 'overview' && (
@@ -181,7 +182,7 @@ export function StatsScreen({ onStartGameMode, initialTab }: StatsScreenProps = 
           <div className="space-y-4 animate-in">
             {userStats.totalQuestionsAnswered === 0 ? (
               <Card className="p-8 text-center">
-                <div className="text-4xl mb-3">🎯</div>
+                <SymbolIcon symbol="🎯" className="w-10 h-10 mx-auto mb-3 text-white/40" />
                 <h3 className="font-semibold mb-2">No data yet</h3>
                 <p className="text-sm text-white/60">Play a round to see your accuracy breakdown here.</p>
               </Card>
@@ -283,7 +284,7 @@ export function StatsScreen({ onStartGameMode, initialTab }: StatsScreenProps = 
                           }`}
                           title={achievement.description}
                         >
-                          <span className="text-2xl">{achievement.icon}</span>
+                          <SymbolIcon symbol={achievement.icon} className="w-7 h-7 mx-auto text-amber-300" />
                           <p className="text-xs mt-1 truncate">{achievement.name}</p>
                         </div>
                       );
@@ -299,7 +300,7 @@ export function StatsScreen({ onStartGameMode, initialTab }: StatsScreenProps = 
           <div className="space-y-4 animate-in">
             {userStats.totalQuestionsAnswered === 0 && (
               <Card className="p-8 text-center">
-                <div className="text-4xl mb-3">📈</div>
+                <SymbolIcon symbol="📈" className="w-10 h-10 mx-auto mb-3 text-white/40" />
                 <h3 className="font-semibold mb-2">No insights yet</h3>
                 <p className="text-sm text-white/60">Complete a few sessions to unlock personalised insights and weak-area recommendations.</p>
               </Card>

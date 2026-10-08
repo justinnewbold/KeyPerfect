@@ -6,6 +6,7 @@ import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
 import { useAudio } from '../hooks/useAudio';
 import { CHORD_TYPES, SCALE_TYPES, INTERVALS, INVERSIONS } from '../types/music';
+import { SymbolIcon } from './ui/SymbolIcon';
 
 interface MistakeReviewScreenProps {
   result: GameResult;
@@ -37,7 +38,7 @@ export function MistakeReviewScreen({ result, onBack }: MistakeReviewScreenProps
           <h1 className="text-2xl font-bold">No Mistakes!</h1>
         </div>
         <Card className="p-8 text-center">
-          <div className="text-5xl mb-4">🎉</div>
+          <SymbolIcon symbol="🎉" className="w-12 h-12 mx-auto mb-4 text-amber-300" />
           <h2 className="text-xl font-bold mb-2">Perfect Session</h2>
           <p className="text-white/60">You got every question right. Keep up the great work!</p>
           <Button variant="primary" className="mt-6" onClick={onBack}>

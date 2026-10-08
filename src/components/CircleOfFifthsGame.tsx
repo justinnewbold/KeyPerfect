@@ -3,6 +3,7 @@ import { ArrowLeft, Volume2, RotateCcw } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
 import { useAudio } from '../hooks/useAudio';
+import { SymbolIcon } from './ui/SymbolIcon';
 
 // ─── Circle of Fifths Data ─────────────────────────────────────────────────
 
@@ -287,11 +288,11 @@ export function CircleOfFifthsGame({ onBack }: CircleOfFifthsGameProps) {
 
   if (phase === 'finished') {
     const accuracy = score.total > 0 ? Math.round((score.correct / score.total) * 100) : 0;
-    const emoji = accuracy >= 80 ? '🎉' : accuracy >= 60 ? '👍' : '💪';
+    const symbol = accuracy >= 80 ? '🎉' : accuracy >= 60 ? '👍' : '💪';
     return (
       <div className="screen-root flex flex-col items-center justify-center p-6">
         <div className="max-w-sm w-full text-center space-y-5">
-          <div className="text-6xl">{emoji}</div>
+          <SymbolIcon symbol={symbol} className="w-14 h-14 mx-auto text-amber-300" />
           <h2 className="text-2xl font-bold gradient-text">Round Complete!</h2>
           <Card className="p-6">
             <div className="text-5xl font-bold text-purple-400 mb-1">{accuracy}%</div>
@@ -332,7 +333,12 @@ export function CircleOfFifthsGame({ onBack }: CircleOfFifthsGameProps) {
         <div className="flex items-center gap-3 text-sm">
           <span className="text-white/50">{questionIndex + 1}/{TOTAL_QUESTIONS}</span>
           <span className="font-semibold text-green-400">{score.correct}/{score.total || '—'}</span>
-          {streak >= 3 && <span className="text-amber-400">🔥{streak}</span>}
+          {streak >= 3 && (
+            <span className="inline-flex items-center gap-0.5 text-amber-400" aria-label={`Streak ${streak}`}>
+              <SymbolIcon symbol="🔥" className="w-4 h-4" />
+              {streak}
+            </span>
+          )}
         </div>
       </div>
 

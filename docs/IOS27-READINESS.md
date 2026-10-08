@@ -94,6 +94,12 @@ picker in item 6); the Home Screen badge (Tier 2 item 2); an Add to Home
 Screen hint for Safari; live reduced-motion and contrast following; keyboard
 hints on inputs; glass modal sheets; and the last hard-coded dark values.
 
+The "iOS 27 native visuals" PR then replaced emoji icons with monochrome
+symbols (lucide plus four drawn instrument glyphs), added iOS large titles
+that collapse into a glass bar on scroll (scroll-driven CSS), added View
+Transitions push and pop between screens, and fixed the installed app's top
+safe area so headers no longer sit under the status bar.
+
 1. **Icons and install metadata.** Generate 180x180 `apple-touch-icon.png`,
    plus 192, 512 and maskable PNGs. Add `apple-touch-icon`,
    `apple-mobile-web-app-title`, and `color-scheme` meta tags to `index.html`.
