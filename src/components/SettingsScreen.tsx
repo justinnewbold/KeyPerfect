@@ -38,6 +38,7 @@ import { midiManager } from '../utils/midiInput';
 import { useAccessibility, AccessibilitySettings } from '../utils/accessibility';
 import { applyTheme, applyGlassIntensity, GlassIntensity } from '../utils/theme';
 import { APP_VERSION } from '../version';
+import { SymbolIcon } from './ui/SymbolIcon';
 
 interface SettingsScreenProps {
   onReplayTutorial?: () => void;
@@ -273,7 +274,7 @@ export function SettingsScreen({ onReplayTutorial, onBack }: SettingsScreenProps
                   : 'bg-white/10 border-2 border-transparent hover:bg-white/20'
               }`}
             >
-              <span className="text-xl" aria-hidden="true">{inst.icon}</span>
+              <SymbolIcon symbol={inst.icon} className="w-6 h-6" />
               {/* Wraps instead of truncating: "Heavy Metal Guitar" rendered as
                   "Heavy Metal…" in a three-across grid, which is the one thing
                   a chooser must not do to the names it is choosing between. */}
@@ -408,7 +409,7 @@ export function SettingsScreen({ onReplayTutorial, onBack }: SettingsScreenProps
 
           <label className="flex items-center justify-between cursor-pointer">
             <div className="flex items-center gap-3">
-              <span className="text-lg">⏭️</span>
+              <SymbolIcon symbol="⏭️" className="w-5 h-5 text-purple-400" />
               <span>Auto-Advance</span>
             </div>
             <button
@@ -427,7 +428,7 @@ export function SettingsScreen({ onReplayTutorial, onBack }: SettingsScreenProps
 
           <label className="flex items-center justify-between cursor-pointer">
             <div className="flex items-center gap-3">
-              <span className="text-lg">💡</span>
+              <SymbolIcon symbol="💡" className="w-5 h-5 text-purple-400" />
               <span>Show Hints</span>
             </div>
             <button
@@ -498,7 +499,7 @@ export function SettingsScreen({ onReplayTutorial, onBack }: SettingsScreenProps
 
           <label className="flex items-center justify-between cursor-pointer">
             <div className="flex items-center gap-3">
-              <span className="text-lg">🛡️</span>
+              <SymbolIcon symbol="🛡️" className="w-5 h-5 text-purple-400" />
               <div>
                 <span>Auto Streak Freeze</span>
                 <p className="text-xs text-white/60">Protect your streak once per week</p>

@@ -1,5 +1,16 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Play, Volume2, Check, X, ChevronRight, Keyboard, Headphones, Usb } from 'lucide-react';
+import {
+  Play,
+  Volume2,
+  Check,
+  X,
+  ChevronRight,
+  Keyboard,
+  Headphones,
+  Usb,
+  Heart,
+  Timer,
+} from 'lucide-react';
 import { GameQuestion, AnswerRecord } from '../types/gameModes';
 import { LevelConfig } from '../types/levels';
 import { CHORD_TYPES, SCALE_TYPES, INTERVALS, INVERSIONS, NOTE_NAMES } from '../types/music';
@@ -430,15 +441,16 @@ export function GameScreen({
           </div>
           <div className="flex items-center gap-2">
             {lives !== undefined && lives > 0 && (
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1" role="img" aria-label={`${lives} ${lives === 1 ? 'life' : 'lives'} left`}>
                 {Array.from({ length: lives }).map((_, i) => (
-                  <span key={i} className="text-red-500">❤️</span>
+                  <Heart key={i} className="w-4 h-4 text-red-500 fill-red-500" aria-hidden="true" />
                 ))}
               </div>
             )}
             {timeRemaining !== undefined && (
               <Badge variant={timeRemaining < 10 ? 'danger' : 'default'}>
-                ⏱️ {timeRemaining}s
+                <Timer className="w-3.5 h-3.5 mr-1 inline-block align-[-2px]" aria-hidden="true" />
+                {timeRemaining}s
               </Badge>
             )}
           </div>

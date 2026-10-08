@@ -14,6 +14,7 @@ import {
   IntervalType,
 } from '../types/music';
 import { getChordNotes, getScaleNotes, getIntervalNotes, randomElement } from '../utils/gameHelpers';
+import { SymbolIcon } from './ui/SymbolIcon';
 
 type PracticeType = 'chords' | 'scales' | 'intervals' | 'freeplay';
 
@@ -150,7 +151,7 @@ export function PracticeScreen({ onBack }: PracticeScreenProps) {
                 : 'bg-white/10 border-2 border-transparent hover:bg-white/20'
             }`}
           >
-            <span className="text-xl">{type.icon}</span>
+            <SymbolIcon symbol={type.icon} className="w-6 h-6" />
             <span className="text-xs">{type.name}</span>
           </button>
         ))}

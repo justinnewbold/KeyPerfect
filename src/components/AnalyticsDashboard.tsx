@@ -28,6 +28,7 @@ import {
   bucketByDay,
   rangeDays,
 } from '../utils/analytics';
+import { SymbolIcon } from './ui/SymbolIcon';
 
 interface DataPoint {
   label: string;
@@ -430,7 +431,7 @@ export function AnalyticsDashboard() {
         <div className="space-y-3">
           {accuracy > 80 && (
             <div className="flex items-start gap-3 p-3 rounded-lg bg-green-500/10 border border-green-500/20">
-              <span className="text-lg">🎯</span>
+              <SymbolIcon symbol="🎯" className="w-5 h-5 mt-0.5 shrink-0 text-green-300" />
               <div>
                 <div className="font-medium text-green-300">Excellent Accuracy!</div>
                 <div className="text-sm text-white/60">
@@ -442,7 +443,7 @@ export function AnalyticsDashboard() {
 
           {userStats.currentStreak >= 7 && (
             <div className="flex items-start gap-3 p-3 rounded-lg bg-orange-500/10 border border-orange-500/20">
-              <span className="text-lg">🔥</span>
+              <SymbolIcon symbol="🔥" className="w-5 h-5 mt-0.5 shrink-0 text-orange-300" />
               <div>
                 <div className="font-medium text-orange-300">On Fire!</div>
                 <div className="text-sm text-white/60">
@@ -454,7 +455,7 @@ export function AnalyticsDashboard() {
 
           {chordStats.some(s => s.attempts >= 5 && s.correct / s.attempts < 0.6) && (
             <div className="flex items-start gap-3 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
-              <span className="text-lg">💡</span>
+              <SymbolIcon symbol="💡" className="w-5 h-5 mt-0.5 shrink-0 text-yellow-300" />
               <div>
                 <div className="font-medium text-yellow-300">Practice Tip</div>
                 <div className="text-sm text-white/60">
@@ -466,7 +467,7 @@ export function AnalyticsDashboard() {
 
           {userStats.totalQuestionsAnswered < 50 && (
             <div className="flex items-start gap-3 p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
-              <span className="text-lg">🚀</span>
+              <SymbolIcon symbol="🚀" className="w-5 h-5 mt-0.5 shrink-0 text-purple-300" />
               <div>
                 <div className="font-medium text-purple-300">Getting Started</div>
                 <div className="text-sm text-white/60">

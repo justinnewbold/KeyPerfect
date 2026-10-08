@@ -48,7 +48,7 @@ test.describe('Accessibility', () => {
   test('Custom Practice Builder is clean', async ({ page }) => {
     await gotoApp(page);
     await openTab(page, 'Tools');
-    await page.getByRole('button', { name: '⚙️ Custom Practice' }).click();
+    await page.getByRole('button', { name: 'Custom Practice' }).click();
     await expect(page.getByRole('dialog', { name: 'Custom Practice Builder' })).toBeVisible();
     expect(await scan(page)).toEqual([]);
   });
@@ -56,7 +56,7 @@ test.describe('Accessibility', () => {
   test('Song Analysis, including its result panel, is clean', async ({ page }) => {
     await gotoApp(page);
     await openTab(page, 'Tools');
-    await page.getByRole('button', { name: '🎼 Song Analysis' }).click();
+    await page.getByRole('button', { name: 'Song Analysis' }).click();
     await page.getByRole('button', { name: /^Load Let It Be/ }).click();
     await page.getByRole('button', { name: 'Analyze progression' }).click();
     await expect(page.getByTestId('analysis-result')).toBeVisible();

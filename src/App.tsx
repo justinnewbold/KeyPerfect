@@ -102,6 +102,7 @@ import { useSwipe } from './hooks/useSwipe';
 import { usePrefersReducedMotion } from './hooks/usePrefersReducedMotion';
 import { applyTheme, applyGlassIntensity, watchSystemTheme } from './utils/theme';
 import { applyDynamicType, watchDynamicType } from './utils/dynamicType';
+import { classifyScreenChange, runScreenTransition, ScreenTransitionKind } from './utils/screenTransition';
 import { syncAppBadge } from './utils/badge';
 import { screenFromHash, hashForScreen, isRoutable } from './utils/routing';
 import {
@@ -178,7 +179,7 @@ function App() {
    * hash still gets the tutorial; an unrecognised hash degrades to Home rather
    * than to a blank screen.
    */
-  const [appState, setAppState] = useState<AppState>(() => {
+  const [appState, commitAppState] = useState<AppState>(() => {
     const fromUrl = screenFromHash(window.location.hash);
     if (fromUrl) return { screen: fromUrl } as AppState;
     return isFirstUser() ? { screen: 'tutorial' } : { screen: 'home' };
@@ -191,6 +192,33 @@ function App() {
   >(null);
   const prevScreenRef = useRef<string>('home');
   const reducedMotion = usePrefersReducedMotion();
+
+  /*
+   * Every screen change goes through here so it can run as an iOS-style push
+   * or pop (utils/screenTransition.ts). `appStateRef` gives the wrapper the
+   * screen being left without re-creating it on every render, which would
+   * churn every handler that depends on it. `forcedKindRef` lets Back
+   * (popstate) say "pop" even when the classifier would guess otherwise.
+   */
+  const appStateRef = useRef(appState);
+  appStateRef.current = appState;
+  const reducedMotionRef = useRef(reducedMotion);
+  reducedMotionRef.current = reducedMotion;
+  const forcedKindRef = useRef<ScreenTransitionKind | null>(null);
+  const viewTransitionRanRef = useRef(false);
+
+  const setAppState = useCallback((next: React.SetStateAction<AppState>) => {
+    const prev = appStateRef.current;
+    const resolved = typeof next === 'function' ? (next as (s: AppState) => AppState)(prev) : next;
+    const kind = forcedKindRef.current ?? classifyScreenChange(prev.screen, resolved.screen);
+    forcedKindRef.current = null;
+    appStateRef.current = resolved;
+    viewTransitionRanRef.current = runScreenTransition(
+      kind,
+      () => commitAppState(resolved),
+      reducedMotionRef.current,
+    );
+  }, []);
   const {
     gameState,
     startGame,
@@ -848,8 +876,12 @@ function App() {
   }, [appState.screen]);
 
   useEffect(() => {
-    const handlePopState = () => {
+    const handlePopState = (event: Event) => {
       const screen = screenFromHash(window.location.hash) ?? 'home';
+      // Safari's own edge-swipe Back already animated the page; a second
+      // slide on top of it reads as a stutter.
+      const uaAnimated = (event as PopStateEvent & { hasUAVisualTransition?: boolean }).hasUAVisualTransition === true;
+      forcedKindRef.current = uaAnimated ? 'none' : 'pop';
       setAppState(current => (current.screen === screen ? current : ({ screen } as AppState)));
       setCurrentNavScreen(SCREEN_TO_NAV_TAB[screen] ?? 'home');
     };
@@ -859,7 +891,7 @@ function App() {
       window.removeEventListener('popstate', handlePopState);
       window.removeEventListener('hashchange', handlePopState);
     };
-  }, []);
+  }, [setAppState]);
 
   /*
    * Entrance animations are held off until the first screen has actually been
@@ -895,7 +927,9 @@ function App() {
 
   const direction =
     swipeTransition && swipeTransition.tab === swipeTab ? swipeTransition.dir : null;
-  const transitionClass = reducedMotion
+  // A view transition already animated this navigation; a CSS entrance on
+  // top of it would slide the new screen twice.
+  const transitionClass = reducedMotion || viewTransitionRanRef.current
     ? ''
     : direction === 'forward'
     ? 'screen-enter-right'

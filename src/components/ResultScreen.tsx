@@ -12,6 +12,7 @@ import { NOTES_LEVELS } from '../types/notesLevels';
 import { getUserStats } from '../utils/storage';
 import { Confetti } from './Confetti';
 import { triggerHapticFeedback } from '../utils/haptics';
+import { SymbolIcon } from './ui/SymbolIcon';
 
 interface ResultScreenProps {
   result: GameResult;
@@ -189,7 +190,7 @@ export function ResultScreen({ result, onPlayAgain, onHome, onNextLevel, onRevie
                 key={achievement.id}
                 className="flex items-center gap-3 p-3 rounded-xl bg-yellow-500/10 border border-yellow-500/20"
               >
-                <span className="text-2xl">{achievement.icon}</span>
+                <SymbolIcon symbol={achievement.icon} className="w-7 h-7 text-amber-300 shrink-0" />
                 <div className="flex-1">
                   <div className="font-medium">{achievement.name}</div>
                   <div className="text-sm text-white/60">{achievement.description}</div>
@@ -259,7 +260,7 @@ export function ResultScreen({ result, onPlayAgain, onHome, onNextLevel, onRevie
           <div className="flex items-center gap-4">
             <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${nextLevel.color} flex items-center justify-center`}>
               {canAccessNextLevel ? (
-                <span className="text-2xl">{nextLevel.icon}</span>
+                <SymbolIcon symbol={nextLevel.icon} className="w-6 h-6 text-2xl" />
               ) : (
                 <Lock className="w-6 h-6" />
               )}

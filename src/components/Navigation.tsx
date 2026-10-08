@@ -49,7 +49,9 @@ export function Navigation({ currentScreen, onNavigate }: NavigationProps) {
       // The outer element is only a positioning frame; taps on the air beside
       // the pill fall through to the page.
       className="fixed left-3 right-3 z-50 pointer-events-none"
-      style={{ bottom: `calc(env(safe-area-inset-bottom) + ${NAV_LIFT_PX}px)` }}
+      // Its own view-transition layer, so a push or pop slides the screen
+      // underneath while the tab bar stays put, as in a native app.
+      style={{ bottom: `calc(env(safe-area-inset-bottom) + ${NAV_LIFT_PX}px)`, viewTransitionName: 'kp-tab-bar' } as React.CSSProperties}
     >
       <div className="glass-nav pointer-events-auto relative grid grid-cols-5 max-w-lg mx-auto p-1.5">
         {activeIndex >= 0 && (

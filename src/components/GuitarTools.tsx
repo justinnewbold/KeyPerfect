@@ -15,6 +15,8 @@ import {
   BASS_TUNINGS,
   getTuningById,
 } from '../types/instruments';
+import { SymbolIcon } from './ui/SymbolIcon';
+import { LargeTitleHeader } from './ui/LargeTitleHeader';
 
 type ToolType = 'tuner' | 'metronome' | 'singback' | 'songanalysis' | 'custompractice';
 
@@ -30,8 +32,7 @@ export function GuitarTools() {
   return (
     <div className="screen-root">
       {/* Header */}
-      <div className="sticky top-0 z-40 header-fade pb-4 px-4 pt-6">
-        <h1 className="text-2xl font-bold mb-4">Music Tools</h1>
+      <LargeTitleHeader title="Music Tools">
 
         {/* Tab Selector - scrollable for more tabs */}
         <div className="flex gap-2 overflow-x-auto snap-strip pb-2 -mx-4 px-4">
@@ -43,7 +44,7 @@ export function GuitarTools() {
                 : 'bg-white/10 text-white/60'
             }`}
           >
-            🎵 Metronome
+            <span className="inline-flex items-center gap-2"><SymbolIcon symbol="🎵" className="w-4 h-4" />Metronome</span>
           </button>
           <button
             onClick={() => setActiveTool('tuner')}
@@ -53,7 +54,7 @@ export function GuitarTools() {
                 : 'bg-white/10 text-white/60'
             }`}
           >
-            🎸 Tuner
+            <span className="inline-flex items-center gap-2"><SymbolIcon symbol="🎸" className="w-4 h-4" />Tuner</span>
           </button>
           <button
             onClick={() => setActiveTool('singback')}
@@ -63,22 +64,22 @@ export function GuitarTools() {
                 : 'bg-white/10 text-white/60'
             }`}
           >
-            🎤 Sing-Back
+            <span className="inline-flex items-center gap-2"><SymbolIcon symbol="🎤" className="w-4 h-4" />Sing-Back</span>
           </button>
           <button
             onClick={() => setShowSongAnalysis(true)}
             className="py-3 px-4 rounded-xl font-medium transition-all whitespace-nowrap bg-white/10 text-white/60 hover:bg-white/20"
           >
-            🎼 Song Analysis
+            <span className="inline-flex items-center gap-2"><SymbolIcon symbol="🎼" className="w-4 h-4" />Song Analysis</span>
           </button>
           <button
             onClick={() => setShowCustomPractice(true)}
             className="py-3 px-4 rounded-xl font-medium transition-all whitespace-nowrap bg-white/10 text-white/60 hover:bg-white/20"
           >
-            ⚙️ Custom Practice
+            <span className="inline-flex items-center gap-2"><SymbolIcon symbol="⚙️" className="w-4 h-4" />Custom Practice</span>
           </button>
         </div>
-      </div>
+      </LargeTitleHeader>
 
       <div className="px-4">
         {activeTool === 'metronome' && <Metronome />}

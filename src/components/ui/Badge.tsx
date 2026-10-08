@@ -1,3 +1,4 @@
+import { Zap, Flame } from 'lucide-react';
 import React from 'react';
 
 interface BadgeProps {
@@ -84,7 +85,7 @@ export function XPBadge({ xp, size = 'md' }: XPBadgeProps) {
     <span
       className={`inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 text-purple-300 font-medium ${sizes[size]}`}
     >
-      <span className="text-yellow-400">⚡</span>
+      <Zap className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" aria-hidden="true" />
       {formatXP(xp)} XP
     </span>
   );
@@ -106,7 +107,8 @@ export function StreakBadge({ streak, size = 'md' }: StreakBadgeProps) {
     <span
       className={`inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-orange-500/20 to-red-500/20 border border-orange-500/30 text-orange-300 font-medium ${sizes[size]}`}
     >
-      🔥 {streak}
+      <Flame className="w-3.5 h-3.5" aria-hidden="true" />
+      {streak}
     </span>
   );
 }

@@ -5,6 +5,7 @@ import { Card } from './ui/Card';
 import { Progress } from './ui/Progress';
 import { Badge, LevelBadge } from './ui/Badge';
 import { getUserStats, getNotesProgress } from '../utils/storage';
+import { SymbolIcon } from './ui/SymbolIcon';
 
 interface NotesLevelSelectProps {
   onSelectLevel: (level: NotesLevelConfig) => void;
@@ -90,7 +91,7 @@ export function NotesLevelSelect({ onSelectLevel, onBack }: NotesLevelSelectProp
                 <div
                   className={`w-14 h-14 rounded-xl flex items-center justify-center text-2xl bg-gradient-to-br ${level.color} shadow-lg`}
                 >
-                  {unlocked ? level.icon : <Lock className="w-6 h-6" />}
+                  {unlocked ? <SymbolIcon symbol={level.icon} className="w-7 h-7 text-2xl" /> : <Lock className="w-6 h-6" />}
                 </div>
 
                 {/* Level Info */}

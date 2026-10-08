@@ -5,6 +5,7 @@ import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
 import { Progress } from './ui/Progress';
 import { getWeeklyGoals, setWeeklyGoals, WeeklyGoal, WeeklyGoalsData } from '../utils/storage';
+import { SymbolIcon } from './ui/SymbolIcon';
 
 interface WeeklyGoalsProps {
   onBack: () => void;
@@ -107,7 +108,7 @@ export function WeeklyGoals({ onBack }: WeeklyGoalsProps) {
             return (
               <Card key={template.type} className="p-4">
                 <div className="flex items-center gap-3 mb-3">
-                  <span className="text-xl">{template.icon}</span>
+                  <SymbolIcon symbol={template.icon} className="w-6 h-6 text-purple-300 shrink-0" />
                   <h3 className="font-semibold flex-1">{template.label}</h3>
                   {selected && (
                     <button
