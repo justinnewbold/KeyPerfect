@@ -9,21 +9,25 @@ export interface ShareData {
   url?: string;
 }
 
+const MODE_NAMES: Record<string, string> = {
+  daily: 'Daily Challenge',
+  chords: 'Chord Recognition',
+  scales: 'Scale Training',
+  intervals: 'Interval Training',
+  speedrun: 'Speed Run',
+  survival: 'Survival Mode',
+  reverse: 'Reverse Mode',
+  melodic: 'Melodic Dictation',
+};
+
+/** Human name for a game mode, for share text and the share card. */
+export function modeDisplayName(mode: string): string {
+  return MODE_NAMES[mode] || mode.charAt(0).toUpperCase() + mode.slice(1);
+}
+
 export function generateShareText(result: GameResult): string {
   const emojis = result.accuracy >= 90 ? '🎯🔥' : result.accuracy >= 70 ? '🎵✨' : '🎹💪';
-
-  const modeNames: Record<string, string> = {
-    daily: 'Daily Challenge',
-    chords: 'Chord Recognition',
-    scales: 'Scale Training',
-    intervals: 'Interval Training',
-    speedrun: 'Speed Run',
-    survival: 'Survival Mode',
-    reverse: 'Reverse Mode',
-    melodic: 'Melodic Dictation',
-  };
-
-  const modeName = modeNames[result.mode] || result.mode;
+  const modeName = modeDisplayName(result.mode);
 
   return `${emojis} KeyPerfect ${modeName}\n` +
     `Score: ${result.score} | Accuracy: ${Math.round(result.accuracy)}%\n` +

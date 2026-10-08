@@ -38,6 +38,7 @@ import { midiManager } from '../utils/midiInput';
 import { useAccessibility, AccessibilitySettings } from '../utils/accessibility';
 import { applyTheme, applyGlassIntensity, GlassIntensity } from '../utils/theme';
 import { APP_VERSION } from '../version';
+import { ShortcutsCard } from './ShortcutsCard';
 import { SymbolIcon } from './ui/SymbolIcon';
 
 interface SettingsScreenProps {
@@ -622,6 +623,9 @@ export function SettingsScreen({ onReplayTutorial, onBack }: SettingsScreenProps
           </div>
         </div>
       </Card>
+
+      {/* Siri & Shortcuts deep links */}
+      <ShortcutsCard />
 
       {/* Data Management */}
       <Card className="p-4 mb-4">

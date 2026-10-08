@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Target, Zap, Clock, TrendingUp, Home, RotateCcw, Award, ChevronRight, Lock, AlertCircle } from 'lucide-react';
+import { Trophy, Target, Zap, Clock, TrendingUp, Home, RotateCcw, Award, ChevronRight, Lock, AlertCircle, Share, Check } from 'lucide-react';
 import { GameResult } from '../types/gameModes';
 import { Card, CardContent } from './ui/Card';
 import { Button } from './ui/Button';
@@ -13,6 +13,7 @@ import { getUserStats } from '../utils/storage';
 import { Confetti } from './Confetti';
 import { triggerHapticFeedback } from '../utils/haptics';
 import { SymbolIcon } from './ui/SymbolIcon';
+import { renderResultCard, resultCardFile, shareResultCard, ShareOutcome } from '../utils/shareCard';
 
 interface ResultScreenProps {
   result: GameResult;
@@ -70,6 +71,26 @@ export function ResultScreen({ result, onPlayAgain, onHome, onNextLevel, onRevie
 
   const grade = getGrade(result.accuracy);
 
+  // The share card is drawn as soon as the screen appears, so the tap on
+  // Share can open the share sheet straight away (see utils/shareCard.ts).
+  const [shareCard, setShareCard] = useState<File | null>(null);
+  const [shareOutcome, setShareOutcome] = useState<ShareOutcome | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void renderResultCard(result).then(blob => {
+      if (!cancelled && blob) setShareCard(resultCardFile(blob));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [result]);
+
+  const handleShare = async () => {
+    const outcome = await shareResultCard(result, shareCard);
+    setShareOutcome(outcome);
+    if (outcome === 'copied') setTimeout(() => setShareOutcome(null), 2000);
+  };
+
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.round(seconds % 60);
@@ -100,7 +121,11 @@ export function ResultScreen({ result, onPlayAgain, onHome, onNextLevel, onRevie
       </div>
 
       {/* Score Circle */}
-      <div className="flex justify-center mb-8">
+      <div
+        className="flex justify-center mb-8"
+        role="img"
+        aria-label={`Grade ${grade.grade}, ${Math.round(result.accuracy)} percent accuracy`}
+      >
         <CircularProgress
           value={result.accuracy}
           max={100}
@@ -142,7 +167,8 @@ export function ResultScreen({ result, onPlayAgain, onHome, onNextLevel, onRevie
             <span className="text-sm text-white/60">Correct</span>
           </div>
           <div className="text-2xl font-bold">
-            {result.correctAnswers}/{result.totalQuestions}
+            <span aria-hidden="true">{result.correctAnswers}/{result.totalQuestions}</span>
+            <span className="sr-only">{result.correctAnswers} of {result.totalQuestions} questions correct</span>
           </div>
         </Card>
 
@@ -328,6 +354,15 @@ export function ResultScreen({ result, onPlayAgain, onHome, onNextLevel, onRevie
           icon={<RotateCcw className="w-5 h-5" />}
         >
           Play Again
+        </Button>
+        <Button
+          variant="secondary"
+          size="lg"
+          fullWidth
+          onClick={handleShare}
+          icon={shareOutcome === 'copied' ? <Check className="w-5 h-5" /> : <Share className="w-5 h-5" />}
+        >
+          {shareOutcome === 'copied' ? 'Copied to clipboard' : 'Share result'}
         </Button>
         <Button
           variant="secondary"

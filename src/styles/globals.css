@@ -902,3 +902,53 @@ html[data-vt="pop"]::view-transition-new(root) { animation-name: kp-vt-return; }
     animation-range: 40px 72px;
   }
 }
+
+/*
+ * Safari 27 customizable <select>: the picker becomes a glass popover in the
+ * app's style instead of the system wheel, with accessibility kept. Other
+ * browsers keep their native control.
+ */
+@supports (appearance: base-select) {
+  select.kp-select,
+  select.kp-select::picker(select) {
+    appearance: base-select;
+  }
+
+  select.kp-select::picker(select) {
+    margin-top: 6px;
+    padding: 6px;
+    border-radius: 16px;
+    border: 1px solid var(--kp-glass-border);
+    background-color: var(--kp-glass-sheet-bg);
+    -webkit-backdrop-filter: blur(var(--kp-glass-blur)) saturate(var(--kp-glass-saturate));
+    backdrop-filter: blur(var(--kp-glass-blur)) saturate(var(--kp-glass-saturate));
+    box-shadow: inset 0 1px 0 var(--kp-glass-highlight), 0 18px 48px rgba(0, 0, 0, 0.4);
+    color: inherit;
+  }
+
+  select.kp-select option {
+    padding: 10px 12px;
+    border-radius: 10px;
+  }
+
+  select.kp-select option:checked {
+    background-color: rgba(168, 85, 247, 0.25);
+  }
+
+  select.kp-select option::checkmark {
+    color: #c084fc;
+  }
+}
+
+/*
+ * CSS Grid Lanes (Safari 26.4+): the mode grids pack cards of different
+ * heights into two lanes without gaps, the masonry layout iOS uses for
+ * mixed-size tiles. Unlayered so it beats the `grid` utility; browsers
+ * without it keep the ordinary two-column grid.
+ */
+@supports (display: grid-lanes) {
+  .mode-grid {
+    display: grid-lanes;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

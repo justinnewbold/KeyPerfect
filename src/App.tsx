@@ -104,7 +104,8 @@ import { applyTheme, applyGlassIntensity, watchSystemTheme } from './utils/theme
 import { applyDynamicType, watchDynamicType } from './utils/dynamicType';
 import { classifyScreenChange, runScreenTransition, ScreenTransitionKind } from './utils/screenTransition';
 import { syncAppBadge } from './utils/badge';
-import { screenFromHash, hashForScreen, isRoutable } from './utils/routing';
+import { screenFromHash, hashForScreen, isRoutable, deepLinkFromHash } from './utils/routing';
+import type { DeepLinkTool } from './utils/routing';
 import {
   getDailyStats,
   updateDailyStats,
@@ -183,6 +184,12 @@ function App() {
     const fromUrl = screenFromHash(window.location.hash);
     if (fromUrl) return { screen: fromUrl } as AppState;
     return isFirstUser() ? { screen: 'tutorial' } : { screen: 'home' };
+  });
+  // Tool a deep link asked Tools to open on; also the GuitarTools key, so a
+  // second link while Tools is open switches tool.
+  const [toolsInitialTool, setToolsInitialTool] = useState<DeepLinkTool | undefined>(() => {
+    const link = deepLinkFromHash(window.location.hash);
+    return link?.kind === 'tool' ? link.tool : undefined;
   });
   const [currentNavScreen, setCurrentNavScreen] = useState<Screen>(
     () => SCREEN_TO_NAV_TAB[screenFromHash(window.location.hash) ?? 'home'] ?? 'home',
@@ -395,6 +402,16 @@ function App() {
     startWithPreset(preset);
     setAppState({ screen: 'game', level: LEVELS[0] });
   }, [startWithPreset]);
+
+  // A `#/start/<preset>` link (Siri Shortcut, bookmark) starts a session
+  // straight away: on launch here, and while running via the popstate
+  // handler, which reads the latest handler through this ref.
+  const startPresetRef = useRef(handleStartPreset);
+  startPresetRef.current = handleStartPreset;
+  useEffect(() => {
+    const link = deepLinkFromHash(window.location.hash);
+    if (link?.kind === 'start') startPresetRef.current(link.preset);
+  }, []);
 
   // Handle answer submission
   const handleAnswer = useCallback((answer: string): AnswerRecord => {
@@ -703,7 +720,7 @@ function App() {
         return <StatsScreen onStartGameMode={handleStartGameMode} initialTab={appState.initialTab} />;
 
       case 'tools':
-        return <GuitarTools />;
+        return <GuitarTools key={toolsInitialTool ?? 'default'} initialTool={toolsInitialTool} />;
 
       case 'settings':
         return (
@@ -865,6 +882,9 @@ function App() {
   useEffect(() => {
     const nextHash = hashForScreen(appState.screen);
     if (!nextHash || window.location.hash === nextHash) return;
+    // A deep link such as #/tools/tuner already names this screen; leave it
+    // rather than stacking a plain #/tools entry on top of it.
+    if (screenFromHash(window.location.hash) === appState.screen) return;
 
     // A non-addressable screen must not add a history entry of its own:
     // otherwise Back from a finished round steps through the round itself.
@@ -877,6 +897,12 @@ function App() {
 
   useEffect(() => {
     const handlePopState = (event: Event) => {
+      const link = deepLinkFromHash(window.location.hash);
+      if (link?.kind === 'start') {
+        startPresetRef.current(link.preset);
+        return;
+      }
+      if (link?.kind === 'tool') setToolsInitialTool(link.tool);
       const screen = screenFromHash(window.location.hash) ?? 'home';
       // Safari's own edge-swipe Back already animated the page; a second
       // slide on top of it reads as a stutter.

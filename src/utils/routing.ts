@@ -71,9 +71,54 @@ export function slugForScreen(screen: string): string | null {
  * hand-edited URL degrades to the app's normal landing screen.
  */
 export function screenFromHash(hash: string): RoutableScreen | null {
-  const slug = hash.trim().replace(/^#\/?/, '').replace(/\/+$/, '').trim().toLowerCase();
+  const [slug] = hashSegments(hash);
   if (!slug) return null;
   return SLUG_TO_SCREEN[slug] ?? null;
+}
+
+function hashSegments(hash: string): string[] {
+  const path = hash.trim().replace(/^#\/?/, '').replace(/\/+$/, '').trim().toLowerCase();
+  return path ? path.split('/') : [];
+}
+
+/*
+ * Deep links that do something rather than just show a screen, for Siri
+ * Shortcuts ("Open URL") and Home Screen bookmarks:
+ *
+ *   #/tools/tuner        open Tools on the tuner
+ *   #/tools/metronome    open Tools on the metronome
+ *   #/tools/sing-back    open Tools on sing-back
+ *   #/start/quick        start a practice preset straight away
+ *                        (quick, standard, deep, random)
+ *
+ * In the native port these become App Intents with the same names, so a
+ * Shortcut built against the web app keeps its meaning.
+ */
+export const TOOL_SLUGS = {
+  tuner: 'tuner',
+  metronome: 'metronome',
+  'sing-back': 'singback',
+} as const;
+
+export type DeepLinkTool = (typeof TOOL_SLUGS)[keyof typeof TOOL_SLUGS];
+
+export const PRESET_SLUGS = ['quick', 'standard', 'deep', 'random'] as const;
+export type DeepLinkPreset = (typeof PRESET_SLUGS)[number];
+
+export type DeepLink =
+  | { kind: 'tool'; tool: DeepLinkTool }
+  | { kind: 'start'; preset: DeepLinkPreset };
+
+/** An action link in the hash, or null for a plain screen link or nothing. */
+export function deepLinkFromHash(hash: string): DeepLink | null {
+  const [first, second] = hashSegments(hash);
+  if (first === 'tools' && second && second in TOOL_SLUGS) {
+    return { kind: 'tool', tool: TOOL_SLUGS[second as keyof typeof TOOL_SLUGS] };
+  }
+  if (first === 'start' && second && (PRESET_SLUGS as readonly string[]).includes(second)) {
+    return { kind: 'start', preset: second as DeepLinkPreset };
+  }
+  return null;
 }
 
 export function hashForScreen(screen: string): string | null {

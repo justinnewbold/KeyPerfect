@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { screenFromHash, hashForScreen, slugForScreen, isRoutable, ROUTABLE_SCREENS } from './routing';
+import { screenFromHash, hashForScreen, slugForScreen, isRoutable, ROUTABLE_SCREENS, deepLinkFromHash } from './routing';
 
 describe('routing', () => {
   it('round-trips every routable screen', () => {
@@ -46,4 +46,20 @@ describe('routing', () => {
     const slugs = Object.values(ROUTABLE_SCREENS);
     expect(new Set(slugs).size).toBe(slugs.length);
   });
+
+  it('reads action deep links and keeps the screen for tool links', () => {
+    expect(deepLinkFromHash('#/tools/tuner')).toEqual({ kind: 'tool', tool: 'tuner' });
+    expect(deepLinkFromHash('#/tools/sing-back')).toEqual({ kind: 'tool', tool: 'singback' });
+    expect(deepLinkFromHash('#/start/quick')).toEqual({ kind: 'start', preset: 'quick' });
+    expect(screenFromHash('#/tools/tuner')).toBe('tools');
+  });
+
+  it('ignores unknown or partial action links', () => {
+    expect(deepLinkFromHash('#/tools')).toBeNull();
+    expect(deepLinkFromHash('#/tools/kazoo')).toBeNull();
+    expect(deepLinkFromHash('#/start')).toBeNull();
+    expect(deepLinkFromHash('#/start/forever')).toBeNull();
+    expect(screenFromHash('#/start/quick')).toBeNull();
+  });
 });
+

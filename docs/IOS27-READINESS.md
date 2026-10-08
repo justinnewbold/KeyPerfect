@@ -221,7 +221,33 @@ These need the Swift SDK or Expo modules and cannot be done in the browser.
    handles these; the `/mobile` stub on Expo 51 should be recreated rather
    than upgraded.
 
-## 6. Suggested order
+## 6. Status (October 2026)
+
+Shipped on the web in four PRs (#46, #47, #48 and the "finish the web plan"
+PR):
+
+- Tier 1: all ten items. Item 6 shipped as automatic Dynamic Type rather
+  than an in-app picker; item 8 styles the one `<select>` in the app.
+- Tier 2 item 2 (badge), 4 (deep links, with a Siri & Shortcuts card in
+  Settings), 5 (share card image), 6 (content labels on results and tool
+  tabs).
+- Tier 2 item 3 (session chip): already covered. The game screen's sticky
+  header shows progress, streak, lives and time throughout a round; a second
+  chip would duplicate it. It becomes a Live Activity in the native port.
+- Extra: emoji replaced by symbols, collapsing large titles, push/pop View
+  Transitions, and the installed app's top safe area.
+
+Not done, and why:
+
+- Tier 2 item 1, Declarative Web Push reminders: needs a backend to store
+  push subscriptions and send on a schedule (a Supabase project with an Edge
+  Function and VAPID keys). The Settings toggle still only saves a
+  preference.
+- Tier 2 item 7, 3D instrument with `<model>`: needs licensed `.usdz`
+  models; nothing in the repo to show.
+- Tier 3: native-only by definition; starts with the Expo port.
+
+## 7. Suggested order
 
 1. Tier 1 items 1 to 5 in one PR (icons, glass, floating nav, haptics, system
    theme). This is the visible "looks like iOS 27" change.

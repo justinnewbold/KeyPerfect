@@ -61,4 +61,20 @@ test.describe('Deep links and refresh', () => {
     await expect(page.getByRole('button', { name: 'Exit session' })).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'Select Level' })).toBeVisible();
   });
+
+  test('a tool deep link opens Tools on that tool', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('keyperfect_tutorial_completed', 'true'));
+    await page.goto('/#/tools/tuner');
+    await expect(page.getByRole('heading', { name: 'Music Tools' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Tuner', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    // The link names this screen already; no extra #/tools entry on top.
+    await expect(page).toHaveURL(/#\/tools\/tuner$/);
+  });
+
+  test('a start link begins a practice session straight away', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('keyperfect_tutorial_completed', 'true'));
+    await page.goto('/#/start/quick');
+    await expect(page.getByRole('button', { name: 'Exit session' })).toBeVisible();
+  });
 });
+
